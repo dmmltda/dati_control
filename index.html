@@ -59,6 +59,9 @@
                 <a class="nav-item" data-view="company-list">
                     <i class="ph ph-users-three"></i> Empresas
                 </a>
+                <a class="nav-item" data-view="log">
+                    <i class="ph ph-clipboard-text"></i> LOG
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -144,6 +147,95 @@
                                 <!-- Rows injected via JS -->
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOG View -->
+            <div id="view-log" class="view-section" style="display: none;">
+                <div class="top-bar">
+                    <div>
+                        <h1>LOG</h1>
+                        <p>Registro de testes, eventos e histórico de execuções do sistema.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="document.getElementById('btn-run-tests-info').style.display='block'">
+                        <i class="ph ph-play"></i> Rodar Testes (npm test)
+                    </button>
+                </div>
+
+                <!-- Info sobre como rodar testes -->
+                <div id="btn-run-tests-info" class="glass-panel" style="display:none; margin-bottom:1.5rem; border-left: 3px solid var(--accent);">
+                    <div style="display:flex; align-items:flex-start; gap:1rem;">
+                        <i class="ph ph-terminal" style="font-size:1.5rem; color:var(--accent); flex-shrink:0;"></i>
+                        <div>
+                            <div style="font-weight:600; margin-bottom:0.5rem;">Como executar os testes:</div>
+                            <code style="display:block; background:rgba(0,0,0,0.3); padding:0.75rem 1rem; border-radius:8px; font-size:0.85rem; color:#e2e8f0;">
+                                npm test &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; → Testes unitários (56 testes)<br>
+                                npm run test:e2e &nbsp;&nbsp; → Testes E2E / Funcionais (Playwright)<br>
+                                npm run test:all &nbsp;&nbsp; → Todos os testes juntos
+                            </code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub-tabs -->
+                <div class="tab-menu" style="margin-bottom: 1.5rem;">
+                    <button class="cs-submenu-btn active" onclick="switchCSSubTab('log-testes', this)">
+                        <i class="ph ph-test-tube"></i> Log Testes
+                    </button>
+                    <button class="cs-submenu-btn" onclick="switchCSSubTab('log-geral', this)">
+                        <i class="ph ph-list-bullets"></i> Log Geral
+                    </button>
+                </div>
+
+                <!-- Log Testes -->
+                <div id="log-testes" class="cs-sub-content active">
+                    <div class="glass-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                            <div>
+                                <h3 style="margin:0;">Registro de Testes</h3>
+                                <p style="margin:0; color:var(--text-muted); font-size:0.85rem;">Última execução: 07/03/2026 — <span style="color:#10b981; font-weight:600;">56/56 testes passando ✓</span></p>
+                            </div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                                <span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.8rem;">
+                                    <i class="ph ph-check-circle"></i> 56 Passou
+                                </span>
+                                <span class="badge" style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); font-size:0.8rem;">
+                                    <i class="ph ph-x-circle"></i> 0 Falhou
+                                </span>
+                                <span class="badge" style="background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.2); font-size:0.8rem;">
+                                    <i class="ph ph-clock"></i> ~1.1s
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="company-table-container">
+                            <table class="company-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Módulo</th>
+                                        <th>O que foi testado</th>
+                                        <th>Data</th>
+                                        <th>Resultado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log-testes-body">
+                                    <!-- Preenchido via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Geral -->
+                <div id="log-geral" class="cs-sub-content">
+                    <div class="glass-panel">
+                        <div style="text-align:center; padding:3rem; color:var(--text-muted);">
+                            <i class="ph ph-archive" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
+                            <h3>Log Geral</h3>
+                            <p style="font-size:0.85rem;">Eventos do sistema, logins e alterações serão registrados aqui em versões futuras.</p>
+                        </div>
                     </div>
                 </div>
             </div>

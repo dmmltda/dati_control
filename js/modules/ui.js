@@ -366,3 +366,128 @@ export function renderReunioesTable() {
         tableBody.appendChild(tr);
     });
 }
+
+export function renderLogTestes() {
+    const body = document.getElementById('log-testes-body');
+    if (!body) return;
+
+    const dataExecucao = '07/03/2026';
+    const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); white-space:nowrap;"><i class="ph ph-check-circle"></i> Passou</span>`;
+    const E2E = `<span class="badge" style="background:rgba(139,92,246,0.15); color:#a78bfa; border:1px solid rgba(139,92,246,0.3);">E2E</span>`;
+    const UNIT = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
+
+    const testes = [
+        // ── config.js ──
+        [UNIT, 'config.js', 'DB_KEY deve estar definido e ser uma string', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'STATUS_CONFIG contém todos os 8 status esperados', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'Cada status tem icon, class e color', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'Classes CSS de status seguem o padrão "status-*"', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES é um array de 3 itens', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES inclui apenas os 3 status de cliente', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES NÃO inclui status de pré-venda', dataExecucao, PASSOU],
+        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES tem exatamente 3 itens', dataExecucao, PASSOU],
+        // ── state.js ──
+        [UNIT, 'state.js', 'state.companies é array', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'currentEditingId é null por padrão', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'Arrays temp vazios na inicialização', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'editingContatoIndex é -1 por padrão', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'editingProdutoIndex é -1 por padrão', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'resetTempState() limpa todos os arrays temporários', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'resetTempState() reseta índices de edição para -1', dataExecucao, PASSOU],
+        [UNIT, 'state.js', 'resetTempState() reseta currentEditingId para null', dataExecucao, PASSOU],
+        // ── utils.js ──
+        [UNIT, 'utils.js', 'maskCurrency: 100 → "1,00"', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'maskCurrency: 150000 → "1.500,00"', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'maskCurrency: 10000000 → "100.000,00"', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'maskCurrency: remove caracteres não numéricos', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'maskCurrency: string vazia → "0,00"', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'getBase64: retorna null para arquivo undefined', dataExecucao, PASSOU],
+        [UNIT, 'utils.js', 'getBase64: rejeita arquivos maiores que 2MB', dataExecucao, PASSOU],
+        // ── auth.js ──
+        [UNIT, 'auth.js', 'Login com credenciais corretas: define sessionStorage', dataExecucao, PASSOU],
+        [UNIT, 'auth.js', 'Login com senha errada: exibe erro, NÃO autentica', dataExecucao, PASSOU],
+        [UNIT, 'auth.js', 'Login com usuário errado: NÃO autentica', dataExecucao, PASSOU],
+        [UNIT, 'auth.js', 'Logout: remove chave de autenticação do sessionStorage', dataExecucao, PASSOU],
+        [UNIT, 'auth.js', 'Logout: limpa campos de login', dataExecucao, PASSOU],
+        // ── navigation.js ──
+        [UNIT, 'navigation.js', 'switchView: exibe a view correta e oculta as outras', dataExecucao, PASSOU],
+        [UNIT, 'navigation.js', 'switchView: marca o nav-item como active', dataExecucao, PASSOU],
+        [UNIT, 'navigation.js', 'switchView: retorna ao Dashboard corretamente', dataExecucao, PASSOU],
+        [UNIT, 'navigation.js', 'switchFormTab: ativa a aba correta', dataExecucao, PASSOU],
+        [UNIT, 'navigation.js', 'switchFormTab: funciona sem passar botão (fallback)', dataExecucao, PASSOU],
+        [UNIT, 'navigation.js', 'switchCSSubTab: ativa o sub-conteúdo CS correto', dataExecucao, PASSOU],
+        // ── handlers.js ──
+        [UNIT, 'handlers.js', 'saveNewContato: adiciona contato com nome preenchido', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveNewContato: NÃO adiciona se nome vazio', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveNewContato: limpa campos após salvar', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveTempDashboard: adiciona com todos os campos', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveTempDashboard: NÃO salva sem campos obrigatórios', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveTempNPS: adiciona registro NPS com score', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'saveTempNPS: NÃO salva sem score', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'addCSNote: adiciona nota ao tempNotes', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'addCSNote: NÃO adiciona nota em branco', dataExecucao, PASSOU],
+        [UNIT, 'handlers.js', 'addCSNote: limpa campo após salvar', dataExecucao, PASSOU],
+        // ── ui.js ──
+        [UNIT, 'ui.js', 'renderDashboard: exibe card "Total de Empresas"', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderDashboard: conta empresas por status', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCompanyList: mensagem de vazio sem empresas', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCompanyList: uma linha por empresa', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCompanyList: filtra pelo campo de busca', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCompanyList: filtra pelo select de status', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'Health Score NÃO aparece para Prospect', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'Health Score APARECE para Cliente Ativo', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderContatosTable: mensagem de vazio sem contatos', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderContatosTable: renderiza uma linha por contato', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCSTimeline: mensagem de vazio sem notas', dataExecucao, PASSOU],
+        [UNIT, 'ui.js', 'renderCSTimeline: notas em ordem decrescente', dataExecucao, PASSOU],
+        // ── E2E: auth ──
+        [E2E, 'auth.spec', 'Tela de login visível ao carregar (sem autenticação)', dataExecucao, PASSOU],
+        [E2E, 'auth.spec', 'Login com admin/dati2024: app exibido', dataExecucao, PASSOU],
+        [E2E, 'auth.spec', 'Login com senha errada: erro exibido e app oculto', dataExecucao, PASSOU],
+        [E2E, 'auth.spec', 'Logout: retorna à tela de login e limpa campos', dataExecucao, PASSOU],
+        // ── E2E: companies ──
+        [E2E, 'companies.spec', 'Dashboard: exibe cards de stats', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Lista: navegação para view de empresas', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Lista: filtros de busca visíveis', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Formulário: abre com título "Nova Empresa"', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Formulário: todas as abas visíveis', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Formulário: navegação entre abas', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Criar empresa completa e salvar', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'NÃO salvar empresa sem nome', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Adicionar contato à empresa', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Aba CS NÃO aparece para Prospect', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Aba CS APARECE para Cliente Ativo', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Widgets HS e NPS visíveis para Cliente Ativo', dataExecucao, PASSOU],
+        [E2E, 'companies.spec', 'Widgets HS e NPS ocultos para Lead', dataExecucao, PASSOU],
+        // ── E2E: CS Hub ──
+        [E2E, 'cs_hub.spec', 'CS Hub: adicionar dashboard com campos obrigatórios', dataExecucao, PASSOU],
+        [E2E, 'cs_hub.spec', 'CS Hub: NÃO salvar dashboard sem campos obrigatórios', dataExecucao, PASSOU],
+        [E2E, 'cs_hub.spec', 'CS Hub: adicionar registro NPS com score', dataExecucao, PASSOU],
+        [E2E, 'cs_hub.spec', 'CS Hub: registrar chamado de suporte', dataExecucao, PASSOU],
+        [E2E, 'cs_hub.spec', 'CS Hub: adicionar nota ao diário de observações', dataExecucao, PASSOU],
+        [E2E, 'cs_hub.spec', 'CS Hub: NÃO adicionar nota em branco', dataExecucao, PASSOU],
+        // ── E2E: crud_advanced ──
+        [E2E, 'crud_advanced.spec', 'Editar nome e status de empresa existente', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Editar empresa: preservar contatos existentes', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Excluir empresa da lista', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Qualificação: preencher e salvar campos', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Qualificação: Comex group visível apenas com "Sim"', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Reuniões: adicionar reunião com data e temperatura', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Reuniões: NÃO salvar sem data', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Busca: filtrar por nome', dataExecucao, PASSOU],
+        [E2E, 'crud_advanced.spec', 'Busca: filtrar por status', dataExecucao, PASSOU],
+    ];
+
+    body.innerHTML = '';
+    testes.forEach(([tipo, modulo, descricao, data, resultado]) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="white-space:nowrap;">${tipo}</td>
+            <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted);">${modulo}</td>
+            <td style="font-size:0.85rem;">${descricao}</td>
+            <td style="white-space:nowrap; color:var(--text-muted); font-size:0.85rem;">${data}</td>
+            <td>${resultado}</td>
+        `;
+        body.appendChild(tr);
+    });
+}

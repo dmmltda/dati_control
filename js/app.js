@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.closest('.nav-item')) {
             const view = target.closest('.nav-item').getAttribute('data-view');
             nav.switchView(view);
+            if (view === 'log') ui.renderLogTestes();
         }
 
         // New Company Buttons
