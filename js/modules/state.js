@@ -22,6 +22,7 @@ export let state = {
 
 // Helper to reset temp state
 export function resetTempState() {
+    state.currentEditingId = null;
     state.tempContatos = [];
     state.editingContatoIndex = -1;
     state.tempProdutos = [];
