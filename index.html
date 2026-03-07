@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATI Control - CRM</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Modular CSS -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/views.css">
+</head>
+<body>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen flex-active">
+        <form id="login-form" class="glass-panel login-card">
+            <div class="logo">DATI Control</div>
+            <p>CRM Inteligente e Simplificado</p>
+            
+            <div style="text-align: left; margin-top: 2rem;">
+                <div class="input-group">
+                    <label for="username">Usuário</label>
+                    <input type="text" id="username" class="input-control" placeholder="admin" autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" class="input-control" placeholder="dati2024" autocomplete="current-password">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">
+                Entrar <i class="ph ph-arrow-right"></i>
+            </button>
+            <div id="login-error">Credenciais inválidas. Tente admin / dati2024.</div>
+        </form>
+    </div>
+
+    <!-- Main App Layout -->
+    <div id="app-layout" class="screen">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <i class="ph ph-buildings"></i> DATI Control
+            </div>
+            
+            <nav>
+                <a class="nav-item active" data-view="dashboard">
+                    <i class="ph ph-squares-four"></i> Dashboard
+                </a>
+                <a class="nav-item" data-view="company-list">
+                    <i class="ph ph-users-three"></i> Empresas
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="avatar">A</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.9rem;">Administrador</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Master</div>
+                    </div>
+                </div>
+                <button id="btn-logout" class="btn btn-secondary" style="width: 100%;">
+                    <i class="ph ph-sign-out"></i> Sair
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="view-section">
+                <div class="top-bar">
+                    <div>
+                        <h1>Dashboard</h1>
+                        <p>Bem-vindo ao DATI Control! Aqui está o resumo das suas contas.</p>
+                    </div>
+                    <button class="btn btn-primary btn-new-company">
+                        <i class="ph ph-plus"></i> Nova Empresa
+                    </button>
+                </div>
+
+                <div class="grid-4" id="dashboard-stats">
+                    <!-- Stats injected via JS -->
+                </div>
+            </div>
+
+            <!-- Company List View -->
+            <div id="view-company-list" class="view-section" style="display: none;">
+                <div class="top-bar">
+                    <div>
+                        <h1>Empresas</h1>
+                        <p>Gerencie todas as empresas cadastradas no sistema.</p>
+                    </div>
+                    <button class="btn btn-primary btn-new-company">
+                        <i class="ph ph-plus"></i> Nova Empresa
+                    </button>
+                </div>
+
+                <div class="glass-panel" style="margin-bottom: 2rem;">
+                    <div class="filters">
+                        <div class="input-group">
+                            <label>Buscar por nome</label>
+                            <input type="text" id="search-empresa" class="input-control" placeholder="Ex: Acme Corp...">
+                        </div>
+                        <div class="input-group">
+                            <label>Filtrar por Status</label>
+                            <select id="filter-status" class="input-control">
+                                <option value="">Todos os status</option>
+                                <option value="Prospect">Prospect</option>
+                                <option value="Lead">Lead</option>
+                                <option value="Reunião">Reunião</option>
+                                <option value="Proposta | Andamento">Proposta | Andamento</option>
+                                <option value="Proposta | Recusada">Proposta | Recusada</option>
+                                <option value="Cliente Ativo">Cliente Ativo</option>
+                                <option value="Cliente Suspenso">Cliente Suspenso</option>
+                                <option value="Cliente Inativo">Cliente Inativo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="company-table-container">
+                        <table class="company-table">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>Segmento / Canal</th>
+                                    <th>Localização</th>
+                                    <th>Status / Saúde</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="company-table-body">
+                                <!-- Rows injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company Form View -->
+            <div id="view-company-form" class="view-section" style="display: none;">
+                <div class="top-bar" style="align-items: center; justify-content: space-between;">
+                    <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <h1 id="form-title" style="font-size: 1.5rem; margin-bottom: 0;">Nova Empresa</h1>
+                            <select id="emp-status" class="status-select" required style="font-size: 0.85rem; padding: 0.4rem 0.8rem; height: auto;">
+                                <option value="Prospect">Prospect</option>
+                                <option value="Lead">Lead</option>
+                                <option value="Reunião">Reunião</option>
+                                <option value="Proposta | Andamento">Proposta | Andamento</option>
+                                <option value="Proposta | Recusada">Proposta | Recusada</option>
+                                <option value="Cliente Ativo">Cliente Ativo</option>
+                                <option value="Cliente Suspenso">Cliente Suspenso</option>
+                                <option value="Cliente Inativo">Cliente Inativo</option>
+                            </select>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">Toda jornada do cliente colocada em um só local</p>
+                    </div>
+                    <div style="display: flex; gap: 0.8rem; align-items: center;">
+                        <div id="cs-header-metrics" style="display: none; gap: 0.8rem; align-items: center;">
+                            <div class="glass-panel" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
+                                <i class="ph ph-heartbeat" style="color: #10b981;"></i>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">HEALTH:</span>
+                                <select id="emp-health-score" class="input-control" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
+                                    <option value="">Definir...</option>
+                                    <option value="Saudável">🟢 Saudável</option>
+                                    <option value="Atenção">🟡 Atenção</option>
+                                    <option value="Risco">🔴 Risco</option>
+                                </select>
+                            </div>
+                            <div class="glass-panel" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
+                                <i class="ph ph-star" style="color: #f59e0b;"></i>
+                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">NPS:</span>
+                                <select id="emp-nps" class="input-control" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
+                                    <option value="">--</option>
+                                    <template id="nps-options">
+                                        <!-- Will be manually populated or defined -->
+                                    </template>
+                                    <option value="10">10</option>
+                                    <option value="9">9</option>
+                                    <option value="8">8</option>
+                                    <option value="7">7</option>
+                                    <option value="6">6</option>
+                                    <option value="5">5</option>
+                                    <option value="4">4</option>
+                                    <option value="3">3</option>
+                                    <option value="2">2</option>
+                                    <option value="1">1</option>
+                                    <option value="0">0</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-back-list">
+                            <i class="ph ph-arrow-left"></i> Voltar
+                        </button>
+                    </div>
+                </div>
+
+                <form id="company-form">
+                    <input type="hidden" id="company-id">
+                    
+                    <div class="company-view-layout">
+                        <!-- Left Menu -->
+                        <aside class="tab-menu glass-panel" style="padding: 1rem;">
+                            <button type="button" class="tab-menu-btn active" data-tab="tab-dados">
+                                <i class="ph ph-buildings"></i> Dados Básicos
+                            </button>
+                            <button type="button" class="tab-menu-btn" data-tab="tab-produtos">
+                                <i class="ph ph-package"></i> Produtos Contratados
+                            </button>
+                            <button type="button" class="tab-menu-btn" data-tab="tab-contatos">
+                                <i class="ph ph-users"></i> Contatos
+                            </button>
+                            <button type="button" class="tab-menu-btn" id="btn-tab-cs" data-tab="tab-cs" style="display: none;">
+                                <i class="ph ph-heartbeat"></i> Customer Success
+                            </button>
+                            <button type="button" class="tab-menu-btn" data-tab="tab-reunioes">
+                                <i class="ph ph-calendar-check"></i> Reuniões
+                            </button>
+                            <button type="button" class="tab-menu-btn" data-tab="tab-qualificacao">
+                                <i class="ph ph-identification-card"></i> Qualificação
+                            </button>
+                        </aside>
+
+                        <!-- Content Area -->
+                        <div class="tab-content-area">
+                            
+                            <!-- Tab: Dados -->
+                            <div id="tab-dados" class="tab-content active glass-panel form-section" style="margin-top: 0;">
+                                <h2>Dados Básicos</h2>
+                                <div class="grid-2">
+                                    <div class="input-group">
+                                        <label>Nome da Empresa *</label>
+                                        <input type="text" id="emp-nome" class="input-control" required style="grid-column: span 2;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Tipo de Empresa</label>
+                                        <select id="emp-tipo" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="Agente de Carga">Agente de Carga</option>
+                                            <option value="Agente e Despachante">Agente e Despachante</option>
+                                            <option value="Armazém Alfandegado">Armazém Alfandegado</option>
+                                            <option value="Despachante Aduaneiro">Despachante Aduaneiro</option>
+                                            <option value="Despachante e Agente">Despachante e Agente</option>
+                                            <option value="Exportador">Exportador</option>
+                                            <option value="Importador">Importador</option>
+                                            <option value="Importador | Exportador">Importador | Exportador</option>
+                                            <option value="Trading">Trading</option>
+                                            <option value="Transportadora Rodoviária">Transportadora Rodoviária</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group" style="grid-column: span 2;">
+                                        <label>Site</label>
+                                        <input type="url" id="emp-site" class="input-control" placeholder="https://...">
+                                    </div>
+                                </div>
+                                <div class="grid-4">
+                                    <div class="input-group">
+                                        <label>Estado</label>
+                                        <select id="emp-estado" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
+                                            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
+                                            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                                            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
+                                            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
+                                            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
+                                            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
+                                            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
+                                            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Cidade</label>
+                                        <input type="text" id="emp-cidade" class="input-control" list="cidades-list" placeholder="Aguardando estado..." disabled>
+                                        <datalist id="cidades-list"></datalist>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Canal</label>
+                                        <select id="emp-canal" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="Comex UP">Comex UP</option>
+                                            <option value="Feiras">Feiras</option>
+                                            <option value="Google ADS">Google ADS</option>
+                                            <option value="Mailing > Asia">Mailing > Asia</option>
+                                            <option value="Site">Site</option>
+                                            <option value="SDR DATI">SDR DATI</option>
+                                            <option value="Vendedor DATI">Vendedor DATI</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Segmento</label>
+                                        <select id="emp-segmento" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="Agronegócio">Agronegócio</option>
+                                            <option value="Logística">Logística</option>
+                                            <option value="Maquinário">Maquinário</option>
+                                            <option value="Químico">Químico</option>
+                                            <option value="Têxtil">Têxtil</option>
+                                            <option value="Trading">Trading</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab: Produtos -->
+                            <div id="tab-produtos" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="form-header">
+                                    <h2>Produtos Contratados</h2>
+                                    <button type="button" id="btn-toggle-produto-form" class="btn btn-secondary">
+                                        <i class="ph ph-plus"></i> Novo Produto
+                                    </button>
+                                </div>
+                                <div id="produto-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                    <h3>Adicionar Produto</h3>
+                                    <div class="grid-4">
+                                        <div class="input-group">
+                                            <label>Produto *</label>
+                                            <select id="new-prod-nome" class="input-control">
+                                                <option value="">Selecione...</option>
+                                                <option value="DATI Import">DATI Import</option>
+                                                <option value="DATI Export">DATI Export</option>
+                                                <option value="Smart Read">Smart Read</option>
+                                                <option value="Orkestra">Orkestra</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Data</label>
+                                            <input type="date" id="new-prod-data" class="input-control">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Proposta</label>
+                                            <input type="file" id="new-prod-proposta" class="input-control">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Contrato</label>
+                                            <input type="file" id="new-prod-contrato" class="input-control">
+                                        </div>
+                                    </div>
+                                    <div class="grid-4">
+                                        <div class="input-group">
+                                            <label>Mensalidade (R$)</label>
+                                            <input type="text" id="new-prod-mensalidade" class="input-control" placeholder="0,00">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Mínimo (R$)</label>
+                                            <input type="text" id="new-prod-minimo" class="input-control" placeholder="0,00">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Valor User (R$)</label>
+                                            <input type="text" id="new-prod-val-user" class="input-control" placeholder="0,00">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Horas HD</label>
+                                            <input type="number" id="new-prod-horas-hd" class="input-control" value="0">
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                        <button type="button" class="btn btn-secondary btn-cancel-produto">Cancelar</button>
+                                        <button type="button" class="btn btn-primary btn-save-produto">Adicionar Produto</button>
+                                    </div>
+                                </div>
+                                <table class="company-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Valor</th>
+                                            <th>Horas</th>
+                                            <th>Arquivos</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="produtos-table-body"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Tab: Contatos -->
+                            <div id="tab-contatos" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="form-header">
+                                    <h2>Contatos</h2>
+                                    <button type="button" id="btn-toggle-contact-form" class="btn btn-secondary">
+                                        <i class="ph ph-plus"></i> Novo Contato
+                                    </button>
+                                </div>
+                                <div id="contact-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                    <div class="grid-3">
+                                        <input type="text" id="new-cont-nome" class="input-control" placeholder="Nome *">
+                                        <input type="email" id="new-cont-email1" class="input-control" placeholder="E-mail principal">
+                                        <input type="tel" id="new-cont-tel" class="input-control" placeholder="Telefone">
+                                    </div>
+                                    <div class="grid-3" style="margin-top: 1rem;">
+                                        <input type="text" id="new-cont-cargo" class="input-control" placeholder="Cargo">
+                                        <input type="text" id="new-cont-dep" class="input-control" placeholder="Departamento">
+                                        <input type="text" id="new-cont-linkedin" class="input-control" placeholder="LinkedIn URL">
+                                    </div>
+                                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                        <button type="button" class="btn btn-secondary btn-cancel-contact">Cancelar</button>
+                                        <button type="button" class="btn btn-primary btn-save-contact">Salvar Contato</button>
+                                    </div>
+                                </div>
+                                <table class="company-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nome</th>
+                                            <th>E-mail</th>
+                                            <th>Cargo</th>
+                                            <th>Departamento</th>
+                                            <th>Telefone</th>
+                                            <th>Redes</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="contatos-table-body"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Tab: CS (Customer Success) -->
+                            <div id="tab-cs" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="cs-submenu">
+                                    <button type="button" class="cs-submenu-btn active" onclick="switchCSSubTab('cs-dash', this)">
+                                        <i class="ph ph-presentation-chart"></i> Dashboards
+                                    </button>
+                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-nps', this)">
+                                        <i class="ph ph-star"></i> NPS
+                                    </button>
+                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-meet', this)">
+                                        <i class="ph ph-users-three"></i> Reuniões
+                                    </button>
+                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-tk', this)">
+                                        <i class="ph ph-headset"></i> Chamados
+                                    </button>
+                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-hist', this)">
+                                        <i class="ph ph-clock-counter-clockwise"></i> Histórico/Notas
+                                    </button>
+                                </div>
+
+                                <div id="cs-dash" class="cs-sub-content active">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                        <h3>Histórico de Dashboards (Power BI)</h3>
+                                        <button type="button" id="btn-toggle-dashboard-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo</button>
+                                    </div>
+                                    <div id="dashboard-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                        <div class="grid-3">
+                                            <input type="date" id="new-db-data" class="input-control">
+                                            <input type="text" id="new-db-dest" class="input-control" placeholder="Destinatários">
+                                            <input type="url" id="new-db-link" class="input-control" placeholder="Link do Power BI">
+                                        </div>
+                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
+                                            <button type="button" id="btn-cancel-dashboard" class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-dashboard" class="btn btn-primary">Registrar</button>
+                                        </div>
+                                    </div>
+                                    <table class="company-table">
+                                        <thead><tr><th>Data</th><th>Destinatários</th><th>Link</th><th>Ações</th></tr></thead>
+                                        <tbody id="dashboards-table-body"></tbody>
+                                    </table>
+                                </div>
+
+                                <div id="cs-nps" class="cs-sub-content">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                        <h3>Pesquisas NPS</h3>
+                                        <button type="button" id="btn-toggle-nps-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo NPS</button>
+                                    </div>
+                                    <div id="nps-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                        <div class="grid-4">
+                                            <input type="date" id="new-nps-data" class="input-control">
+                                            <input type="text" id="new-nps-dest" class="input-control" placeholder="Destinatários">
+                                            <input type="text" id="new-nps-forms" class="input-control" placeholder="Formulários">
+                                            <input type="number" id="new-nps-score" class="input-control" placeholder="NPS Médio">
+                                        </div>
+                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
+                                            <button type="button" id="btn-cancel-nps" class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-nps" class="btn btn-primary">Salvar NPS</button>
+                                        </div>
+                                    </div>
+                                    <table class="company-table">
+                                        <thead><tr><th>Data</th><th>Destinatários</th><th>Forms</th><th>NPS Score</th><th>Ações</th></tr></thead>
+                                        <tbody id="nps-history-table-body"></tbody>
+                                    </table>
+                                </div>
+
+                                <div id="cs-meet" class="cs-sub-content">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                        <h3>Reuniões de Alinhamento</h3>
+                                        <button type="button" id="btn-toggle-cs-meet-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Nova Reunião</button>
+                                    </div>
+                                    <div id="cs-meet-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                        <div class="grid-2">
+                                            <div class="input-group"><label>Data</label><input type="date" id="new-cs-meet-data" class="input-control"></div>
+                                            <div class="input-group"><label>Participantes</label><input type="text" id="new-cs-meet-parts" class="input-control"></div>
+                                        </div>
+                                        <div class="input-group"><label>Link da Gravação</label><input type="url" id="new-cs-meet-link" class="input-control"></div>
+                                        <div class="input-group"><label>Observações</label><textarea id="new-cs-meet-obs" class="input-control" rows="2"></textarea></div>
+                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end;">
+                                            <button type="button" id="btn-cancel-cs-meet" class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-cs-meet" class="btn btn-primary">Registrar</button>
+                                        </div>
+                                    </div>
+                                    <table class="company-table">
+                                        <thead><tr><th>Data</th><th>Participantes</th><th>OBS</th><th>Link</th><th>Ações</th></tr></thead>
+                                        <tbody id="cs-meetings-table-body"></tbody>
+                                    </table>
+                                </div>
+
+                                <div id="cs-tk" class="cs-sub-content">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                        <h3>Chamados de Suporte</h3>
+                                        <button type="button" id="btn-toggle-ticket-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo Chamado</button>
+                                    </div>
+                                    <div id="ticket-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                        <div class="grid-3">
+                                            <input type="date" id="new-tk-data" class="input-control">
+                                            <input type="text" id="new-tk-autor" class="input-control" placeholder="Quem fez o chamado?">
+                                            <input type="text" id="new-tk-num" class="input-control" placeholder="Nº Chamado">
+                                        </div>
+                                        <div class="input-group" style="margin-top: 1rem;"><input type="url" id="new-tk-link" class="input-control" placeholder="Link portal"></div>
+                                        <div class="input-group"><textarea id="new-tk-resumo" class="input-control" placeholder="Resumo do chamado" rows="2"></textarea></div>
+                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end;">
+                                            <button type="button" id="btn-cancel-ticket" class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-ticket" class="btn btn-primary">Salvar</button>
+                                        </div>
+                                    </div>
+                                    <table class="company-table">
+                                        <thead><tr><th>Data</th><th>Nº</th><th>Resumo</th><th>Autor</th><th>Portal</th><th>Ações</th></tr></thead>
+                                        <tbody id="tickets-table-body"></tbody>
+                                    </table>
+                                </div>
+
+                                <div id="cs-hist" class="cs-sub-content">
+                                    <h3>Diário de Observações CS</h3>
+                                    <div style="margin: 1.5rem 0;">
+                                        <textarea id="new-cs-note" class="input-control" rows="3" placeholder="Escreva uma nova nota..."></textarea>
+                                        <button type="button" id="btn-add-cs-note" class="btn btn-primary" style="margin-top: 0.5rem; float: right;">Publicar Nota</button>
+                                        <div style="clear:both;"></div>
+                                    </div>
+                                    <div id="cs-timeline" class="timeline"></div>
+                                </div>
+                            </div>
+
+                            <!-- Tab: Reuniões (Geral/Venda) -->
+                            <div id="tab-reunioes" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="form-header">
+                                    <h2>Reuniões e Alinhamentos</h2>
+                                    <button type="button" id="btn-toggle-meeting-form" class="btn btn-secondary">
+                                        <i class="ph ph-plus"></i> Nova Reunião
+                                    </button>
+                                </div>
+                                <div id="meeting-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                    <div class="grid-3">
+                                        <div class="input-group"><label>Data</label><input type="date" id="new-meet-date" class="input-control"></div>
+                                        <div class="input-group">
+                                            <label>Temperatura</label>
+                                            <select id="new-meet-temp" class="input-control">
+                                                <option value="Warm">⛅ Warm</option>
+                                                <option value="Hot">🔥 Hot</option>
+                                                <option value="Cold">❄️ Cold</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group"><label>Participantes</label><input type="text" id="new-meet-parts" class="input-control"></div>
+                                    </div>
+                                    <div class="input-group"><label>Link da Gravação</label><input type="url" id="new-meet-link" class="input-control"></div>
+                                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                                        <button type="button" id="btn-cancel-meeting" class="btn btn-secondary">Cancelar</button>
+                                        <button type="button" id="btn-add-meeting-submit" class="btn btn-primary">Adicionar Reunião</button>
+                                    </div>
+                                </div>
+                                <table class="company-table">
+                                    <thead><tr><th>Data</th><th>Participantes</th><th style="text-align: center;">Temp</th><th>Link</th><th style="text-align: right;">Ações</th></tr></thead>
+                                    <tbody id="meetings-table-body"></tbody>
+                                </table>
+                            </div>
+
+                            <!-- Tab: Qualificação -->
+                            <div id="tab-qualificacao" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="form-header"><h2>Qualificação e Diagnóstico</h2></div>
+                                <div class="grid-2">
+                                    <div class="input-group">
+                                        <label>Já trabalha com Comex?</label>
+                                        <select id="qual-tem-comex" class="input-control"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                                    </div>
+                                    <div id="group-qual-comex" class="input-group" style="display: none;">
+                                        <label>Qual sistema/processo?</label>
+                                        <input type="text" id="qual-qual-comex" class="input-control">
+                                    </div>
+                                </div>
+                                <div class="grid-2">
+                                    <div class="input-group">
+                                        <label>Possui ERP?</label>
+                                        <select id="qual-tem-erp" class="input-control"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                                    </div>
+                                    <div id="group-qual-erp" class="input-group" style="display: none;">
+                                        <label>Qual ERP?</label>
+                                        <input type="text" id="qual-qual-erp" class="input-control">
+                                    </div>
+                                </div>
+                                <div class="input-group"><label>Principal Objetivo</label><textarea id="qual-objetivo" class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>Principais Dores/Gargalos</label><textarea id="qual-dores" class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>O que esperam da DATI?</label><textarea id="qual-expectativa" class="input-control" rows="2"></textarea></div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end; padding: 2rem; border-top: 1px solid var(--dark-border);">
+                        <button type="button" class="btn btn-secondary btn-back-list">Sair sem salvar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ph ph-floppy-disk"></i> Salvar Empresa
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- UI Logic Entry Point -->
+    <script type="module" src="js/app.js"></script>
+
+</body>
+</html>

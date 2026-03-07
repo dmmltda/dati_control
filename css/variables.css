@@ -1,0 +1,51 @@
+:root {
+    /* Colors */
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --secondary: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --dark: #0f172a;
+    --dark-surface: #1e293b;
+    --dark-border: #334155;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --glass-bg: rgba(30, 41, 59, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    
+    /* Spacing & Sizes */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 24px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Status Colors */
+.status-prospect { background: #e5e7eb; color: #1f2937; }
+.status-lead { background: #c1ddee; color: #1e3a5f; }
+.status-reuniao { background: #e9d5f5; color: #4a1d63; }
+.status-proposta-andamento { background: #9fb2d3; color: #1e293b; }
+.status-proposta-recusada { background: #fecaca; color: #7f1d1d; }
+.status-cliente-ativo { background: #d1eeb2; color: #14532d; }
+.status-cliente-suspenso { background: #cda36f; color: #451a03; }
+.status-cliente-inativo { background: #fdceb1; color: #7c2d12; }
+
+select.status-select {
+    appearance: none;
+    border: none;
+    border-radius: 9999px;
+    padding: 0.5rem 2.5rem 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+select.status-select:focus {
+    box-shadow: 0 0 0 3px rgba(255,255,255,0.2);
+}
