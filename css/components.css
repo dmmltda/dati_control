@@ -108,3 +108,268 @@ select.input-control { appearance: none; background-image: url("data:image/svg+x
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* Table Sorting & Filtering (Standard 10/10) */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.5rem !important;
+    transition: var(--transition);
+}
+.sortable-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--primary);
+}
+.sortable-header::after {
+    content: '\f107'; /* ph-caret-down placeholder */
+    font-family: "Phosphor";
+    position: absolute;
+    right: 0.5rem;
+    opacity: 0.2;
+    transition: var(--transition);
+}
+.sortable-header.sort-asc::after {
+    content: '\f108'; /* ph-caret-up */
+    opacity: 1;
+    color: var(--primary);
+}
+.sortable-header.sort-desc::after {
+    content: '\f107'; /* ph-caret-down */
+    opacity: 1;
+    color: var(--primary);
+}
+
+.filter-active {
+    border-bottom: 2px solid var(--primary) !important;
+}
+.filter-active i {
+    color: var(--primary);
+}
+
+/* Column Filter Popover */
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.btn-filter-column {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: var(--transition);
+    font-size: 0.9rem;
+}
+.btn-filter-column:hover, .btn-filter-column.active {
+    background: rgba(79, 70, 229, 0.2);
+    color: var(--primary);
+}
+
+.filter-popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    z-index: 1000;
+    min-width: 180px;
+    display: none;
+    margin-top: 0.5rem;
+}
+.filter-popover.show {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+.filter-search {
+    width: 100%;
+    background: var(--dark-bg);
+    border: 1px solid var(--dark-border);
+    color: var(--text-main);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+.filter-list {
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.filter-option {
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    transition: var(--transition);
+}
+.filter-option:hover {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-main);
+}
+.filter-option.selected {
+    background: rgba(79, 70, 229, 0.15);
+    color: var(--primary);
+    font-weight: 600;
+}
+/* Search Bar UX 10/10 */
+.search-container {
+    padding: 0.5rem 0;
+}
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 0.25rem 1rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+.search-wrapper:focus-within {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15), inset 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+.search-icon {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    margin-right: 0.75rem;
+    transition: var(--transition);
+}
+.search-wrapper:focus-within .search-icon {
+    color: var(--primary);
+}
+.search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    padding: 0.75rem 0;
+    font-size: 1rem;
+    outline: none;
+}
+.search-input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+}
+.btn-clear-search {
+    background: rgba(255, 255, 255, 0.05);
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: var(--transition);
+}
+.btn-clear-search:hover {
+    background: var(--danger);
+    color: white;
+    transform: scale(1.1);
+}
+
+/* Empty Results State */
+.empty-results {
+    padding: 4rem 2rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    animation: fadeIn 0.4s ease;
+}
+.empty-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+.empty-results h3 {
+    font-size: 1.5rem;
+    color: var(--text-main);
+    margin: 0;
+}
+.empty-results p {
+    color: var(--text-muted);
+    max-width: 400px;
+    margin: 0;
+}
+.empty-results strong {
+    color: var(--primary);
+}
+
+/* Pagination UX 10/10 */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--dark-border);
+    animation: fadeIn 0.3s ease;
+}
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.pagination-btn, .pagination-page {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.pagination-btn:hover:not(:disabled), .pagination-page:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-main);
+    border-color: var(--text-muted);
+}
+.pagination-page.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+.pagination-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+.pagination-dots {
+    color: var(--text-muted);
+    padding: 0 0.5rem;
+}
+.pagination-info {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}

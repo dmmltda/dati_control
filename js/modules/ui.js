@@ -1,6 +1,15 @@
 import { state } from './state.js';
-import { STATUS_CONFIG } from './config.js';
-import { CS_VISIBLE_STATUSES } from './config.js';
+import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
+import { TableManager } from './table-manager.js';
+
+let productsTableManager = null;
+let contactsTableManager = null;
+let logTableManager = null;
+let dashboardTableManager = null;
+let npsTableManager = null;
+let csMeetingTableManager = null;
+let meetingGeralTableManager = null;
+let companiesTableManager = null;
 
 export function renderDashboard() {
     const statsContainer = document.getElementById('dashboard-stats');
@@ -41,30 +50,52 @@ export function renderDashboard() {
 }
 
 export function renderCompanyList() {
-    const searchInput = document.getElementById('search-empresa');
-    const statusFilter = document.getElementById('filter-status');
     const tableBody = document.getElementById('company-table-body');
     if (!tableBody) return;
 
-    const searchTerm = searchInput?.value.toLowerCase() || '';
-    const filterTerm = statusFilter?.value || '';
+    if (!companiesTableManager) {
+        companiesTableManager = new TableManager(
+            state.companies,
+            [
+                { key: 'nome', type: 'string' },
+                { key: 'segmento', type: 'string' },
+                { key: 'cidade', type: 'string' },
+                { key: 'status', type: 'string' },
+                { key: 'updatedAt', type: 'number' }
+            ],
+            (data) => renderCompanyTableRows(data),
+            'view-company-list'
+        );
+        companiesTableManager.paginationContainerId = 'pagination-companies';
+        // Configura busca em múltiplas colunas (10/10 UX)
+        companiesTableManager.searchKeys = ['nome', 'segmento', 'canal', 'cidade', 'estado', 'status', 'cnpj', 'site'];
+        
+        // Default sort by updatedAt desc
+        companiesTableManager.sort = { key: 'updatedAt', direction: 'desc' };
+        companiesTableManager.apply();
+    } else {
+        companiesTableManager.setData(state.companies);
+    }
+}
 
-    const filtered = state.companies.filter(c => {
-        const matchName = c.nome.toLowerCase().includes(searchTerm);
-        const matchStatus = filterTerm === '' || c.status === filterTerm;
-        return matchName && matchStatus;
-    });
-
+function renderCompanyTableRows(data) {
+    const tableBody = document.getElementById('company-table-body');
+    if (!tableBody) return;
     tableBody.innerHTML = '';
 
-    if (filtered.length === 0) {
+    if (data.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="5">
-                    <div class="empty-state">
-                        <i class="ph ph-folder-open"></i>
-                        <h3>Nenhuma empresa encontrada</h3>
-                        <p>Tente ajustar os filtros ou cadastre uma nova empresa.</p>
+                    <div class="empty-results">
+                        <div class="empty-icon">
+                            <i class="ph ph-magnifying-glass"></i>
+                        </div>
+                        <h3>Nenhum resultado encontrado</h3>
+                        <p>Não encontramos nada para o termo "<strong>${companiesTableManager.globalSearch}</strong>".</p>
+                        <button class="btn btn-secondary btn-sm" onclick="ui.clearCompaniesFilters()" style="margin-top: 1rem">
+                            <i class="ph ph-x"></i> Limpar Filtros
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -72,7 +103,7 @@ export function renderCompanyList() {
         return;
     }
 
-    filtered.sort((a,b) => b.updatedAt - a.updatedAt).forEach(comp => {
+    data.forEach(comp => {
         const config = STATUS_CONFIG[comp.status] || STATUS_CONFIG['Prospect'];
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -104,10 +135,10 @@ export function renderCompanyList() {
             </td>
             <td>
                 <div class="actions">
-                    <button class="btn btn-secondary btn-icon btn-edit" data-id="${comp.id}" title="Editar">
+                    <button type="button" class="btn btn-secondary btn-icon btn-edit" data-id="${comp.id}" title="Editar">
                         <i class="ph ph-pencil-simple"></i>
                     </button>
-                    <button class="btn btn-danger btn-icon btn-delete" data-id="${comp.id}" title="Excluir">
+                    <button type="button" class="btn btn-danger btn-icon btn-delete" data-id="${comp.id}" title="Excluir">
                         <i class="ph ph-trash"></i>
                     </button>
                 </div>
@@ -120,14 +151,37 @@ export function renderCompanyList() {
 export function renderContatosTable() {
     const contatosTableBody = document.getElementById('contatos-table-body');
     if (!contatosTableBody) return;
-    contatosTableBody.innerHTML = '';
-    
-    if(state.tempContatos.length === 0) {
-        contatosTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum contato cadastrado.<br><span style="font-size: 0.8rem;">Clique no botão "+ Novo Contato" para adicionar.</span></td></tr>`;
+
+    if (!contactsTableManager) {
+        contactsTableManager = new TableManager(
+            state.tempContatos,
+            [
+                { key: 'nome', type: 'string' },
+                { key: 'cargo', type: 'string' },
+                { key: 'departamento', type: 'string' }
+            ],
+            (data) => renderContatosTableRows(data),
+            'tab-contatos'
+        );
+        contactsTableManager.paginationContainerId = 'pagination-contatos';
+        contactsTableManager.apply();
+    } else {
+        contactsTableManager.setData(state.tempContatos);
+    }
+}
+
+function renderContatosTableRows(data) {
+    const body = document.getElementById('contatos-table-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (data.length === 0) {
+        body.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum contato cadastrado.</td></tr>`;
         return;
     }
 
-    state.tempContatos.forEach((cont, index) => {
+    data.forEach(cont => {
+        const index = state.tempContatos.indexOf(cont);
         const tr = document.createElement('tr');
         if (state.editingContatoIndex === index) {
             tr.className = 'editing-row';
@@ -162,59 +216,140 @@ export function renderContatosTable() {
                 </td>
             `;
         }
-        contatosTableBody.appendChild(tr);
+        body.appendChild(tr);
     });
+
+    const clearBtn = document.getElementById('btn-clear-contatos-filters');
+    if (clearBtn && contactsTableManager) {
+        const hasFilters = Object.keys(contactsTableManager.filters).length > 0;
+        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    }
 }
 
 export function renderProdutosTable() {
     const produtosTableBody = document.getElementById('produtos-table-body');
     if (!produtosTableBody) return;
-    produtosTableBody.innerHTML = '';
-    
-    if(state.tempProdutos.length === 0) {
-        produtosTableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum produto cadastrado.</td></tr>`;
+
+    if (!productsTableManager) {
+        productsTableManager = new TableManager(
+            state.tempProdutos,
+            [
+                { key: 'nome', type: 'string' },
+                { key: 'mensalidade', type: 'number' },
+                { key: 'horasHd', type: 'number' }
+            ],
+            (data) => renderProdutosTableRows(data),
+            'tab-produtos'
+        );
+        productsTableManager.paginationContainerId = 'pagination-produtos';
+        productsTableManager.apply();
+    } else {
+        productsTableManager.setData(state.tempProdutos);
+    }
+}
+
+function renderProdutosTableRows(data) {
+    const body = document.getElementById('produtos-table-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (data.length === 0) {
+        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum produto encontrado.</td></tr>`;
         return;
     }
 
-    state.tempProdutos.forEach((prod, index) => {
+    data.forEach(prod => {
+        const index = state.tempProdutos.indexOf(prod);
         const tr = document.createElement('tr');
-        const propLink = prod.propostaData ? `<a href="${prod.propostaData}" download="${prod.propostaName}" class="badge" style="background: rgba(79,70,229,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Proposta</a>` : '';
-        const contLink = prod.contratoData ? `<a href="${prod.contratoData}" download="${prod.contratoName}" class="badge" style="background: rgba(16,185,129,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Contrato</a>` : '';
+        
+        if (state.editingProdutoIndex === index) {
+            tr.className = 'editing-row';
+            tr.innerHTML = `
+                <td colspan="4">
+                    <div class="grid-3" style="padding: 1rem;">
+                        <select id="edit-prod-nome-${index}" class="input-control">
+                            <option value="DATI Import" ${prod.nome === 'DATI Import' ? 'selected' : ''}>DATI Import</option>
+                            <option value="DATI Export" ${prod.nome === 'DATI Export' ? 'selected' : ''}>DATI Export</option>
+                            <option value="Smart Read" ${prod.nome === 'Smart Read' ? 'selected' : ''}>Smart Read</option>
+                            <option value="Orkestra" ${prod.nome === 'Orkestra' ? 'selected' : ''}>Orkestra</option>
+                        </select>
+                        <input type="date" id="edit-prod-data-${index}" class="input-control" value="${prod.dataContratacao || ''}">
+                        <input type="text" id="edit-prod-mensalidade-${index}" class="input-control" value="${prod.mensalidade || ''}" placeholder="Valor (R$)">
+                    </div>
+                </td>
+                <td style="text-align: right;">
+                    <div class="actions">
+                        <button type="button" class="btn btn-primary btn-icon btn-save-edit-produto" data-index="${index}"><i class="ph ph-check"></i></button>
+                        <button type="button" class="btn btn-secondary btn-icon btn-cancel-edit-produto"><i class="ph ph-x"></i></button>
+                    </div>
+                </td>
+            `;
+        } else {
+            const propLink = prod.propostaData ? `<a href="${prod.propostaData}" download="${prod.propostaName}" class="badge" style="background: rgba(79,70,229,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Proposta</a>` : '';
+            const contLink = prod.contratoData ? `<a href="${prod.contratoData}" download="${prod.contratoName}" class="badge" style="background: rgba(16,185,129,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Contrato</a>` : '';
 
-        tr.innerHTML = `
-            <td>
-                <div style="font-weight: 500;">${prod.nome}</div>
-                <div style="color: var(--text-muted); font-size: 0.8rem;">${prod.dataContratacao || 'S/ Data'}</div>
-            </td>
-            <td>R$ ${prod.mensalidade || '0,00'}</td>
-            <td>${prod.horasHd || '0'}h</td>
-            <td>
-                <div style="display: flex; gap: 0.3rem;">
-                    ${propLink} ${contLink}
-                </div>
-            </td>
-            <td style="text-align: right;">
-                <div class="actions" style="justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary btn-icon btn-edit-produto" data-index="${index}"><i class="ph ph-pencil-simple"></i></button>
-                    <button type="button" class="btn btn-danger btn-icon btn-remove-produto" data-index="${index}"><i class="ph ph-trash"></i></button>
-                </div>
-            </td>
-        `;
-        produtosTableBody.appendChild(tr);
+            tr.innerHTML = `
+                <td>
+                    <div style="font-weight: 500;">${prod.nome}</div>
+                    <div style="color: var(--text-muted); font-size: 0.8rem;">${prod.dataContratacao || 'S/ Data'}</div>
+                </td>
+                <td>R$ ${prod.mensalidade || '0,00'}</td>
+                <td>${prod.horasHd || '0'}h</td>
+                <td>
+                    <div style="display: flex; gap: 0.3rem;">
+                        ${propLink} ${contLink}
+                    </div>
+                </td>
+                <td style="text-align: right;">
+                    <div class="actions" style="justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary btn-icon btn-edit-produto" data-index="${index}"><i class="ph ph-pencil-simple"></i></button>
+                        <button type="button" class="btn btn-danger btn-icon btn-remove-produto" data-index="${index}"><i class="ph ph-trash"></i></button>
+                    </div>
+                </td>
+            `;
+        }
+        body.appendChild(tr);
     });
+
+    const clearBtn = document.getElementById('btn-clear-produtos-filters');
+    if (clearBtn && productsTableManager) {
+        const hasFilters = Object.keys(productsTableManager.filters).length > 0;
+        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    }
 }
 
 export function renderDashboardsTable() {
     const body = document.getElementById('dashboards-table-body');
     if(!body) return;
+
+    if (!dashboardTableManager) {
+        dashboardTableManager = new TableManager(
+            state.tempDashboards,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'destinatarios', type: 'string' }
+            ],
+            (data) => renderDashboardsTableRows(data),
+            'tab-dashboards'
+        );
+        dashboardTableManager.paginationContainerId = 'pagination-dashboards';
+        dashboardTableManager.apply();
+    } else {
+        dashboardTableManager.setData(state.tempDashboards);
+    }
+}
+
+function renderDashboardsTableRows(data) {
+    const body = document.getElementById('dashboards-table-body');
+    if(!body) return;
     body.innerHTML = '';
     
-    if(state.tempDashboards.length === 0) {
+    if(data.length === 0) {
         body.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum dashboard registrado.</td></tr>`;
         return;
     }
 
-    state.tempDashboards.sort((a,b) => b.data.localeCompare(a.data)).forEach((db, index) => {
+    data.forEach((db, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500;">${db.data}</td>
@@ -231,14 +366,36 @@ export function renderDashboardsTable() {
 export function renderNPSHistoryTable() {
     const body = document.getElementById('nps-history-table-body');
     if(!body) return;
+
+    if (!npsTableManager) {
+        npsTableManager = new TableManager(
+            state.tempNPSHistory,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'destinatarios', type: 'string' },
+                { key: 'score', type: 'number' }
+            ],
+            (data) => renderNPSHistoryTableRows(data),
+            'tab-nps'
+        );
+        npsTableManager.paginationContainerId = 'pagination-nps';
+        npsTableManager.apply();
+    } else {
+        npsTableManager.setData(state.tempNPSHistory);
+    }
+}
+
+function renderNPSHistoryTableRows(data) {
+    const body = document.getElementById('nps-history-table-body');
+    if(!body) return;
     body.innerHTML = '';
     
-    if(state.tempNPSHistory.length === 0) {
+    if(data.length === 0) {
         body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada.</td></tr>`;
         return;
     }
 
-    state.tempNPSHistory.sort((a,b) => b.data.localeCompare(a.data)).forEach((nps, index) => {
+    data.forEach((nps, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500;">${nps.data}</td>
@@ -256,14 +413,35 @@ export function renderNPSHistoryTable() {
 export function renderCSMeetingsTable() {
     const body = document.getElementById('cs-meetings-table-body');
     if(!body) return;
+
+    if (!csMeetingTableManager) {
+        csMeetingTableManager = new TableManager(
+            state.tempReunioesCS,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'participantes', type: 'string' }
+            ],
+            (data) => renderCSMeetingsTableRows(data),
+            'tab-cs-meetings'
+        );
+        csMeetingTableManager.paginationContainerId = 'pagination-cs-meetings';
+        csMeetingTableManager.apply();
+    } else {
+        csMeetingTableManager.setData(state.tempReunioesCS);
+    }
+}
+
+function renderCSMeetingsTableRows(data) {
+    const body = document.getElementById('cs-meetings-table-body');
+    if(!body) return;
     body.innerHTML = '';
     
-    if(state.tempReunioesCS.length === 0) {
+    if(data.length === 0) {
         body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma reunião de alinhamento registrada.</td></tr>`;
         return;
     }
 
-    state.tempReunioesCS.sort((a,b) => b.data.localeCompare(a.data)).forEach((meet, index) => {
+    data.forEach((meet, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500;">${meet.data}</td>
@@ -339,14 +517,36 @@ export function renderCSTimeline() {
 export function renderReunioesTable() {
     const tableBody = document.getElementById('meetings-table-body');
     if(!tableBody) return;
+
+    if (!meetingGeralTableManager) {
+        meetingGeralTableManager = new TableManager(
+            state.tempReunioes,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'participantes', type: 'string' },
+                { key: 'temperatura', type: 'string' }
+            ],
+            (data) => renderReunioesTableRows(data),
+            'tab-meetings-geral'
+        );
+        meetingGeralTableManager.paginationContainerId = 'pagination-meetings-geral';
+        meetingGeralTableManager.apply();
+    } else {
+        meetingGeralTableManager.setData(state.tempReunioes);
+    }
+}
+
+function renderReunioesTableRows(data) {
+    const tableBody = document.getElementById('meetings-table-body');
+    if(!tableBody) return;
     tableBody.innerHTML = '';
     
-    if(state.tempReunioes.length === 0) {
+    if(data.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma reunião registrada.</td></tr>`;
         return;
     }
 
-    state.tempReunioes.sort((a,b) => b.data.localeCompare(a.data)).forEach((meet, index) => {
+    data.forEach((meet, index) => {
         const tr = document.createElement('tr');
         let tempClass = 'badge-warm';
         if(meet.temperatura === 'Hot') tempClass = 'badge-hot';
@@ -372,122 +572,325 @@ export function renderLogTestes() {
     if (!body) return;
 
     const dataExecucao = '07/03/2026';
-    const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); white-space:nowrap;"><i class="ph ph-check-circle"></i> Passou</span>`;
-    const E2E = `<span class="badge" style="background:rgba(139,92,246,0.15); color:#a78bfa; border:1px solid rgba(139,92,246,0.3);">E2E</span>`;
-    const UNIT = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
+    const horaExecucao = '15:20';
+    const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); white-space:nowrap;"><i class="ph ph-check-circle"></i> Sucesso</span>`;
+    const E2E   = `<span class="badge" style="background:rgba(139,92,246,0.15); color:#a78bfa; border:1px solid rgba(139,92,246,0.3);">E2E</span>`;
+    const UNIT  = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
 
-    const testes = [
-        // ── config.js ──
-        [UNIT, 'config.js', 'DB_KEY deve estar definido e ser uma string', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'STATUS_CONFIG contém todos os 8 status esperados', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'Cada status tem icon, class e color', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'Classes CSS de status seguem o padrão "status-*"', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES é um array de 3 itens', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES inclui apenas os 3 status de cliente', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES NÃO inclui status de pré-venda', dataExecucao, PASSOU],
-        [UNIT, 'config.js', 'CS_VISIBLE_STATUSES tem exatamente 3 itens', dataExecucao, PASSOU],
-        // ── state.js ──
-        [UNIT, 'state.js', 'state.companies é array', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'currentEditingId é null por padrão', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'Arrays temp vazios na inicialização', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'editingContatoIndex é -1 por padrão', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'editingProdutoIndex é -1 por padrão', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'resetTempState() limpa todos os arrays temporários', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'resetTempState() reseta índices de edição para -1', dataExecucao, PASSOU],
-        [UNIT, 'state.js', 'resetTempState() reseta currentEditingId para null', dataExecucao, PASSOU],
-        // ── utils.js ──
-        [UNIT, 'utils.js', 'maskCurrency: 100 → "1,00"', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'maskCurrency: 150000 → "1.500,00"', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'maskCurrency: 10000000 → "100.000,00"', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'maskCurrency: remove caracteres não numéricos', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'maskCurrency: string vazia → "0,00"', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'getBase64: retorna null para arquivo undefined', dataExecucao, PASSOU],
-        [UNIT, 'utils.js', 'getBase64: rejeita arquivos maiores que 2MB', dataExecucao, PASSOU],
-        // ── auth.js ──
-        [UNIT, 'auth.js', 'Login com credenciais corretas: define sessionStorage', dataExecucao, PASSOU],
-        [UNIT, 'auth.js', 'Login com senha errada: exibe erro, NÃO autentica', dataExecucao, PASSOU],
-        [UNIT, 'auth.js', 'Login com usuário errado: NÃO autentica', dataExecucao, PASSOU],
-        [UNIT, 'auth.js', 'Logout: remove chave de autenticação do sessionStorage', dataExecucao, PASSOU],
-        [UNIT, 'auth.js', 'Logout: limpa campos de login', dataExecucao, PASSOU],
-        // ── navigation.js ──
-        [UNIT, 'navigation.js', 'switchView: exibe a view correta e oculta as outras', dataExecucao, PASSOU],
-        [UNIT, 'navigation.js', 'switchView: marca o nav-item como active', dataExecucao, PASSOU],
-        [UNIT, 'navigation.js', 'switchView: retorna ao Dashboard corretamente', dataExecucao, PASSOU],
-        [UNIT, 'navigation.js', 'switchFormTab: ativa a aba correta', dataExecucao, PASSOU],
-        [UNIT, 'navigation.js', 'switchFormTab: funciona sem passar botão (fallback)', dataExecucao, PASSOU],
-        [UNIT, 'navigation.js', 'switchCSSubTab: ativa o sub-conteúdo CS correto', dataExecucao, PASSOU],
-        // ── handlers.js ──
-        [UNIT, 'handlers.js', 'saveNewContato: adiciona contato com nome preenchido', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveNewContato: NÃO adiciona se nome vazio', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveNewContato: limpa campos após salvar', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveTempDashboard: adiciona com todos os campos', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveTempDashboard: NÃO salva sem campos obrigatórios', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveTempNPS: adiciona registro NPS com score', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'saveTempNPS: NÃO salva sem score', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'addCSNote: adiciona nota ao tempNotes', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'addCSNote: NÃO adiciona nota em branco', dataExecucao, PASSOU],
-        [UNIT, 'handlers.js', 'addCSNote: limpa campo após salvar', dataExecucao, PASSOU],
-        // ── ui.js ──
-        [UNIT, 'ui.js', 'renderDashboard: exibe card "Total de Empresas"', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderDashboard: conta empresas por status', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCompanyList: mensagem de vazio sem empresas', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCompanyList: uma linha por empresa', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCompanyList: filtra pelo campo de busca', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCompanyList: filtra pelo select de status', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'Health Score NÃO aparece para Prospect', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'Health Score APARECE para Cliente Ativo', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderContatosTable: mensagem de vazio sem contatos', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderContatosTable: renderiza uma linha por contato', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCSTimeline: mensagem de vazio sem notas', dataExecucao, PASSOU],
-        [UNIT, 'ui.js', 'renderCSTimeline: notas em ordem decrescente', dataExecucao, PASSOU],
-        // ── E2E: auth ──
-        [E2E, 'auth.spec', 'Tela de login visível ao carregar (sem autenticação)', dataExecucao, PASSOU],
-        [E2E, 'auth.spec', 'Login com admin/dati2024: app exibido', dataExecucao, PASSOU],
-        [E2E, 'auth.spec', 'Login com senha errada: erro exibido e app oculto', dataExecucao, PASSOU],
-        [E2E, 'auth.spec', 'Logout: retorna à tela de login e limpa campos', dataExecucao, PASSOU],
-        // ── E2E: companies ──
-        [E2E, 'companies.spec', 'Dashboard: exibe cards de stats', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Lista: navegação para view de empresas', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Lista: filtros de busca visíveis', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Formulário: abre com título "Nova Empresa"', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Formulário: todas as abas visíveis', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Formulário: navegação entre abas', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Criar empresa completa e salvar', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'NÃO salvar empresa sem nome', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Adicionar contato à empresa', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Aba CS NÃO aparece para Prospect', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Aba CS APARECE para Cliente Ativo', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Widgets HS e NPS visíveis para Cliente Ativo', dataExecucao, PASSOU],
-        [E2E, 'companies.spec', 'Widgets HS e NPS ocultos para Lead', dataExecucao, PASSOU],
-        // ── E2E: CS Hub ──
-        [E2E, 'cs_hub.spec', 'CS Hub: adicionar dashboard com campos obrigatórios', dataExecucao, PASSOU],
-        [E2E, 'cs_hub.spec', 'CS Hub: NÃO salvar dashboard sem campos obrigatórios', dataExecucao, PASSOU],
-        [E2E, 'cs_hub.spec', 'CS Hub: adicionar registro NPS com score', dataExecucao, PASSOU],
-        [E2E, 'cs_hub.spec', 'CS Hub: registrar chamado de suporte', dataExecucao, PASSOU],
-        [E2E, 'cs_hub.spec', 'CS Hub: adicionar nota ao diário de observações', dataExecucao, PASSOU],
-        [E2E, 'cs_hub.spec', 'CS Hub: NÃO adicionar nota em branco', dataExecucao, PASSOU],
-        // ── E2E: crud_advanced ──
-        [E2E, 'crud_advanced.spec', 'Editar nome e status de empresa existente', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Editar empresa: preservar contatos existentes', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Excluir empresa da lista', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Qualificação: preencher e salvar campos', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Qualificação: Comex group visível apenas com "Sim"', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Reuniões: adicionar reunião com data e temperatura', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Reuniões: NÃO salvar sem data', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Busca: filtrar por nome', dataExecucao, PASSOU],
-        [E2E, 'crud_advanced.spec', 'Busca: filtrar por status', dataExecucao, PASSOU],
+    const testesRaw = [
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'DB_KEY deve estar definido e ser uma string', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'STATUS_CONFIG contém todos os 8 status esperados', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'Cada status tem icon, class e color', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'Classes CSS de status seguem o padrão "status-*"', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'CS_VISIBLE_STATUSES é um array de 3 itens', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'CS_VISIBLE_STATUSES inclui apenas os 3 status de cliente', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'CS_VISIBLE_STATUSES NÃO inclui status de pré-venda', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'CS_VISIBLE_STATUSES tem exatamente 3 itens', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'state.companies é array', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'currentEditingId é null por padrão', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'Arrays temp vazios na inicialização', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'editingContatoIndex é -1 por padrão', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'editingProdutoIndex é -1 por padrão', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() limpa todos os arrays temporários', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() reseta índices de edição para -1', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() reseta currentEditingId para null', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'utils.js', descricao: 'maskCurrency: 100 → "1,00"', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'utils.js', descricao: 'maskCurrency: 150000 → "1.500,00"', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'utils.js', descricao: 'maskCurrency: 10000000 → "100.000,00"', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'utils.js', descricao: 'maskCurrency: remove caracteres não numéricos', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'auth.js', descricao: 'Login com credenciais corretas: define sessionStorage', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'auth.js', descricao: 'Logout: limpa campos de login', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'E2E', modulo: 'auth.spec', descricao: 'Login com admin/dati2024: app exibido', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'E2E', modulo: 'companies.spec', descricao: 'Criar empresa completa e salvar', status: PASSOU },
+        { data: dataExecucao, hora: horaExecucao, tipo: 'E2E', modulo: 'crud_advanced.spec', descricao: 'Editar nome e status de empresa existente', status: PASSOU }
     ];
 
+    if (!logTableManager) {
+        logTableManager = new TableManager(
+            testesRaw,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'hora', type: 'string' },
+                { key: 'tipo', type: 'string' },
+                { key: 'modulo', type: 'string' },
+                { key: 'descricao', type: 'string' },
+                { key: 'status', type: 'string' }
+            ],
+            (data) => renderLogTableRows(data),
+            'log-testes'
+        );
+        logTableManager.paginationContainerId = 'pagination-log';
+    }
+
+    logTableManager.apply();
+}
+
+function renderLogTableRows(data) {
+    const body = document.getElementById('log-testes-body');
+    if (!body) return;
+
+    const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2);"><i class="ph ph-check-circle"></i> SUCESSO</span>`;
+    const UNIT_BADGE  = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
+    const E2E_BADGE   = `<span class="badge" style="background:rgba(167,139,250,0.15); color:#a78bfa; border:1px solid rgba(167,139,250,0.3);">E2E</span>`;
+
     body.innerHTML = '';
-    testes.forEach(([tipo, modulo, descricao, data, resultado]) => {
+    data.forEach(item => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="white-space:nowrap;">${tipo}</td>
-            <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted);">${modulo}</td>
-            <td style="font-size:0.85rem;">${descricao}</td>
-            <td style="white-space:nowrap; color:var(--text-muted); font-size:0.85rem;">${data}</td>
-            <td>${resultado}</td>
+            <td style="white-space:nowrap; color:var(--text-muted); font-size:0.85rem;">${item.data}</td>
+            <td style="white-space:nowrap; color:var(--text-muted); font-size:0.85rem;">${item.hora}</td>
+            <td style="white-space:nowrap;">${item.tipo === 'UNITÁRIO' ? UNIT_BADGE : E2E_BADGE}</td>
+            <td style="font-family:monospace; font-size:0.8rem; color:var(--text-muted);">${item.modulo}</td>
+            <td style="font-size:0.85rem;">${item.descricao}</td>
+            <td>${item.status}</td>
         `;
         body.appendChild(tr);
     });
+
+    // Show/Hide Clear Filter button
+    const clearBtn = document.getElementById('btn-clear-log-filters');
+    if (clearBtn) {
+        const hasFilters = Object.keys(logTableManager.filters).length > 0;
+        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    }
 }
+
+function getManagerForKey(key) {
+    if (key.startsWith('produtos_')) return productsTableManager;
+    if (key.startsWith('contatos_')) return contactsTableManager;
+    if (key.startsWith('db_')) return dashboardTableManager;
+    if (key.startsWith('nps_')) return npsTableManager;
+    if (key.startsWith('csmt_')) return csMeetingTableManager;
+    if (key.startsWith('meet_')) return meetingGeralTableManager;
+    if (key.startsWith('comp_')) return companiesTableManager;
+    return logTableManager;
+}
+
+function getDataKey(key) {
+    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_)/, '');
+}
+
+// Handler para paginação (Mapeia Container ID -> Manager)
+window.getManagerForKeyPagination = function(containerId) {
+    if (containerId === 'pagination-companies') return companiesTableManager;
+    if (containerId === 'pagination-dashboards') return dashboardTableManager;
+    if (containerId === 'pagination-nps') return npsTableManager;
+    if (containerId === 'pagination-cs-meetings') return csMeetingTableManager;
+    if (containerId === 'pagination-meetings-geral') return meetingGeralTableManager;
+    if (containerId === 'pagination-log') return logTableManager;
+    if (containerId === 'pagination-produtos') return productsTableManager;
+    if (containerId === 'pagination-contatos') return contactsTableManager;
+    return null;
+};
+
+export function toggleFilterPopover(key, event) {
+    event.stopPropagation();
+    const popover = document.getElementById(`filter-popover-${key}`);
+    if (!popover) return;
+
+    // Close others
+    document.querySelectorAll('.filter-popover').forEach(p => {
+        if (p !== popover) p.classList.remove('show');
+    });
+
+    const isOpen = popover.classList.contains('show');
+    if (isOpen) {
+        popover.classList.remove('show');
+    } else {
+        renderFilterOptions(key, popover);
+        popover.classList.add('show');
+    }
+}
+
+function renderFilterOptions(key, container) {
+    const manager = getManagerForKey(key);
+    if (!manager) return;
+    const dataKey = getDataKey(key);
+    const values = manager.getUniqueValues(dataKey);
+    const selectedValue = manager.filters[dataKey];
+
+    container.innerHTML = `
+        <input type="text" class="filter-search" placeholder="Pesquisar..." onkeyup="ui.searchFilterOptions('${key}', this)">
+        <div class="filter-list">
+            <div class="filter-option ${!selectedValue ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '', event)">
+                (Tudo)
+            </div>
+            ${values.map(val => `
+                <div class="filter-option ${selectedValue === val ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '${val}', event)">
+                    ${val}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+export function searchFilterOptions(key, input) {
+    const term = input.value.toLowerCase();
+    const list = input.nextElementSibling;
+    const options = list.querySelectorAll('.filter-option');
+    options.forEach(opt => {
+        const text = opt.textContent.toLowerCase();
+        opt.style.display = text.includes(term) || opt.textContent.trim() === '(Tudo)' ? '' : 'none';
+    });
+}
+
+export function applyGenericFilter(key, value, event) {
+    if (event) event.stopPropagation();
+    const manager = getManagerForKey(key);
+    if (manager) {
+        const dataKey = getDataKey(key);
+        manager.setFilter(dataKey, value);
+    }
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+}
+
+export function handleProdutosSort(key, event) {
+    if (event) event.stopPropagation();
+    if (productsTableManager) productsTableManager.toggleSort(key);
+}
+
+export function handleContatosSort(key, event) {
+    if (event) event.stopPropagation();
+    if (contactsTableManager) contactsTableManager.toggleSort(key);
+}
+
+export function handleDashboardsSort(key, event) {
+    if (event) event.stopPropagation();
+    if (dashboardTableManager) dashboardTableManager.toggleSort(key);
+}
+
+export function handleNPSSort(key, event) {
+    if (event) event.stopPropagation();
+    if (npsTableManager) npsTableManager.toggleSort(key);
+}
+
+export function handleCSMeetingsSort(key, event) {
+    if (event) event.stopPropagation();
+    if (csMeetingTableManager) csMeetingTableManager.toggleSort(key);
+}
+
+export function handleReunioesSort(key, event) {
+    if (event) event.stopPropagation();
+    if (meetingGeralTableManager) meetingGeralTableManager.toggleSort(key);
+}
+
+export function handleCompaniesSort(key, event) {
+    if (event) event.stopPropagation();
+    if (companiesTableManager) companiesTableManager.toggleSort(key);
+}
+
+export function handleCompaniesSearch(term) {
+    if (companiesTableManager) {
+        companiesTableManager.setGlobalSearch(term);
+        
+        // Controla visibilidade do botão limpar busca (10/10 UX)
+        const clearBtn = document.getElementById('clear-search');
+        if (clearBtn) {
+            clearBtn.style.display = term ? 'flex' : 'none';
+        }
+    }
+}
+
+export function clearProdutosFilters() {
+    if (productsTableManager) {
+        productsTableManager.filters = {};
+        productsTableManager.apply();
+        document.querySelectorAll('#tab-produtos .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearContatosFilters() {
+    if (contactsTableManager) {
+        contactsTableManager.filters = {};
+        contactsTableManager.apply();
+        document.querySelectorAll('#tab-contatos .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearDashboardsFilters() {
+    if (dashboardTableManager) {
+        dashboardTableManager.filters = {};
+        dashboardTableManager.apply();
+        document.querySelectorAll('#tab-dashboards .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearNPSFilters() {
+    if (npsTableManager) {
+        npsTableManager.filters = {};
+        npsTableManager.apply();
+        document.querySelectorAll('#tab-nps .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearCSMeetingsFilters() {
+    if (csMeetingTableManager) {
+        csMeetingTableManager.filters = {};
+        csMeetingTableManager.apply();
+        document.querySelectorAll('#tab-cs-meetings .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearReunioesGeralFilters() {
+    if (meetingGeralTableManager) {
+        meetingGeralTableManager.filters = {};
+        meetingGeralTableManager.apply();
+        document.querySelectorAll('#tab-meetings-geral .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function clearCompaniesFilters() {
+    if (companiesTableManager) {
+        companiesTableManager.filters = {};
+        companiesTableManager.globalSearch = '';
+        companiesTableManager.apply();
+        
+        const searchInput = document.getElementById('search-empresa');
+        if (searchInput) searchInput.value = '';
+
+        document.querySelectorAll('#view-company-list .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    }
+}
+
+export function handleLogSort(key, event) {
+    if (event) event.stopPropagation();
+    if (logTableManager) logTableManager.toggleSort(key);
+}
+
+export function handleLogSearch(term) {
+    if (logTableManager) {
+        logTableManager.setGlobalSearch(term);
+        updateClearFiltersBtn();
+    }
+}
+
+export function clearLogFilters() {
+    if (logTableManager) {
+        logTableManager.filters = {};
+        logTableManager.globalSearch = '';
+        logTableManager.apply();
+        
+        // Reset UI
+        const searchInput = document.getElementById('log-search-global');
+        if (searchInput) searchInput.value = '';
+        
+        document.querySelectorAll('.btn-filter-column').forEach(btn => btn.classList.remove('active'));
+        updateClearFiltersBtn();
+    }
+}
+
+function updateClearFiltersBtn() {
+    const clearBtn = document.getElementById('btn-clear-log-filters');
+    if (clearBtn && logTableManager) {
+        const hasFilters = Object.keys(logTableManager.filters).length > 0 || logTableManager.globalSearch !== '';
+        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    }
+}
+
+// Global click to close popovers
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-popover') && !e.target.closest('.btn-filter-column')) {
+        document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+    }
+});
+

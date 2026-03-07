@@ -143,6 +143,7 @@ export function handleCompanySubmit(e) {
         canal: document.getElementById('emp-canal').value.trim(),
         segmento: document.getElementById('emp-segmento').value.trim(),
         tipo: document.getElementById('emp-tipo').value.trim(),
+        cnpj: document.getElementById('emp-cnpj').value.trim(),
         contatos: state.tempContatos,
         produtos: state.tempProdutos,
         dashboardsHistory: state.tempDashboards,

@@ -59,9 +59,20 @@
                 <a class="nav-item" data-view="company-list">
                     <i class="ph ph-users-three"></i> Empresas
                 </a>
-                <a class="nav-item" data-view="log">
-                    <i class="ph ph-clipboard-text"></i> LOG
-                </a>
+                <!-- Log — menu expansível -->
+                <div class="nav-group" id="nav-group-log">
+                    <a class="nav-item nav-group-toggle" id="nav-log-toggle" onclick="toggleNavGroup('nav-group-log')">
+                        <span style="display:flex; align-items:center; gap:0.6rem;">
+                            <i class="ph ph-clipboard-text"></i> Log
+                        </span>
+                        <i class="ph ph-caret-right nav-caret" id="nav-log-caret"></i>
+                    </a>
+                    <div class="nav-sub-menu" id="nav-sub-log">
+                        <a class="nav-sub-item" data-view="log" data-log-tab="log-testes">
+                            <i class="ph ph-test-tube"></i> Log Testes
+                        </a>
+                    </div>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -112,23 +123,14 @@
 
                 <div class="glass-panel" style="margin-bottom: 2rem;">
                     <div class="filters">
-                        <div class="input-group">
-                            <label>Buscar por nome</label>
-                            <input type="text" id="search-empresa" class="input-control" placeholder="Ex: Acme Corp...">
-                        </div>
-                        <div class="input-group">
-                            <label>Filtrar por Status</label>
-                            <select id="filter-status" class="input-control">
-                                <option value="">Todos os status</option>
-                                <option value="Prospect">Prospect</option>
-                                <option value="Lead">Lead</option>
-                                <option value="Reunião">Reunião</option>
-                                <option value="Proposta | Andamento">Proposta | Andamento</option>
-                                <option value="Proposta | Recusada">Proposta | Recusada</option>
-                                <option value="Cliente Ativo">Cliente Ativo</option>
-                                <option value="Cliente Suspenso">Cliente Suspenso</option>
-                                <option value="Cliente Inativo">Cliente Inativo</option>
-                            </select>
+                        <div class="search-container" style="flex: 1;">
+                            <div class="search-wrapper">
+                                <i class="ph ph-magnifying-glass search-icon"></i>
+                                <input type="text" id="search-empresa" class="search-input" placeholder="Buscar por empresa, segmento, local ou status...">
+                                <button type="button" class="btn-clear-search" id="clear-search" onclick="ui.handleCompaniesSearch(''); document.getElementById('search-empresa').value = '';" style="display: none;">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -136,10 +138,34 @@
                         <table class="company-table">
                             <thead>
                                 <tr>
-                                    <th>Empresa</th>
-                                    <th>Segmento / Canal</th>
-                                    <th>Localização</th>
-                                    <th>Status / Saúde</th>
+                                    <th class="sortable-header" data-key="nome">
+                                        <span onclick="ui.handleCompaniesSort('nome', event)">Empresa</span>
+                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_nome', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_nome"></div>
+                                    </th>
+                                    <th class="sortable-header" data-key="segmento">
+                                        <span onclick="ui.handleCompaniesSort('segmento', event)">Segmento / Canal</span>
+                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_segmento', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_segmento"></div>
+                                    </th>
+                                    <th class="sortable-header" data-key="cidade">
+                                        <span onclick="ui.handleCompaniesSort('cidade', event)">Localização</span>
+                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_cidade', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_cidade"></div>
+                                    </th>
+                                    <th class="sortable-header" data-key="status">
+                                        <span onclick="ui.handleCompaniesSort('status', event)">Status / Saúde</span>
+                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_status', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_status"></div>
+                                    </th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -148,6 +174,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <div id="pagination-companies" class="pagination-container"></div>
                 </div>
             </div>
 
@@ -155,10 +182,10 @@
             <div id="view-log" class="view-section" style="display: none;">
                 <div class="top-bar">
                     <div>
-                        <h1>LOG</h1>
+                        <h1>Log</h1>
                         <p>Registro de testes, eventos e histórico de execuções do sistema.</p>
                     </div>
-                    <button class="btn btn-primary" onclick="document.getElementById('btn-run-tests-info').style.display='block'">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('btn-run-tests-info').style.display='block'">
                         <i class="ph ph-play"></i> Rodar Testes (npm test)
                     </button>
                 </div>
@@ -180,10 +207,10 @@
 
                 <!-- Sub-tabs -->
                 <div class="tab-menu" style="margin-bottom: 1.5rem;">
-                    <button class="cs-submenu-btn active" onclick="switchCSSubTab('log-testes', this)">
+                    <button type="button" class="cs-submenu-btn active" onclick="switchCSSubTab('log-testes', this)">
                         <i class="ph ph-test-tube"></i> Log Testes
                     </button>
-                    <button class="cs-submenu-btn" onclick="switchCSSubTab('log-geral', this)">
+                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('log-geral', this)">
                         <i class="ph ph-list-bullets"></i> Log Geral
                     </button>
                 </div>
@@ -208,16 +235,62 @@
                                 </span>
                             </div>
                         </div>
+                        <div class="search-bar" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center;">
+                            <div class="search-input" style="flex: 1; min-width: 250px;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="log-search-global" placeholder="Pesquisar em todas as colunas..." onkeyup="ui.handleLogSearch(this.value)">
+                            </div>
+                            <button type="button" id="btn-clear-log-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.6rem 1rem; display:none;" onclick="ui.clearLogFilters()">
+                                <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
+                            </button>
+                        </div>
 
                         <div class="company-table-container">
                             <table class="company-table">
                                 <thead>
                                     <tr>
-                                        <th>Tipo</th>
-                                        <th>Módulo</th>
-                                        <th>O que foi testado</th>
-                                        <th>Data</th>
-                                        <th>Resultado</th>
+                                        <th class="sortable-header" data-key="data">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('data', event)">Data</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('data', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-data" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="hora">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('hora', event)">Hora</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('hora', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-hora" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="tipo">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('tipo', event)">Tipo</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('tipo', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-tipo" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="modulo">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('modulo', event)">Módulo</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('modulo', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-modulo" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="descricao">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('descricao', event)">O que foi testado</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('descricao', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-descricao" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="status">
+                                            <div class="header-content">
+                                                <span onclick="ui.handleLogSort('status', event)">Status</span>
+                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('status', event)"><i class="ph ph-funnel"></i></button>
+                                            </div>
+                                            <div id="filter-popover-status" class="filter-popover"></div>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody id="log-testes-body">
@@ -225,6 +298,7 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div id="pagination-log" class="pagination-container"></div>
                     </div>
                 </div>
 
@@ -337,6 +411,10 @@
                                         <input type="text" id="emp-nome" class="input-control" required style="grid-column: span 2;">
                                     </div>
                                     <div class="input-group">
+                                        <label>CNPJ</label>
+                                        <input type="text" id="emp-cnpj" class="input-control" placeholder="00.000.000/0000-00" oninput="utils.maskCNPJ(this)">
+                                    </div>
+                                    <div class="input-group">
                                         <label>Tipo de Empresa</label>
                                         <select id="emp-tipo" class="input-control">
                                             <option value="">Selecione...</option>
@@ -351,10 +429,6 @@
                                             <option value="Trading">Trading</option>
                                             <option value="Transportadora Rodoviária">Transportadora Rodoviária</option>
                                         </select>
-                                    </div>
-                                    <div class="input-group" style="grid-column: span 2;">
-                                        <label>Site</label>
-                                        <input type="url" id="emp-site" class="input-control" placeholder="https://...">
                                     </div>
                                 </div>
                                 <div class="grid-4">
@@ -396,13 +470,38 @@
                                         <select id="emp-segmento" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="Agronegócio">Agronegócio</option>
+                                            <option value="Alimentos e Bebidas">Alimentos e Bebidas</option>
+                                            <option value="Armazenagem">Armazenagem</option>
+                                            <option value="Automotivo">Automotivo</option>
+                                            <option value="Calçados">Calçados</option>
+                                            <option value="Cosméticos">Cosméticos</option>
+                                            <option value="Despacho Aduaneiro">Despacho Aduaneiro</option>
+                                            <option value="Eletrodomésticos">Eletrodomésticos</option>
+                                            <option value="Eletrônicos">Eletrônicos</option>
+                                            <option value="Embalagens">Embalagens</option>
+                                            <option value="Energia e Gás">Energia e Gás</option>
+                                            <option value="Farmacêutico">Farmacêutico</option>
+                                            <option value="Ferramentas">Ferramentas</option>
+                                            <option value="Ferroviário">Ferroviário</option>
+                                            <option value="Financeiro">Financeiro</option>
+                                            <option value="Higiene">Higiene</option>
+                                            <option value="Hospitalar">Hospitalar</option>
                                             <option value="Logística">Logística</option>
                                             <option value="Maquinário">Maquinário</option>
+                                            <option value="Metalurgia">Metalurgia</option>
+                                            <option value="Mineração">Mineração</option>
+                                            <option value="Papel">Papel</option>
                                             <option value="Químico">Químico</option>
+                                            <option value="Seguro">Seguro</option>
                                             <option value="Têxtil">Têxtil</option>
                                             <option value="Trading">Trading</option>
+                                            <option value="Transporte">Transporte</option>
                                         </select>
                                     </div>
+                                </div>
+                                <div class="input-group">
+                                    <label>Site</label>
+                                    <input type="url" id="emp-site" class="input-control" placeholder="https://...">
                                 </div>
                             </div>
 
@@ -460,21 +559,45 @@
                                     </div>
                                     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                                         <button type="button" class="btn btn-secondary btn-cancel-produto">Cancelar</button>
-                                        <button type="button" class="btn btn-primary btn-save-produto">Adicionar Produto</button>
+                                        <button type="button" id="btn-save-produto" class="btn btn-primary btn-save-produto">Adicionar Produto</button>
                                     </div>
+                                </div>
+                                <div style="display:flex; justify-content: flex-end; margin-bottom: 1rem;">
+                                    <button type="button" id="btn-clear-produtos-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;" onclick="ui.clearProdutosFilters()">
+                                        <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
+                                    </button>
                                 </div>
                                 <table class="company-table">
                                     <thead>
                                         <tr>
-                                            <th>Produto</th>
-                                            <th>Valor</th>
-                                            <th>Horas</th>
+                                            <th class="sortable-header" data-key="nome">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleProdutosSort('nome', event)">Produto</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_nome', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-produtos_nome" class="filter-popover"></div>
+                                            </th>
+                                            <th class="sortable-header" data-key="mensalidade">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleProdutosSort('mensalidade', event)">Valor</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_mensalidade', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-produtos_mensalidade" class="filter-popover"></div>
+                                            </th>
+                                            <th class="sortable-header" data-key="horasHd">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleProdutosSort('horasHd', event)">Horas</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_horasHd', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-produtos_horasHd" class="filter-popover"></div>
+                                            </th>
                                             <th>Arquivos</th>
-                                            <th>Ações</th>
+                                            <th style="text-align: right;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="produtos-table-body"></tbody>
                                 </table>
+                                <div id="pagination-produtos" class="pagination-container"></div>
                             </div>
 
                             <!-- Tab: Contatos -->
@@ -498,23 +621,47 @@
                                     </div>
                                     <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
                                         <button type="button" class="btn btn-secondary btn-cancel-contact">Cancelar</button>
-                                        <button type="button" class="btn btn-primary btn-save-contact">Salvar Contato</button>
+                                        <button type="button" id="btn-save-contact" class="btn btn-primary btn-save-contact">Salvar Contato</button>
                                     </div>
+                                </div>
+                                <div style="display:flex; justify-content: flex-end; margin-bottom: 1rem;">
+                                    <button type="button" id="btn-clear-contatos-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;" onclick="ui.clearContatosFilters()">
+                                        <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
+                                    </button>
                                 </div>
                                 <table class="company-table">
                                     <thead>
                                         <tr>
-                                            <th>Nome</th>
+                                            <th class="sortable-header" data-key="nome">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleContatosSort('nome', event)">Nome</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_nome', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-contatos_nome" class="filter-popover"></div>
+                                            </th>
                                             <th>E-mail</th>
-                                            <th>Cargo</th>
-                                            <th>Departamento</th>
+                                            <th class="sortable-header" data-key="cargo">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleContatosSort('cargo', event)">Cargo</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_cargo', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-contatos_cargo" class="filter-popover"></div>
+                                            </th>
+                                            <th class="sortable-header" data-key="departamento">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_departamento', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-contatos_departamento" class="filter-popover"></div>
+                                            </th>
                                             <th>Telefone</th>
                                             <th>Redes</th>
-                                            <th>Ações</th>
+                                            <th style="text-align: right;">Ações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="contatos-table-body"></tbody>
                                 </table>
+                                <div id="pagination-contatos" class="pagination-container"></div>
                             </div>
 
                             <!-- Tab: CS (Customer Success) -->
@@ -553,11 +700,31 @@
                                             <button type="button" id="btn-save-dashboard" class="btn btn-primary">Registrar</button>
                                         </div>
                                     </div>
-                                    <table class="company-table">
-                                        <thead><tr><th>Data</th><th>Destinatários</th><th>Link</th><th>Ações</th></tr></thead>
+                                    <table class="company-table" id="tab-dashboards">
+                                        <thead>
+                                            <tr>
+                                                <th class="sortable-header" data-key="data">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleDashboardsSort('data', event)">Data</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('db_data', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-db_data" class="filter-popover"></div>
+                                                </th>
+                                                <th class="sortable-header" data-key="destinatarios">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleDashboardsSort('destinatarios', event)">Destinatários</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('db_destinatarios', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-db_destinatarios" class="filter-popover"></div>
+                                                </th>
+                                                <th>Link</th>
+                                                <th style="text-align: right;">Ações</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="dashboards-table-body"></tbody>
                                     </table>
                                 </div>
+                                <div id="pagination-dashboards" class="pagination-container"></div>
 
                                 <div id="cs-nps" class="cs-sub-content">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -576,11 +743,38 @@
                                             <button type="button" id="btn-save-nps" class="btn btn-primary">Salvar NPS</button>
                                         </div>
                                     </div>
-                                    <table class="company-table">
-                                        <thead><tr><th>Data</th><th>Destinatários</th><th>Forms</th><th>NPS Score</th><th>Ações</th></tr></thead>
+                                    <table class="company-table" id="tab-nps">
+                                        <thead>
+                                            <tr>
+                                                <th class="sortable-header" data-key="data">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleNPSSort('data', event)">Data</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_data', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-nps_data" class="filter-popover"></div>
+                                                </th>
+                                                <th class="sortable-header" data-key="destinatarios">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleNPSSort('destinatarios', event)">Destinatários</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_destinatarios', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-nps_destinatarios" class="filter-popover"></div>
+                                                </th>
+                                                <th>Forms</th>
+                                                <th class="sortable-header" data-key="score" style="text-align: center;">
+                                                    <div class="header-content" style="justify-content: center;">
+                                                        <span onclick="ui.handleNPSSort('score', event)">NPS Score</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_score', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-nps_score" class="filter-popover"></div>
+                                                </th>
+                                                <th style="text-align: right;">Ações</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="nps-history-table-body"></tbody>
                                     </table>
                                 </div>
+                                <div id="pagination-nps" class="pagination-container"></div>
 
                                 <div id="cs-meet" class="cs-sub-content">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -599,11 +793,32 @@
                                             <button type="button" id="btn-save-cs-meet" class="btn btn-primary">Registrar</button>
                                         </div>
                                     </div>
-                                    <table class="company-table">
-                                        <thead><tr><th>Data</th><th>Participantes</th><th>OBS</th><th>Link</th><th>Ações</th></tr></thead>
+                                    <table class="company-table" id="tab-cs-meetings">
+                                        <thead>
+                                            <tr>
+                                                <th class="sortable-header" data-key="data">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleCSMeetingsSort('data', event)">Data</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('csmt_data', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-csmt_data" class="filter-popover"></div>
+                                                </th>
+                                                <th class="sortable-header" data-key="participantes">
+                                                    <div class="header-content">
+                                                        <span onclick="ui.handleCSMeetingsSort('participantes', event)">Participantes</span>
+                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('csmt_participantes', event)"><i class="ph ph-funnel"></i></button>
+                                                    </div>
+                                                    <div id="filter-popover-csmt_participantes" class="filter-popover"></div>
+                                                </th>
+                                                <th>OBS</th>
+                                                <th>Link</th>
+                                                <th style="text-align: right;">Ações</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="cs-meetings-table-body"></tbody>
                                     </table>
                                 </div>
+                                <div id="pagination-cs-meetings" class="pagination-container"></div>
 
                                 <div id="cs-tk" class="cs-sub-content">
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -667,11 +882,38 @@
                                         <button type="button" id="btn-add-meeting-submit" class="btn btn-primary">Adicionar Reunião</button>
                                     </div>
                                 </div>
-                                <table class="company-table">
-                                    <thead><tr><th>Data</th><th>Participantes</th><th style="text-align: center;">Temp</th><th>Link</th><th style="text-align: right;">Ações</th></tr></thead>
+                                <table class="company-table" id="tab-meetings-geral">
+                                    <thead>
+                                        <tr>
+                                            <th class="sortable-header" data-key="data">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleReunioesSort('data', event)">Data</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_data', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-meet_data" class="filter-popover"></div>
+                                            </th>
+                                            <th class="sortable-header" data-key="participantes">
+                                                <div class="header-content">
+                                                    <span onclick="ui.handleReunioesSort('participantes', event)">Participantes</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_participantes', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-meet_participantes" class="filter-popover"></div>
+                                            </th>
+                                            <th class="sortable-header" data-key="temperatura" style="text-align: center;">
+                                                <div class="header-content" style="justify-content: center;">
+                                                    <span onclick="ui.handleReunioesSort('temperatura', event)">Temp</span>
+                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_temperatura', event)"><i class="ph ph-funnel"></i></button>
+                                                </div>
+                                                <div id="filter-popover-meet_temperatura" class="filter-popover"></div>
+                                            </th>
+                                            <th>Link</th>
+                                            <th style="text-align: right;">Ações</th>
+                                        </tr>
+                                    </thead>
                                     <tbody id="meetings-table-body"></tbody>
                                 </table>
                             </div>
+                            <div id="pagination-meetings-geral" class="pagination-container"></div>
 
                             <!-- Tab: Qualificação -->
                             <div id="tab-qualificacao" class="tab-content glass-panel form-section" style="margin-top: 0;">

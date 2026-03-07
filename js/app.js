@@ -5,6 +5,13 @@ import * as nav from './modules/navigation.js';
 import * as auth from './modules/auth.js';
 import * as handlers from './modules/handlers.js';
 
+// Globalize for inline onclicks
+window.ui = ui;
+window.nav = nav;
+window.handlers = handlers;
+window.utils = utils;
+window.state = state;
+
 document.addEventListener('DOMContentLoaded', () => {
     // Check Auth
     if (sessionStorage.getItem('dati_auth') === 'true') {
@@ -15,10 +22,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         const target = e.target;
 
-        // Nav Items
-        if (target.closest('.nav-item')) {
+        // Nav Items (top-level only, ignore group toggles)
+        if (target.closest('.nav-item') && !target.closest('.nav-group-toggle') && !target.closest('.nav-sub-item')) {
             const view = target.closest('.nav-item').getAttribute('data-view');
-            nav.switchView(view);
+            if (view) nav.switchView(view);
+        }
+
+        // Nav Sub-Items (e.g. Log Testes)
+        if (target.closest('.nav-sub-item')) {
+            const subItem = target.closest('.nav-sub-item');
+            document.querySelectorAll('.nav-sub-item').forEach(i => i.classList.remove('active'));
+            subItem.classList.add('active');
+            const view = subItem.getAttribute('data-view');
+            if (view) nav.switchView(view);
             if (view === 'log') ui.renderLogTestes();
         }
 
@@ -88,7 +104,37 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.renderProdutosTable();
         }
         
-        // ... more delegates can be added here
+        // --- Added Removal Delegates for NEW Tables ---
+        if (target.closest('.btn-remove-temp-dashboard')) {
+            const index = parseInt(target.closest('.btn-remove-temp-dashboard').dataset.index);
+            state.tempDashboards.splice(index, 1);
+            ui.renderDashboardsTable();
+        }
+        if (target.closest('.btn-remove-temp-nps')) {
+            const index = parseInt(target.closest('.btn-remove-temp-nps').dataset.index);
+            state.tempNPSHistory.splice(index, 1);
+            ui.renderNPSHistoryTable();
+        }
+        if (target.closest('.btn-remove-temp-csmeet')) {
+            const index = parseInt(target.closest('.btn-remove-temp-csmeet').dataset.index);
+            state.tempReunioesCS.splice(index, 1);
+            ui.renderCSMeetingsTable();
+        }
+        if (target.closest('.btn-remove-temp-ticket')) {
+            const index = parseInt(target.closest('.btn-remove-temp-ticket').dataset.index);
+            state.tempChamados.splice(index, 1);
+            ui.renderTicketsTable();
+        }
+        if (target.closest('.btn-remove-temp-note')) {
+            const index = parseInt(target.closest('.btn-remove-temp-note').dataset.index);
+            state.tempNotes.splice(index, 1);
+            ui.renderCSTimeline();
+        }
+        if (target.closest('.btn-remove-temp-reuniao')) {
+            const index = parseInt(target.closest('.btn-remove-temp-reuniao').dataset.index);
+            state.tempReunioes.splice(index, 1);
+            ui.renderReunioesTable();
+        }
     });
 
     // --- Specific Form Listeners ---
@@ -96,9 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-logout')?.addEventListener('click', auth.handleLogout);
     document.getElementById('company-form')?.addEventListener('submit', handlers.handleCompanySubmit);
 
-    // Search & Filter
-    document.getElementById('search-empresa')?.addEventListener('input', ui.renderCompanyList);
-    document.getElementById('filter-status')?.addEventListener('change', ui.renderCompanyList);
+    // Search & Filter (Connected to TableManager)
+    document.getElementById('search-empresa')?.addEventListener('input', (e) => ui.handleCompaniesSearch(e.target.value));
 
     // Dynamic Selects
     document.getElementById('emp-estado')?.addEventListener('change', (e) => {
@@ -196,3 +241,14 @@ document.addEventListener('DOMContentLoaded', () => {
 window.switchCSSubTab = nav.switchCSSubTab;
 window.switchFormTab = nav.switchFormTab;
 window.maskCurrency = utils.maskCurrency;
+window.maskCNPJ = utils.maskCNPJ;
+
+// Toggle expandable nav groups in the sidebar (e.g. "Log")
+window.toggleNavGroup = (groupId) => {
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    group.classList.toggle('open');
+};
+
+// Make ui global so inline HTML handlers (like onkeyup="ui.filterLogTestes()") can reach it
+window.ui = ui;

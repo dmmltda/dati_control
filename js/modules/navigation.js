@@ -73,7 +73,7 @@ export function openCompanyForm(id = null) {
     switchFormTab('tab-dados');
     
     // Reset specific fields
-    ['emp-health-score', 'emp-nps', 'qual-tem-comex', 'qual-qual-comex', 'qual-tem-erp', 'qual-qual-erp', 'qual-objetivo', 'qual-dores', 'qual-expectativa'].forEach(id => {
+    ['emp-health-score', 'emp-nps', 'qual-tem-comex', 'qual-qual-comex', 'qual-tem-erp', 'qual-qual-erp', 'qual-objetivo', 'qual-dores', 'qual-expectativa', 'emp-cnpj'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
@@ -91,6 +91,7 @@ export function openCompanyForm(id = null) {
             document.getElementById('company-id').value = comp.id;
             document.getElementById('emp-nome').value = comp.nome;
             document.getElementById('emp-tipo').value = comp.tipo || '';
+            document.getElementById('emp-cnpj').value = comp.cnpj || '';
             document.getElementById('emp-site').value = comp.site || '';
             document.getElementById('emp-status').value = comp.status;
             document.getElementById('emp-segmento').value = comp.segmento || '';

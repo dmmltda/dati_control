@@ -42,6 +42,19 @@ export function maskCurrency(input) {
     input.value = value;
 }
 
+export function maskCNPJ(input) {
+    let value = input.value;
+    value = value.replace(/\D/g, ""); // Remove não numéricos
+    if (value.length > 14) value = value.substring(0, 14);
+    
+    value = value.replace(/^(\d{2})(\d)/, "$1.$2");
+    value = value.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+    value = value.replace(/\.(\d{3})(\d)/, ".$1/$2");
+    value = value.replace(/(\d{4})(\d)/, "$1-$2");
+    
+    input.value = value;
+}
+
 export async function loadCities(uf, defaultCity = '') {
     const cidadeInput = document.getElementById('emp-cidade');
     const cidadesList = document.getElementById('cidades-list');
