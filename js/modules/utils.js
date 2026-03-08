@@ -4,18 +4,18 @@ import { state } from './state.js';
 export function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
-    
+
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     const icon = type === 'success' ? 'ph-check-circle' : 'ph-warning-circle';
-    
+
     toast.innerHTML = `
         <i class="ph ${icon}" style="font-size: 1.25rem;"></i>
         <div style="font-weight: 500;">${message}</div>
     `;
-    
+
     container.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.animation = 'fadeOut 0.3s forwards';
         setTimeout(() => toast.remove(), 300);
@@ -46,12 +46,12 @@ export function maskCNPJ(input) {
     let value = input.value;
     value = value.replace(/\D/g, ""); // Remove não numéricos
     if (value.length > 14) value = value.substring(0, 14);
-    
+
     value = value.replace(/^(\d{2})(\d)/, "$1.$2");
     value = value.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
     value = value.replace(/\.(\d{3})(\d)/, ".$1/$2");
     value = value.replace(/(\d{4})(\d)/, "$1-$2");
-    
+
     input.value = value;
 }
 
@@ -59,9 +59,9 @@ export async function loadCities(uf, defaultCity = '') {
     const cidadeInput = document.getElementById('emp-cidade');
     const cidadesList = document.getElementById('cidades-list');
     if (!cidadeInput || !cidadesList) return;
-    
+
     cidadesList.innerHTML = '';
-    
+
     if (!uf) {
         cidadeInput.disabled = true;
         cidadeInput.placeholder = 'Selecione um estado primeiro...';
@@ -76,7 +76,7 @@ export async function loadCities(uf, defaultCity = '') {
         const response = await fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}`);
         if (!response.ok) throw new Error('Falha ao buscar cidades');
         const cidades = await response.json();
-        
+
         cidades.forEach(cidade => {
             const option = document.createElement('option');
             option.value = cidade.nome;
@@ -95,11 +95,11 @@ export async function loadCities(uf, defaultCity = '') {
 }
 
 export function updateStatusStyle(select) {
-    if(!select) return;
+    if (!select) return;
     select.className = 'status-select';
     const status = select.value;
     const config = STATUS_CONFIG[status];
-    if(config) {
+    if (config) {
         select.classList.add(config.class);
     }
 
@@ -107,14 +107,14 @@ export function updateStatusStyle(select) {
     const csHeaderMetrics = document.getElementById('cs-header-metrics');
     const csTabBtn = document.getElementById('btn-tab-cs');
     const isVisible = CS_VISIBLE_STATUSES.includes(status);
-    
-    if(csHeaderMetrics) csHeaderMetrics.style.display = isVisible ? 'flex' : 'none';
-    if(csTabBtn) csTabBtn.style.display = isVisible ? 'flex' : 'none';
+
+    if (csHeaderMetrics) csHeaderMetrics.style.display = isVisible ? 'flex' : 'none';
+    if (csTabBtn) csTabBtn.style.display = isVisible ? 'flex' : 'none';
 }
 
 export const getBase64 = (file) => new Promise((resolve, reject) => {
     if (!file) return resolve(null);
-    if (file.size > 2 * 1024 * 1024) return reject('O arquivo ' + file.name + ' excede o limite máximo de 2MB.');
+    if (file.size > 20 * 1024 * 1024) return reject('O arquivo ' + file.name + ' excede o limite máximo de 20MB.');
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = () => resolve({ name: file.name, data: reader.result });

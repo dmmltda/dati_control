@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DATI Control - CRM</title>
-    
+
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    
+
     <!-- Modular CSS -->
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/global.css">
@@ -18,6 +19,7 @@
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/views.css">
 </head>
+
 <body>
 
     <!-- Login Screen -->
@@ -25,7 +27,7 @@
         <form id="login-form" class="glass-panel login-card">
             <div class="logo">DATI Control</div>
             <p>CRM Inteligente e Simplificado</p>
-            
+
             <div style="text-align: left; margin-top: 2rem;">
                 <div class="input-group">
                     <label for="username">Usuário</label>
@@ -33,10 +35,11 @@
                 </div>
                 <div class="input-group">
                     <label for="password">Senha</label>
-                    <input type="password" id="password" class="input-control" placeholder="dati2024" autocomplete="current-password">
+                    <input type="password" id="password" class="input-control" placeholder="dati2024"
+                        autocomplete="current-password">
                 </div>
             </div>
-            
+
             <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">
                 Entrar <i class="ph ph-arrow-right"></i>
             </button>
@@ -51,7 +54,7 @@
             <div class="sidebar-brand">
                 <i class="ph ph-buildings"></i> DATI Control
             </div>
-            
+
             <nav>
                 <a class="nav-item active" data-view="dashboard">
                     <i class="ph ph-squares-four"></i> Dashboard
@@ -91,7 +94,7 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
-            
+
             <!-- Dashboard View -->
             <div id="view-dashboard" class="view-section">
                 <div class="top-bar">
@@ -126,8 +129,11 @@
                         <div class="search-container" style="flex: 1;">
                             <div class="search-wrapper">
                                 <i class="ph ph-magnifying-glass search-icon"></i>
-                                <input type="text" id="search-empresa" class="search-input" placeholder="Buscar por empresa, segmento, local ou status...">
-                                <button type="button" class="btn-clear-search" id="clear-search" onclick="ui.handleCompaniesSearch(''); document.getElementById('search-empresa').value = '';" style="display: none;">
+                                <input type="text" id="search-empresa" class="search-input"
+                                    placeholder="Buscar por empresa, segmento, local ou status...">
+                                <button type="button" class="btn-clear-search" id="clear-search"
+                                    onclick="ui.handleCompaniesSearch(''); document.getElementById('search-empresa').value = '';"
+                                    style="display: none;">
                                     <i class="ph ph-x"></i>
                                 </button>
                             </div>
@@ -140,32 +146,26 @@
                                 <tr>
                                     <th class="sortable-header" data-key="nome">
                                         <span onclick="ui.handleCompaniesSort('nome', event)">Empresa</span>
-                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_nome', event)">
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_nome', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
                                         <div class="filter-popover" id="filter-popover-comp_nome"></div>
                                     </th>
-                                    <th class="sortable-header" data-key="segmento">
-                                        <span onclick="ui.handleCompaniesSort('segmento', event)">Segmento / Canal</span>
-                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_segmento', event)">
-                                            <i class="ph ph-funnel"></i>
-                                        </button>
-                                        <div class="filter-popover" id="filter-popover-comp_segmento"></div>
-                                    </th>
-                                    <th class="sortable-header" data-key="cidade">
-                                        <span onclick="ui.handleCompaniesSort('cidade', event)">Localização</span>
-                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_cidade', event)">
-                                            <i class="ph ph-funnel"></i>
-                                        </button>
-                                        <div class="filter-popover" id="filter-popover-comp_cidade"></div>
-                                    </th>
-                                    <th class="sortable-header" data-key="status">
-                                        <span onclick="ui.handleCompaniesSort('status', event)">Status / Saúde</span>
-                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('comp_status', event)">
+                                    <th class="sortable-header" data-key="status" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('status', event)">Status</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_status', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
                                         <div class="filter-popover" id="filter-popover-comp_status"></div>
                                     </th>
+                                    <th class="sortable-header" data-key="healthScore" style="text-align: center;"> Saúde </th>
+                                    <th class="sortable-header" data-key="nps" style="text-align: center;"> NPS </th>
+                                    <th class="sortable-header" data-key="produtosNames" style="text-align: center;"> 
+                                        <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos DATI</span>
+                                    </th>
+                                    <th class="sortable-header" data-key="segmento" style="text-align: center;"> Segmento </th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -185,18 +185,21 @@
                         <h1>Log</h1>
                         <p>Registro de testes, eventos e histórico de execuções do sistema.</p>
                     </div>
-                    <button type="button" class="btn btn-primary" onclick="document.getElementById('btn-run-tests-info').style.display='block'">
+                    <button type="button" class="btn btn-primary"
+                        onclick="document.getElementById('btn-run-tests-info').style.display='block'">
                         <i class="ph ph-play"></i> Rodar Testes (npm test)
                     </button>
                 </div>
 
                 <!-- Info sobre como rodar testes -->
-                <div id="btn-run-tests-info" class="glass-panel" style="display:none; margin-bottom:1.5rem; border-left: 3px solid var(--accent);">
+                <div id="btn-run-tests-info" class="glass-panel"
+                    style="display:none; margin-bottom:1.5rem; border-left: 3px solid var(--accent);">
                     <div style="display:flex; align-items:flex-start; gap:1rem;">
                         <i class="ph ph-terminal" style="font-size:1.5rem; color:var(--accent); flex-shrink:0;"></i>
                         <div>
                             <div style="font-weight:600; margin-bottom:0.5rem;">Como executar os testes:</div>
-                            <code style="display:block; background:rgba(0,0,0,0.3); padding:0.75rem 1rem; border-radius:8px; font-size:0.85rem; color:#e2e8f0;">
+                            <code
+                                style="display:block; background:rgba(0,0,0,0.3); padding:0.75rem 1rem; border-radius:8px; font-size:0.85rem; color:#e2e8f0;">
                                 npm test &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; → Testes unitários (56 testes)<br>
                                 npm run test:e2e &nbsp;&nbsp; → Testes E2E / Funcionais (Playwright)<br>
                                 npm run test:all &nbsp;&nbsp; → Todos os testes juntos
@@ -218,29 +221,39 @@
                 <!-- Log Testes -->
                 <div id="log-testes" class="cs-sub-content active">
                     <div class="glass-panel">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
+                        <div
+                            style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; gap:1rem;">
                             <div>
                                 <h3 style="margin:0;">Registro de Testes</h3>
-                                <p style="margin:0; color:var(--text-muted); font-size:0.85rem;">Última execução: 07/03/2026 — <span style="color:#10b981; font-weight:600;">56/56 testes passando ✓</span></p>
+                                <p style="margin:0; color:var(--text-muted); font-size:0.85rem;">Última execução:
+                                    07/03/2026 — <span style="color:#10b981; font-weight:600;">56/56 testes passando
+                                        ✓</span></p>
                             </div>
                             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                                <span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.8rem;">
+                                <span class="badge"
+                                    style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.8rem;">
                                     <i class="ph ph-check-circle"></i> 56 Passou
                                 </span>
-                                <span class="badge" style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); font-size:0.8rem;">
+                                <span class="badge"
+                                    style="background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2); font-size:0.8rem;">
                                     <i class="ph ph-x-circle"></i> 0 Falhou
                                 </span>
-                                <span class="badge" style="background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.2); font-size:0.8rem;">
+                                <span class="badge"
+                                    style="background:rgba(245,158,11,0.1); color:#f59e0b; border:1px solid rgba(245,158,11,0.2); font-size:0.8rem;">
                                     <i class="ph ph-clock"></i> ~1.1s
                                 </span>
                             </div>
                         </div>
-                        <div class="search-bar" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center;">
+                        <div class="search-bar"
+                            style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center;">
                             <div class="search-input" style="flex: 1; min-width: 250px;">
                                 <i class="ph ph-magnifying-glass"></i>
-                                <input type="text" id="log-search-global" placeholder="Pesquisar em todas as colunas..." onkeyup="ui.handleLogSearch(this.value)">
+                                <input type="text" id="log-search-global" placeholder="Pesquisar em todas as colunas..."
+                                    onkeyup="ui.handleLogSearch(this.value)">
                             </div>
-                            <button type="button" id="btn-clear-log-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.6rem 1rem; display:none;" onclick="ui.clearLogFilters()">
+                            <button type="button" id="btn-clear-log-filters" class="btn btn-secondary"
+                                style="font-size: 0.8rem; padding: 0.6rem 1rem; display:none;"
+                                onclick="ui.clearLogFilters()">
                                 <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
                             </button>
                         </div>
@@ -252,42 +265,55 @@
                                         <th class="sortable-header" data-key="data">
                                             <div class="header-content">
                                                 <span onclick="ui.handleLogSort('data', event)">Data</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('data', event)"><i class="ph ph-funnel"></i></button>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('data', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-data" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="hora">
                                             <div class="header-content">
                                                 <span onclick="ui.handleLogSort('hora', event)">Hora</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('hora', event)"><i class="ph ph-funnel"></i></button>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('hora', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-hora" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="tipo">
                                             <div class="header-content">
                                                 <span onclick="ui.handleLogSort('tipo', event)">Tipo</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('tipo', event)"><i class="ph ph-funnel"></i></button>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('tipo', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-tipo" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="modulo">
                                             <div class="header-content">
                                                 <span onclick="ui.handleLogSort('modulo', event)">Módulo</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('modulo', event)"><i class="ph ph-funnel"></i></button>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('modulo', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-modulo" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="descricao">
                                             <div class="header-content">
-                                                <span onclick="ui.handleLogSort('descricao', event)">O que foi testado</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('descricao', event)"><i class="ph ph-funnel"></i></button>
+                                                <span onclick="ui.handleLogSort('descricao', event)">O que foi
+                                                    testado</span>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('descricao', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-descricao" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="status">
                                             <div class="header-content">
                                                 <span onclick="ui.handleLogSort('status', event)">Status</span>
-                                                <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('status', event)"><i class="ph ph-funnel"></i></button>
+                                                <button type="button" class="btn-filter-column"
+                                                    onclick="ui.toggleFilterPopover('status', event)"><i
+                                                        class="ph ph-funnel"></i></button>
                                             </div>
                                             <div id="filter-popover-status" class="filter-popover"></div>
                                         </th>
@@ -308,7 +334,8 @@
                         <div style="text-align:center; padding:3rem; color:var(--text-muted);">
                             <i class="ph ph-archive" style="font-size:3rem; display:block; margin-bottom:1rem;"></i>
                             <h3>Log Geral</h3>
-                            <p style="font-size:0.85rem;">Eventos do sistema, logins e alterações serão registrados aqui em versões futuras.</p>
+                            <p style="font-size:0.85rem;">Eventos do sistema, logins e alterações serão registrados aqui
+                                em versões futuras.</p>
                         </div>
                     </div>
                 </div>
@@ -320,35 +347,44 @@
                     <div style="display: flex; flex-direction: column; gap: 0.2rem;">
                         <div style="display: flex; align-items: center; gap: 1rem;">
                             <h1 id="form-title" style="font-size: 1.5rem; margin-bottom: 0;">Nova Empresa</h1>
-                            <select id="emp-status" class="status-select" required style="font-size: 0.85rem; padding: 0.4rem 0.8rem; height: auto;">
+                            <select id="emp-status" class="status-select" required
+                                style="font-size: 0.85rem; padding: 0.4rem 0.8rem; height: auto;">
                                 <option value="Prospect">Prospect</option>
                                 <option value="Lead">Lead</option>
                                 <option value="Reunião">Reunião</option>
                                 <option value="Proposta | Andamento">Proposta | Andamento</option>
                                 <option value="Proposta | Recusada">Proposta | Recusada</option>
-                                <option value="Cliente Ativo">Cliente Ativo</option>
-                                <option value="Cliente Suspenso">Cliente Suspenso</option>
-                                <option value="Cliente Inativo">Cliente Inativo</option>
+                                <option value="Em Contrato">Em Contrato</option>
+                                <option value="Ativo">Ativo</option>
+                                <option value="Suspenso">Suspenso</option>
+                                <option value="Inativo">Inativo</option>
                             </select>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 0.85rem;">Toda jornada do cliente colocada em um só local</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">Toda jornada do cliente colocada em um
+                            só local</p>
                     </div>
                     <div style="display: flex; gap: 0.8rem; align-items: center;">
                         <div id="cs-header-metrics" style="display: none; gap: 0.8rem; align-items: center;">
-                            <div class="glass-panel" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
+                            <div class="glass-panel"
+                                style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
                                 <i class="ph ph-heartbeat" style="color: #10b981;"></i>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">HEALTH:</span>
-                                <select id="emp-health-score" class="input-control" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
+                                <span
+                                    style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">SAÚDE:</span>
+                                <select id="emp-health-score" class="input-control"
+                                    style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
                                     <option value="">Definir...</option>
                                     <option value="Saudável">🟢 Saudável</option>
                                     <option value="Atenção">🟡 Atenção</option>
                                     <option value="Risco">🔴 Risco</option>
                                 </select>
                             </div>
-                            <div class="glass-panel" style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
+                            <div class="glass-panel"
+                                style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
                                 <i class="ph ph-star" style="color: #f59e0b;"></i>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">NPS:</span>
-                                <select id="emp-nps" class="input-control" style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
+                                <span
+                                    style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">NPS:</span>
+                                <select id="emp-nps" class="input-control"
+                                    style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
                                     <option value="">--</option>
                                     <template id="nps-options">
                                         <!-- Will be manually populated or defined -->
@@ -375,7 +411,7 @@
 
                 <form id="company-form">
                     <input type="hidden" id="company-id">
-                    
+
                     <div class="company-view-layout">
                         <!-- Left Menu -->
                         <aside class="tab-menu glass-panel" style="padding: 1rem;">
@@ -383,12 +419,13 @@
                                 <i class="ph ph-buildings"></i> Dados Básicos
                             </button>
                             <button type="button" class="tab-menu-btn" data-tab="tab-produtos">
-                                <i class="ph ph-package"></i> Produtos Contratados
+                                <i class="ph ph-package"></i> Produtos DATI
                             </button>
                             <button type="button" class="tab-menu-btn" data-tab="tab-contatos">
                                 <i class="ph ph-users"></i> Contatos
                             </button>
-                            <button type="button" class="tab-menu-btn" id="btn-tab-cs" data-tab="tab-cs" style="display: none;">
+                            <button type="button" class="tab-menu-btn" id="btn-tab-cs" data-tab="tab-cs"
+                                style="display: none;">
                                 <i class="ph ph-heartbeat"></i> Customer Success
                             </button>
                             <button type="button" class="tab-menu-btn" data-tab="tab-reunioes">
@@ -401,18 +438,21 @@
 
                         <!-- Content Area -->
                         <div class="tab-content-area">
-                            
+
                             <!-- Tab: Dados -->
-                            <div id="tab-dados" class="tab-content active glass-panel form-section" style="margin-top: 0;">
+                            <div id="tab-dados" class="tab-content active glass-panel form-section"
+                                style="margin-top: 0;">
                                 <h2>Dados Básicos</h2>
                                 <div class="grid-2">
                                     <div class="input-group">
                                         <label>Nome da Empresa *</label>
-                                        <input type="text" id="emp-nome" class="input-control" required style="grid-column: span 2;">
+                                        <input type="text" id="emp-nome" class="input-control" required
+                                            style="grid-column: span 2;">
                                     </div>
                                     <div class="input-group">
                                         <label>CNPJ</label>
-                                        <input type="text" id="emp-cnpj" class="input-control" placeholder="00.000.000/0000-00" oninput="utils.maskCNPJ(this)">
+                                        <input type="text" id="emp-cnpj" class="input-control"
+                                            placeholder="00.000.000/0000-00" oninput="utils.maskCNPJ(this)">
                                     </div>
                                     <div class="input-group">
                                         <label>Tipo de Empresa</label>
@@ -436,32 +476,59 @@
                                         <label>Estado</label>
                                         <select id="emp-estado" class="input-control">
                                             <option value="">Selecione...</option>
-                                            <option value="AC">AC</option><option value="AL">AL</option><option value="AP">AP</option>
-                                            <option value="AM">AM</option><option value="BA">BA</option><option value="CE">CE</option>
-                                            <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
-                                            <option value="MA">MA</option><option value="MT">MT</option><option value="MS">MS</option>
-                                            <option value="MG">MG</option><option value="PA">PA</option><option value="PB">PB</option>
-                                            <option value="PR">PR</option><option value="PE">PE</option><option value="PI">PI</option>
-                                            <option value="RJ">RJ</option><option value="RN">RN</option><option value="RS">RS</option>
-                                            <option value="RO">RO</option><option value="RR">RR</option><option value="SC">SC</option>
-                                            <option value="SP">SP</option><option value="SE">SE</option><option value="TO">TO</option>
+                                            <option value="AC">AC</option>
+                                            <option value="AL">AL</option>
+                                            <option value="AP">AP</option>
+                                            <option value="AM">AM</option>
+                                            <option value="BA">BA</option>
+                                            <option value="CE">CE</option>
+                                            <option value="DF">DF</option>
+                                            <option value="ES">ES</option>
+                                            <option value="GO">GO</option>
+                                            <option value="MA">MA</option>
+                                            <option value="MT">MT</option>
+                                            <option value="MS">MS</option>
+                                            <option value="MG">MG</option>
+                                            <option value="PA">PA</option>
+                                            <option value="PB">PB</option>
+                                            <option value="PR">PR</option>
+                                            <option value="PE">PE</option>
+                                            <option value="PI">PI</option>
+                                            <option value="RJ">RJ</option>
+                                            <option value="RN">RN</option>
+                                            <option value="RS">RS</option>
+                                            <option value="RO">RO</option>
+                                            <option value="RR">RR</option>
+                                            <option value="SC">SC</option>
+                                            <option value="SP">SP</option>
+                                            <option value="SE">SE</option>
+                                            <option value="TO">TO</option>
                                         </select>
                                     </div>
                                     <div class="input-group">
                                         <label>Cidade</label>
-                                        <input type="text" id="emp-cidade" class="input-control" list="cidades-list" placeholder="Aguardando estado..." disabled>
+                                        <input type="text" id="emp-cidade" class="input-control" list="cidades-list"
+                                            placeholder="Aguardando estado..." disabled>
                                         <datalist id="cidades-list"></datalist>
                                     </div>
                                     <div class="input-group">
                                         <label>Canal</label>
                                         <select id="emp-canal" class="input-control">
                                             <option value="">Selecione...</option>
-                                            <option value="Comex UP">Comex UP</option>
-                                            <option value="Feiras">Feiras</option>
-                                            <option value="Google ADS">Google ADS</option>
+                                            <option value="DATI > Indica">DATI > Indica</option>
+                                            <option value="DATI > Vendedor">DATI > Vendedor</option>
+                                            <option value="DATI > Mailing">DATI > Mailing</option>
+                                            <option value="Gerador de Leads > Scotto">Gerador de Leads > Scotto</option>
+                                            <option value="Google > Orgânico">Google > Orgânico</option>
+                                            <option value="Google > Pago">Google > Pago</option>
                                             <option value="Mailing > Asia">Mailing > Asia</option>
-                                            <option value="Site">Site</option>
+                                            <option value="Mailing > DATI">Mailing > DATI</option>
+                                            <option value="Parceiros > Asia">Parceiros > Asia</option>
+                                            <option value="Parceiros > Cliente">Parceiros > Cliente</option>
+                                            <option value="Parceiros > DMM">Parceiros > DMM</option>
+                                            <option value="Redes Sociais">Redes Sociais</option>
                                             <option value="SDR DATI">SDR DATI</option>
+                                            <option value="Site">Site</option>
                                             <option value="Vendedor DATI">Vendedor DATI</option>
                                         </select>
                                     </div>
@@ -508,12 +575,13 @@
                             <!-- Tab: Produtos -->
                             <div id="tab-produtos" class="tab-content glass-panel form-section" style="margin-top: 0;">
                                 <div class="form-header">
-                                    <h2>Produtos Contratados</h2>
+                                    <h2>Produtos DATI</h2>
                                     <button type="button" id="btn-toggle-produto-form" class="btn btn-secondary">
                                         <i class="ph ph-plus"></i> Novo Produto
                                     </button>
                                 </div>
-                                <div id="produto-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                <div id="produto-form-container"
+                                    style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
                                     <h3>Adicionar Produto</h3>
                                     <div class="grid-4">
                                         <div class="input-group">
@@ -532,25 +600,30 @@
                                         </div>
                                         <div class="input-group">
                                             <label>Proposta</label>
-                                            <input type="file" id="new-prod-proposta" class="input-control">
+                                            <input type="file" id="new-prod-proposta" class="input-control"
+                                                accept=".pdf,.doc,.docx,.xls,.xlsx">
                                         </div>
                                         <div class="input-group">
                                             <label>Contrato</label>
-                                            <input type="file" id="new-prod-contrato" class="input-control">
+                                            <input type="file" id="new-prod-contrato" class="input-control"
+                                                accept=".pdf,.doc,.docx,.xls,.xlsx">
                                         </div>
                                     </div>
                                     <div class="grid-4">
                                         <div class="input-group">
                                             <label>Mensalidade (R$)</label>
-                                            <input type="text" id="new-prod-mensalidade" class="input-control" placeholder="0,00">
+                                            <input type="text" id="new-prod-mensalidade" class="input-control"
+                                                placeholder="0,00">
                                         </div>
                                         <div class="input-group">
                                             <label>Mínimo (R$)</label>
-                                            <input type="text" id="new-prod-minimo" class="input-control" placeholder="0,00">
+                                            <input type="text" id="new-prod-minimo" class="input-control"
+                                                placeholder="0,00">
                                         </div>
                                         <div class="input-group">
                                             <label>Valor User (R$)</label>
-                                            <input type="text" id="new-prod-val-user" class="input-control" placeholder="0,00">
+                                            <input type="text" id="new-prod-val-user" class="input-control"
+                                                placeholder="0,00">
                                         </div>
                                         <div class="input-group">
                                             <label>Horas HD</label>
@@ -558,12 +631,16 @@
                                         </div>
                                     </div>
                                     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                        <button type="button" class="btn btn-secondary btn-cancel-produto">Cancelar</button>
-                                        <button type="button" id="btn-save-produto" class="btn btn-primary btn-save-produto">Adicionar Produto</button>
+                                        <button type="button"
+                                            class="btn btn-secondary btn-cancel-produto">Cancelar</button>
+                                        <button type="button" id="btn-save-produto"
+                                            class="btn btn-primary btn-save-produto">Adicionar Produto</button>
                                     </div>
                                 </div>
                                 <div style="display:flex; justify-content: flex-end; margin-bottom: 1rem;">
-                                    <button type="button" id="btn-clear-produtos-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;" onclick="ui.clearProdutosFilters()">
+                                    <button type="button" id="btn-clear-produtos-filters" class="btn btn-secondary"
+                                        style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;"
+                                        onclick="ui.clearProdutosFilters()">
                                         <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
                                     </button>
                                 </div>
@@ -573,21 +650,29 @@
                                             <th class="sortable-header" data-key="nome">
                                                 <div class="header-content">
                                                     <span onclick="ui.handleProdutosSort('nome', event)">Produto</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_nome', event)"><i class="ph ph-funnel"></i></button>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('produtos_nome', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-produtos_nome" class="filter-popover"></div>
                                             </th>
                                             <th class="sortable-header" data-key="mensalidade">
                                                 <div class="header-content">
-                                                    <span onclick="ui.handleProdutosSort('mensalidade', event)">Valor</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_mensalidade', event)"><i class="ph ph-funnel"></i></button>
+                                                    <span
+                                                        onclick="ui.handleProdutosSort('mensalidade', event)">Valor</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('produtos_mensalidade', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
-                                                <div id="filter-popover-produtos_mensalidade" class="filter-popover"></div>
+                                                <div id="filter-popover-produtos_mensalidade" class="filter-popover">
+                                                </div>
                                             </th>
                                             <th class="sortable-header" data-key="horasHd">
                                                 <div class="header-content">
                                                     <span onclick="ui.handleProdutosSort('horasHd', event)">Horas</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('produtos_horasHd', event)"><i class="ph ph-funnel"></i></button>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('produtos_horasHd', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-produtos_horasHd" class="filter-popover"></div>
                                             </th>
@@ -608,24 +693,36 @@
                                         <i class="ph ph-plus"></i> Novo Contato
                                     </button>
                                 </div>
-                                <div id="contact-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                <div id="contact-form-container"
+                                    style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
                                     <div class="grid-3">
-                                        <input type="text" id="new-cont-nome" class="input-control" placeholder="Nome *">
-                                        <input type="email" id="new-cont-email1" class="input-control" placeholder="E-mail principal">
-                                        <input type="tel" id="new-cont-tel" class="input-control" placeholder="Telefone">
+                                        <input type="text" id="new-cont-nome" class="input-control"
+                                            placeholder="Nome *">
+                                        <input type="email" id="new-cont-email1" class="input-control"
+                                            placeholder="E-mail principal">
+                                        <input type="tel" id="new-cont-tel" class="input-control"
+                                            placeholder="Telefone">
                                     </div>
                                     <div class="grid-3" style="margin-top: 1rem;">
-                                        <input type="text" id="new-cont-cargo" class="input-control" placeholder="Cargo">
-                                        <input type="text" id="new-cont-dep" class="input-control" placeholder="Departamento">
-                                        <input type="text" id="new-cont-linkedin" class="input-control" placeholder="LinkedIn URL">
+                                        <input type="text" id="new-cont-cargo" class="input-control"
+                                            placeholder="Cargo">
+                                        <input type="text" id="new-cont-dep" class="input-control"
+                                            placeholder="Departamento">
+                                        <input type="text" id="new-cont-linkedin" class="input-control"
+                                            placeholder="LinkedIn URL">
                                     </div>
-                                    <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                                        <button type="button" class="btn btn-secondary btn-cancel-contact">Cancelar</button>
-                                        <button type="button" id="btn-save-contact" class="btn btn-primary btn-save-contact">Salvar Contato</button>
+                                    <div
+                                        style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                                        <button type="button"
+                                            class="btn btn-secondary btn-cancel-contact">Cancelar</button>
+                                        <button type="button" id="btn-save-contact"
+                                            class="btn btn-primary btn-save-contact">Salvar Contato</button>
                                     </div>
                                 </div>
                                 <div style="display:flex; justify-content: flex-end; margin-bottom: 1rem;">
-                                    <button type="button" id="btn-clear-contatos-filters" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;" onclick="ui.clearContatosFilters()">
+                                    <button type="button" id="btn-clear-contatos-filters" class="btn btn-secondary"
+                                        style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;"
+                                        onclick="ui.clearContatosFilters()">
                                         <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
                                     </button>
                                 </div>
@@ -635,7 +732,9 @@
                                             <th class="sortable-header" data-key="nome">
                                                 <div class="header-content">
                                                     <span onclick="ui.handleContatosSort('nome', event)">Nome</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_nome', event)"><i class="ph ph-funnel"></i></button>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('contatos_nome', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-contatos_nome" class="filter-popover"></div>
                                             </th>
@@ -643,16 +742,22 @@
                                             <th class="sortable-header" data-key="cargo">
                                                 <div class="header-content">
                                                     <span onclick="ui.handleContatosSort('cargo', event)">Cargo</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_cargo', event)"><i class="ph ph-funnel"></i></button>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('contatos_cargo', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-contatos_cargo" class="filter-popover"></div>
                                             </th>
                                             <th class="sortable-header" data-key="departamento">
                                                 <div class="header-content">
-                                                    <span onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('contatos_departamento', event)"><i class="ph ph-funnel"></i></button>
+                                                    <span
+                                                        onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('contatos_departamento', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
-                                                <div id="filter-popover-contatos_departamento" class="filter-popover"></div>
+                                                <div id="filter-popover-contatos_departamento" class="filter-popover">
+                                                </div>
                                             </th>
                                             <th>Telefone</th>
                                             <th>Redes</th>
@@ -667,37 +772,50 @@
                             <!-- Tab: CS (Customer Success) -->
                             <div id="tab-cs" class="tab-content glass-panel form-section" style="margin-top: 0;">
                                 <div class="cs-submenu">
-                                    <button type="button" class="cs-submenu-btn active" onclick="switchCSSubTab('cs-dash', this)">
+                                    <button type="button" class="cs-submenu-btn active"
+                                        onclick="switchCSSubTab('cs-dash', this)">
                                         <i class="ph ph-presentation-chart"></i> Dashboards
                                     </button>
-                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-nps', this)">
+                                    <button type="button" class="cs-submenu-btn"
+                                        onclick="switchCSSubTab('cs-nps', this)">
                                         <i class="ph ph-star"></i> NPS
                                     </button>
-                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-meet', this)">
+                                    <button type="button" class="cs-submenu-btn"
+                                        onclick="switchCSSubTab('cs-meet', this)">
                                         <i class="ph ph-users-three"></i> Reuniões
                                     </button>
-                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-tk', this)">
+                                    <button type="button" class="cs-submenu-btn"
+                                        onclick="switchCSSubTab('cs-tk', this)">
                                         <i class="ph ph-headset"></i> Chamados
                                     </button>
-                                    <button type="button" class="cs-submenu-btn" onclick="switchCSSubTab('cs-hist', this)">
+                                    <button type="button" class="cs-submenu-btn"
+                                        onclick="switchCSSubTab('cs-hist', this)">
                                         <i class="ph ph-clock-counter-clockwise"></i> Histórico/Notas
                                     </button>
                                 </div>
 
                                 <div id="cs-dash" class="cs-sub-content active">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                         <h3>Histórico de Dashboards (Power BI)</h3>
-                                        <button type="button" id="btn-toggle-dashboard-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo</button>
+                                        <button type="button" id="btn-toggle-dashboard-form"
+                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo</button>
                                     </div>
-                                    <div id="dashboard-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                    <div id="dashboard-form-container" class="glass-panel"
+                                        style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
                                         <div class="grid-3">
                                             <input type="date" id="new-db-data" class="input-control">
-                                            <input type="text" id="new-db-dest" class="input-control" placeholder="Destinatários">
-                                            <input type="url" id="new-db-link" class="input-control" placeholder="Link do Power BI">
+                                            <input type="text" id="new-db-dest" class="input-control"
+                                                placeholder="Destinatários">
+                                            <input type="url" id="new-db-link" class="input-control"
+                                                placeholder="Link do Power BI">
                                         </div>
-                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
-                                            <button type="button" id="btn-cancel-dashboard" class="btn btn-secondary">Cancelar</button>
-                                            <button type="button" id="btn-save-dashboard" class="btn btn-primary">Registrar</button>
+                                        <div
+                                            style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
+                                            <button type="button" id="btn-cancel-dashboard"
+                                                class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-dashboard"
+                                                class="btn btn-primary">Registrar</button>
                                         </div>
                                     </div>
                                     <table class="company-table" id="tab-dashboards">
@@ -705,17 +823,24 @@
                                             <tr>
                                                 <th class="sortable-header" data-key="data">
                                                     <div class="header-content">
-                                                        <span onclick="ui.handleDashboardsSort('data', event)">Data</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('db_data', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span
+                                                            onclick="ui.handleDashboardsSort('data', event)">Data</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('db_data', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
                                                     <div id="filter-popover-db_data" class="filter-popover"></div>
                                                 </th>
                                                 <th class="sortable-header" data-key="destinatarios">
                                                     <div class="header-content">
-                                                        <span onclick="ui.handleDashboardsSort('destinatarios', event)">Destinatários</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('db_destinatarios', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span
+                                                            onclick="ui.handleDashboardsSort('destinatarios', event)">Destinatários</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('db_destinatarios', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
-                                                    <div id="filter-popover-db_destinatarios" class="filter-popover"></div>
+                                                    <div id="filter-popover-db_destinatarios" class="filter-popover">
+                                                    </div>
                                                 </th>
                                                 <th>Link</th>
                                                 <th style="text-align: right;">Ações</th>
@@ -727,20 +852,30 @@
                                 <div id="pagination-dashboards" class="pagination-container"></div>
 
                                 <div id="cs-nps" class="cs-sub-content">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                         <h3>Pesquisas NPS</h3>
-                                        <button type="button" id="btn-toggle-nps-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo NPS</button>
+                                        <button type="button" id="btn-toggle-nps-form"
+                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo
+                                            NPS</button>
                                     </div>
-                                    <div id="nps-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                    <div id="nps-form-container" class="glass-panel"
+                                        style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
                                         <div class="grid-4">
                                             <input type="date" id="new-nps-data" class="input-control">
-                                            <input type="text" id="new-nps-dest" class="input-control" placeholder="Destinatários">
-                                            <input type="text" id="new-nps-forms" class="input-control" placeholder="Formulários">
-                                            <input type="number" id="new-nps-score" class="input-control" placeholder="NPS Médio">
+                                            <input type="text" id="new-nps-dest" class="input-control"
+                                                placeholder="Destinatários">
+                                            <input type="text" id="new-nps-forms" class="input-control"
+                                                placeholder="Formulários">
+                                            <input type="number" id="new-nps-score" class="input-control"
+                                                placeholder="NPS Médio">
                                         </div>
-                                        <div style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
-                                            <button type="button" id="btn-cancel-nps" class="btn btn-secondary">Cancelar</button>
-                                            <button type="button" id="btn-save-nps" class="btn btn-primary">Salvar NPS</button>
+                                        <div
+                                            style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
+                                            <button type="button" id="btn-cancel-nps"
+                                                class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-nps" class="btn btn-primary">Salvar
+                                                NPS</button>
                                         </div>
                                     </div>
                                     <table class="company-table" id="tab-nps">
@@ -749,22 +884,32 @@
                                                 <th class="sortable-header" data-key="data">
                                                     <div class="header-content">
                                                         <span onclick="ui.handleNPSSort('data', event)">Data</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_data', event)"><i class="ph ph-funnel"></i></button>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('nps_data', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
                                                     <div id="filter-popover-nps_data" class="filter-popover"></div>
                                                 </th>
                                                 <th class="sortable-header" data-key="destinatarios">
                                                     <div class="header-content">
-                                                        <span onclick="ui.handleNPSSort('destinatarios', event)">Destinatários</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_destinatarios', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span
+                                                            onclick="ui.handleNPSSort('destinatarios', event)">Destinatários</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('nps_destinatarios', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
-                                                    <div id="filter-popover-nps_destinatarios" class="filter-popover"></div>
+                                                    <div id="filter-popover-nps_destinatarios" class="filter-popover">
+                                                    </div>
                                                 </th>
                                                 <th>Forms</th>
-                                                <th class="sortable-header" data-key="score" style="text-align: center;">
+                                                <th class="sortable-header" data-key="score"
+                                                    style="text-align: center;">
                                                     <div class="header-content" style="justify-content: center;">
-                                                        <span onclick="ui.handleNPSSort('score', event)">NPS Score</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('nps_score', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span onclick="ui.handleNPSSort('score', event)">NPS
+                                                            Score</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('nps_score', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
                                                     <div id="filter-popover-nps_score" class="filter-popover"></div>
                                                 </th>
@@ -777,20 +922,30 @@
                                 <div id="pagination-nps" class="pagination-container"></div>
 
                                 <div id="cs-meet" class="cs-sub-content">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                         <h3>Reuniões de Alinhamento</h3>
-                                        <button type="button" id="btn-toggle-cs-meet-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Nova Reunião</button>
+                                        <button type="button" id="btn-toggle-cs-meet-form"
+                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Nova
+                                            Reunião</button>
                                     </div>
-                                    <div id="cs-meet-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                    <div id="cs-meet-form-container" class="glass-panel"
+                                        style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
                                         <div class="grid-2">
-                                            <div class="input-group"><label>Data</label><input type="date" id="new-cs-meet-data" class="input-control"></div>
-                                            <div class="input-group"><label>Participantes</label><input type="text" id="new-cs-meet-parts" class="input-control"></div>
+                                            <div class="input-group"><label>Data</label><input type="date"
+                                                    id="new-cs-meet-data" class="input-control"></div>
+                                            <div class="input-group"><label>Participantes</label><input type="text"
+                                                    id="new-cs-meet-parts" class="input-control"></div>
                                         </div>
-                                        <div class="input-group"><label>Link da Gravação</label><input type="url" id="new-cs-meet-link" class="input-control"></div>
-                                        <div class="input-group"><label>Observações</label><textarea id="new-cs-meet-obs" class="input-control" rows="2"></textarea></div>
+                                        <div class="input-group"><label>Link da Gravação</label><input type="url"
+                                                id="new-cs-meet-link" class="input-control"></div>
+                                        <div class="input-group"><label>Observações</label><textarea
+                                                id="new-cs-meet-obs" class="input-control" rows="2"></textarea></div>
                                         <div style="display: flex; gap: 0.8rem; justify-content: flex-end;">
-                                            <button type="button" id="btn-cancel-cs-meet" class="btn btn-secondary">Cancelar</button>
-                                            <button type="button" id="btn-save-cs-meet" class="btn btn-primary">Registrar</button>
+                                            <button type="button" id="btn-cancel-cs-meet"
+                                                class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-cs-meet"
+                                                class="btn btn-primary">Registrar</button>
                                         </div>
                                     </div>
                                     <table class="company-table" id="tab-cs-meetings">
@@ -798,17 +953,24 @@
                                             <tr>
                                                 <th class="sortable-header" data-key="data">
                                                     <div class="header-content">
-                                                        <span onclick="ui.handleCSMeetingsSort('data', event)">Data</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('csmt_data', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span
+                                                            onclick="ui.handleCSMeetingsSort('data', event)">Data</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('csmt_data', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
                                                     <div id="filter-popover-csmt_data" class="filter-popover"></div>
                                                 </th>
                                                 <th class="sortable-header" data-key="participantes">
                                                     <div class="header-content">
-                                                        <span onclick="ui.handleCSMeetingsSort('participantes', event)">Participantes</span>
-                                                        <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('csmt_participantes', event)"><i class="ph ph-funnel"></i></button>
+                                                        <span
+                                                            onclick="ui.handleCSMeetingsSort('participantes', event)">Participantes</span>
+                                                        <button type="button" class="btn-filter-column"
+                                                            onclick="ui.toggleFilterPopover('csmt_participantes', event)"><i
+                                                                class="ph ph-funnel"></i></button>
                                                     </div>
-                                                    <div id="filter-popover-csmt_participantes" class="filter-popover"></div>
+                                                    <div id="filter-popover-csmt_participantes" class="filter-popover">
+                                                    </div>
                                                 </th>
                                                 <th>OBS</th>
                                                 <th>Link</th>
@@ -821,25 +983,44 @@
                                 <div id="pagination-cs-meetings" class="pagination-container"></div>
 
                                 <div id="cs-tk" class="cs-sub-content">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                                         <h3>Chamados de Suporte</h3>
-                                        <button type="button" id="btn-toggle-ticket-form" class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo Chamado</button>
+                                        <button type="button" id="btn-toggle-ticket-form"
+                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo
+                                            Chamado</button>
                                     </div>
-                                    <div id="ticket-form-container" class="glass-panel" style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                    <div id="ticket-form-container" class="glass-panel"
+                                        style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
                                         <div class="grid-3">
                                             <input type="date" id="new-tk-data" class="input-control">
-                                            <input type="text" id="new-tk-autor" class="input-control" placeholder="Quem fez o chamado?">
-                                            <input type="text" id="new-tk-num" class="input-control" placeholder="Nº Chamado">
+                                            <input type="text" id="new-tk-autor" class="input-control"
+                                                placeholder="Quem fez o chamado?">
+                                            <input type="text" id="new-tk-num" class="input-control"
+                                                placeholder="Nº Chamado">
                                         </div>
-                                        <div class="input-group" style="margin-top: 1rem;"><input type="url" id="new-tk-link" class="input-control" placeholder="Link portal"></div>
-                                        <div class="input-group"><textarea id="new-tk-resumo" class="input-control" placeholder="Resumo do chamado" rows="2"></textarea></div>
+                                        <div class="input-group" style="margin-top: 1rem;"><input type="url"
+                                                id="new-tk-link" class="input-control" placeholder="Link portal"></div>
+                                        <div class="input-group"><textarea id="new-tk-resumo" class="input-control"
+                                                placeholder="Resumo do chamado" rows="2"></textarea></div>
                                         <div style="display: flex; gap: 0.8rem; justify-content: flex-end;">
-                                            <button type="button" id="btn-cancel-ticket" class="btn btn-secondary">Cancelar</button>
-                                            <button type="button" id="btn-save-ticket" class="btn btn-primary">Salvar</button>
+                                            <button type="button" id="btn-cancel-ticket"
+                                                class="btn btn-secondary">Cancelar</button>
+                                            <button type="button" id="btn-save-ticket"
+                                                class="btn btn-primary">Salvar</button>
                                         </div>
                                     </div>
                                     <table class="company-table">
-                                        <thead><tr><th>Data</th><th>Nº</th><th>Resumo</th><th>Autor</th><th>Portal</th><th>Ações</th></tr></thead>
+                                        <thead>
+                                            <tr>
+                                                <th>Data</th>
+                                                <th>Nº</th>
+                                                <th>Resumo</th>
+                                                <th>Autor</th>
+                                                <th>Portal</th>
+                                                <th>Ações</th>
+                                            </tr>
+                                        </thead>
                                         <tbody id="tickets-table-body"></tbody>
                                     </table>
                                 </div>
@@ -847,8 +1028,10 @@
                                 <div id="cs-hist" class="cs-sub-content">
                                     <h3>Diário de Observações CS</h3>
                                     <div style="margin: 1.5rem 0;">
-                                        <textarea id="new-cs-note" class="input-control" rows="3" placeholder="Escreva uma nova nota..."></textarea>
-                                        <button type="button" id="btn-add-cs-note" class="btn btn-primary" style="margin-top: 0.5rem; float: right;">Publicar Nota</button>
+                                        <textarea id="new-cs-note" class="input-control" rows="3"
+                                            placeholder="Escreva uma nova nota..."></textarea>
+                                        <button type="button" id="btn-add-cs-note" class="btn btn-primary"
+                                            style="margin-top: 0.5rem; float: right;">Publicar Nota</button>
                                         <div style="clear:both;"></div>
                                     </div>
                                     <div id="cs-timeline" class="timeline"></div>
@@ -863,9 +1046,11 @@
                                         <i class="ph ph-plus"></i> Nova Reunião
                                     </button>
                                 </div>
-                                <div id="meeting-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                <div id="meeting-form-container"
+                                    style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
                                     <div class="grid-3">
-                                        <div class="input-group"><label>Data</label><input type="date" id="new-meet-date" class="input-control"></div>
+                                        <div class="input-group"><label>Data</label><input type="date"
+                                                id="new-meet-date" class="input-control"></div>
                                         <div class="input-group">
                                             <label>Temperatura</label>
                                             <select id="new-meet-temp" class="input-control">
@@ -874,12 +1059,16 @@
                                                 <option value="Cold">❄️ Cold</option>
                                             </select>
                                         </div>
-                                        <div class="input-group"><label>Participantes</label><input type="text" id="new-meet-parts" class="input-control"></div>
+                                        <div class="input-group"><label>Participantes</label><input type="text"
+                                                id="new-meet-parts" class="input-control"></div>
                                     </div>
-                                    <div class="input-group"><label>Link da Gravação</label><input type="url" id="new-meet-link" class="input-control"></div>
+                                    <div class="input-group"><label>Link da Gravação</label><input type="url"
+                                            id="new-meet-link" class="input-control"></div>
                                     <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                                        <button type="button" id="btn-cancel-meeting" class="btn btn-secondary">Cancelar</button>
-                                        <button type="button" id="btn-add-meeting-submit" class="btn btn-primary">Adicionar Reunião</button>
+                                        <button type="button" id="btn-cancel-meeting"
+                                            class="btn btn-secondary">Cancelar</button>
+                                        <button type="button" id="btn-add-meeting-submit"
+                                            class="btn btn-primary">Adicionar Reunião</button>
                                     </div>
                                 </div>
                                 <table class="company-table" id="tab-meetings-geral">
@@ -888,21 +1077,31 @@
                                             <th class="sortable-header" data-key="data">
                                                 <div class="header-content">
                                                     <span onclick="ui.handleReunioesSort('data', event)">Data</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_data', event)"><i class="ph ph-funnel"></i></button>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('meet_data', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-meet_data" class="filter-popover"></div>
                                             </th>
                                             <th class="sortable-header" data-key="participantes">
                                                 <div class="header-content">
-                                                    <span onclick="ui.handleReunioesSort('participantes', event)">Participantes</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_participantes', event)"><i class="ph ph-funnel"></i></button>
+                                                    <span
+                                                        onclick="ui.handleReunioesSort('participantes', event)">Participantes</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('meet_participantes', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
-                                                <div id="filter-popover-meet_participantes" class="filter-popover"></div>
+                                                <div id="filter-popover-meet_participantes" class="filter-popover">
+                                                </div>
                                             </th>
-                                            <th class="sortable-header" data-key="temperatura" style="text-align: center;">
+                                            <th class="sortable-header" data-key="temperatura"
+                                                style="text-align: center;">
                                                 <div class="header-content" style="justify-content: center;">
-                                                    <span onclick="ui.handleReunioesSort('temperatura', event)">Temp</span>
-                                                    <button type="button" class="btn-filter-column" onclick="ui.toggleFilterPopover('meet_temperatura', event)"><i class="ph ph-funnel"></i></button>
+                                                    <span
+                                                        onclick="ui.handleReunioesSort('temperatura', event)">Temp</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('meet_temperatura', event)"><i
+                                                            class="ph ph-funnel"></i></button>
                                                 </div>
                                                 <div id="filter-popover-meet_temperatura" class="filter-popover"></div>
                                             </th>
@@ -916,12 +1115,19 @@
                             <div id="pagination-meetings-geral" class="pagination-container"></div>
 
                             <!-- Tab: Qualificação -->
-                            <div id="tab-qualificacao" class="tab-content glass-panel form-section" style="margin-top: 0;">
-                                <div class="form-header"><h2>Qualificação e Diagnóstico</h2></div>
+                            <div id="tab-qualificacao" class="tab-content glass-panel form-section"
+                                style="margin-top: 0;">
+                                <div class="form-header">
+                                    <h2>Qualificação e Diagnóstico</h2>
+                                </div>
                                 <div class="grid-2">
                                     <div class="input-group">
                                         <label>Já trabalha com Comex?</label>
-                                        <select id="qual-tem-comex" class="input-control"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                                        <select id="qual-tem-comex" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="Sim">Sim</option>
+                                            <option value="Não">Não</option>
+                                        </select>
                                     </div>
                                     <div id="group-qual-comex" class="input-group" style="display: none;">
                                         <label>Qual sistema/processo?</label>
@@ -931,24 +1137,32 @@
                                 <div class="grid-2">
                                     <div class="input-group">
                                         <label>Possui ERP?</label>
-                                        <select id="qual-tem-erp" class="input-control"><option value="">Selecione...</option><option value="Sim">Sim</option><option value="Não">Não</option></select>
+                                        <select id="qual-tem-erp" class="input-control">
+                                            <option value="">Selecione...</option>
+                                            <option value="Sim">Sim</option>
+                                            <option value="Não">Não</option>
+                                        </select>
                                     </div>
                                     <div id="group-qual-erp" class="input-group" style="display: none;">
                                         <label>Qual ERP?</label>
                                         <input type="text" id="qual-qual-erp" class="input-control">
                                     </div>
                                 </div>
-                                <div class="input-group"><label>Principal Objetivo</label><textarea id="qual-objetivo" class="input-control" rows="2"></textarea></div>
-                                <div class="input-group"><label>Principais Dores/Gargalos</label><textarea id="qual-dores" class="input-control" rows="2"></textarea></div>
-                                <div class="input-group"><label>O que esperam da DATI?</label><textarea id="qual-expectativa" class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>Principal Objetivo</label><textarea id="qual-objetivo"
+                                        class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>Principais Dores/Gargalos</label><textarea
+                                        id="qual-dores" class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>O que esperam da DATI?</label><textarea
+                                        id="qual-expectativa" class="input-control" rows="2"></textarea></div>
                             </div>
 
                         </div>
                     </div>
 
-                    <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end; padding: 2rem; border-top: 1px solid var(--dark-border);">
+                    <div
+                        style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end; padding: 2rem; border-top: 1px solid var(--dark-border);">
                         <button type="button" class="btn btn-secondary btn-back-list">Sair sem salvar</button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="btn-save-company">
                             <i class="ph ph-floppy-disk"></i> Salvar Empresa
                         </button>
                     </div>
@@ -965,4 +1179,5 @@
     <script type="module" src="js/app.js"></script>
 
 </body>
+
 </html>

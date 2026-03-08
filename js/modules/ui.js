@@ -11,6 +11,70 @@ let csMeetingTableManager = null;
 let meetingGeralTableManager = null;
 let companiesTableManager = null;
 
+// ✅ CORREÇÃO: resetar managers de formulário ao abrir nova empresa
+export function resetFormTableManagers() {
+    productsTableManager = null;
+    contactsTableManager = null;
+    dashboardTableManager = null;
+    npsTableManager = null;
+    csMeetingTableManager = null;
+    meetingGeralTableManager = null;
+}
+
+// Helper to download base64 files correctly
+export async function downloadFile(base64Data, fileName = 'arquivo_dati.pdf') {
+    if (!base64Data) return;
+    
+    try {
+        // 1. Converter para Blob usando o método nativo (mais performático para arquivos grandes)
+        const response = await fetch(base64Data);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        // 2. Definir nome e extensão
+        let finalName = fileName || 'arquivo_dati.pdf';
+        
+        // Se o nome vier como UUID ou sem extensão, força .pdf
+        if (!finalName.includes('.')) {
+            finalName += '.pdf';
+        }
+
+        // 3. Criar link e disparar download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = finalName;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        setTimeout(() => {
+            if (document.body.contains(a)) document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 200);
+
+    } catch (e) {
+        console.error('Erro no processamento do download:', e);
+        // Fallback simples para o navegador lidar
+        const a = document.createElement('a');
+        a.href = base64Data;
+        a.download = fileName || 'arquivo_dati.pdf';
+        a.click();
+    }
+}
+
+export async function downloadProductFile(index, type) {
+    const prod = state.tempProdutos[index];
+    if (!prod) return;
+    const data = type === 'proposta' ? prod.propostaData : prod.contratoData;
+    const name = type === 'proposta' ? prod.propostaName : prod.contratoName;
+    
+    if (data) {
+        await downloadFile(data, name);
+    } else {
+        console.error('Dados do arquivo ausentes', { type, index });
+    }
+}
+
 export function renderDashboard() {
     const statsContainer = document.getElementById('dashboard-stats');
     if (!statsContainer) return;
@@ -33,9 +97,10 @@ export function renderDashboard() {
         </div>
     `;
 
-    const order = ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento', 'Cliente Ativo'];
+    const order = ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento', 'Em Contrato', 'Ativo', 'Suspenso', 'Inativo'];
     order.forEach(status => {
         const config = STATUS_CONFIG[status];
+        if (!config) return; // Segurança caso o nome mude novamente
         const count = counts[status] || 0;
         statsContainer.innerHTML += `
             <div class="glass-panel stat-card" style="border-left-color: ${config.color};">
@@ -58,19 +123,18 @@ export function renderCompanyList() {
             state.companies,
             [
                 { key: 'nome', type: 'string' },
-                { key: 'segmento', type: 'string' },
-                { key: 'cidade', type: 'string' },
                 { key: 'status', type: 'string' },
+                { key: 'healthScore', type: 'string' },
+                { key: 'nps', type: 'number' },
+                { key: 'produtosNames', type: 'string' },
+                { key: 'segmento', type: 'string' },
                 { key: 'updatedAt', type: 'number' }
             ],
             (data) => renderCompanyTableRows(data),
             'view-company-list'
         );
         companiesTableManager.paginationContainerId = 'pagination-companies';
-        // Configura busca em múltiplas colunas (10/10 UX)
-        companiesTableManager.searchKeys = ['nome', 'segmento', 'canal', 'cidade', 'estado', 'status', 'cnpj', 'site'];
-        
-        // Default sort by updatedAt desc
+        companiesTableManager.searchKeys = ['nome', 'segmento', 'produtosNames', 'cidade', 'estado', 'status', 'cnpj', 'site'];
         companiesTableManager.sort = { key: 'updatedAt', direction: 'desc' };
         companiesTableManager.apply();
     } else {
@@ -86,7 +150,7 @@ function renderCompanyTableRows(data) {
     if (data.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="5">
+                <td colspan="7">
                     <div class="empty-results">
                         <div class="empty-icon">
                             <i class="ph ph-magnifying-glass"></i>
@@ -104,35 +168,67 @@ function renderCompanyTableRows(data) {
     }
 
     data.forEach(comp => {
-        const config = STATUS_CONFIG[comp.status] || STATUS_CONFIG['Prospect'];
+        const config = STATUS_CONFIG[comp.status] || STATUS_CONFIG['Prospect'] || { color: '#64748b', class: 'status-prospect' };
         const tr = document.createElement('tr');
+        
+        const healthBadge = (comp.healthScore && CS_VISIBLE_STATUSES.includes(comp.status)) ? `
+            <span class="badge" style="font-size: 0.65rem; background: ${comp.healthScore === 'Saudável' ? 'rgba(16,185,129,0.15)' : comp.healthScore === 'Atenção' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${comp.healthScore === 'Saudável' ? '#10b981' : comp.healthScore === 'Atenção' ? '#f59e0b' : '#ef4444'}; border: 1px solid currentColor;">
+                ${comp.healthScore === 'Saudável' ? '🟢' : comp.healthScore === 'Atenção' ? '🟡' : '🔴'} ${comp.healthScore}
+            </span>
+        ` : '-';
+
+        let npsBadge = '-';
+        if (comp.nps && CS_VISIBLE_STATUSES.includes(comp.status)) {
+            const npsVal = parseFloat(comp.nps);
+            let npsColor = '#64748b'; // Gray default
+            let npsBg = 'rgba(255,255,255,0.05)';
+
+            if (npsVal <= 6) {
+                npsColor = '#ef4444'; // Red
+                npsBg = 'rgba(239, 68, 68, 0.15)';
+            } else if (npsVal <= 8) {
+                npsColor = '#f59e0b'; // Yellow (Amber)
+                npsBg = 'rgba(245, 158, 11, 0.15)';
+            } else {
+                npsColor = '#10b981'; // Green (Emerald)
+                npsBg = 'rgba(16, 185, 129, 0.15)';
+            }
+
+            npsBadge = `
+                <span class="badge" style="font-size: 0.85rem; background: ${npsBg}; color: ${npsColor}; border: 1px solid currentColor;">
+                    NPS: ${comp.nps}
+                </span>
+            `;
+        }
+
         tr.innerHTML = `
             <td>
-                <div style="font-weight: 600; color: var(--text-main);">${comp.nome}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">${comp.site || '-'}</div>
+                <div class="company-name-wrapper">
+                    <span class="company-name-text">
+                        ${comp.nome.length > 20 ? comp.nome.substring(0, 18) + '...' : comp.nome}
+                    </span>
+                    ${comp.nome.length > 20 ? `<div class="name-tooltip">${comp.nome}</div>` : ''}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">${comp.tipo || '-'}</div>
             </td>
-            <td>
-                <div>${comp.segmento || '-'}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">${comp.canal || '-'}</div>
-            </td>
-            <td>${comp.cidade || '-'}${comp.estado ? ` / ${comp.estado}` : ''}</td>
-            <td>
-                <div style="display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start;">
-                    <span class="badge ${config.class}">${comp.status}</span>
-                    <div style="display: flex; gap: 0.3rem;">
-                        ${(comp.healthScore && CS_VISIBLE_STATUSES.includes(comp.status)) ? `
-                            <span class="badge" style="font-size: 0.65rem; background: ${comp.healthScore === 'Saudável' ? 'rgba(16,185,129,0.15)' : comp.healthScore === 'Atenção' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${comp.healthScore === 'Saudável' ? '#10b981' : comp.healthScore === 'Atenção' ? '#f59e0b' : '#ef4444'}; border: 1px solid currentColor;">
-                                ${comp.healthScore === 'Saudável' ? '🟢' : comp.healthScore === 'Atenção' ? '🟡' : '🔴'} ${comp.healthScore}
-                            </span>
-                        ` : ''}
-                        ${(comp.nps && CS_VISIBLE_STATUSES.includes(comp.status)) ? `
-                            <span class="badge" style="font-size: 0.65rem; background: rgba(255,255,255,0.05); color: var(--text-muted); border: 1px solid var(--dark-border);">
-                                NPS: ${comp.nps}
-                            </span>
-                        ` : ''}
-                    </div>
+            <td style="text-align: center;"><span class="badge ${config.class}">${comp.status}</span></td>
+            <td style="text-align: center;">${healthBadge}</td>
+            <td style="text-align: center;">${npsBadge}</td>
+            <td style="text-align: center;">
+                <div class="product-pills-container">
+                    ${(comp.produtos || []).slice(0, 3).map(p => `<span class="product-pill">${p.nome}</span>`).join('')}
+                    ${(comp.produtos || []).length > 3 ? `
+                        <div class="product-pill-extra" title="${comp.produtos.slice(3).map(p => p.nome).join(', ')}">
+                            +${comp.produtos.length - 3}
+                            <div class="product-popover-list">
+                                ${comp.produtos.slice(3).map(p => `<div>${p.nome}</div>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${(comp.produtos || []).length === 0 ? '-' : ''}
                 </div>
             </td>
+            <td style="text-align: center;">${comp.segmento || '-'}</td>
             <td>
                 <div class="actions">
                     <button type="button" class="btn btn-secondary btn-icon btn-edit" data-id="${comp.id}" title="Editar">
@@ -261,20 +357,32 @@ function renderProdutosTableRows(data) {
     data.forEach(prod => {
         const index = state.tempProdutos.indexOf(prod);
         const tr = document.createElement('tr');
-        
+
         if (state.editingProdutoIndex === index) {
             tr.className = 'editing-row';
             tr.innerHTML = `
                 <td colspan="4">
-                    <div class="grid-3" style="padding: 1rem;">
-                        <select id="edit-prod-nome-${index}" class="input-control">
-                            <option value="DATI Import" ${prod.nome === 'DATI Import' ? 'selected' : ''}>DATI Import</option>
-                            <option value="DATI Export" ${prod.nome === 'DATI Export' ? 'selected' : ''}>DATI Export</option>
-                            <option value="Smart Read" ${prod.nome === 'Smart Read' ? 'selected' : ''}>Smart Read</option>
-                            <option value="Orkestra" ${prod.nome === 'Orkestra' ? 'selected' : ''}>Orkestra</option>
-                        </select>
-                        <input type="date" id="edit-prod-data-${index}" class="input-control" value="${prod.dataContratacao || ''}">
-                        <input type="text" id="edit-prod-mensalidade-${index}" class="input-control" value="${prod.mensalidade || ''}" placeholder="Valor (R$)">
+                    <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+                        <div class="grid-3">
+                            <select id="edit-prod-nome-${index}" class="input-control">
+                                <option value="DATI Import" ${prod.nome === 'DATI Import' ? 'selected' : ''}>DATI Import</option>
+                                <option value="DATI Export" ${prod.nome === 'DATI Export' ? 'selected' : ''}>DATI Export</option>
+                                <option value="Smart Read" ${prod.nome === 'Smart Read' ? 'selected' : ''}>Smart Read</option>
+                                <option value="Orkestra" ${prod.nome === 'Orkestra' ? 'selected' : ''}>Orkestra</option>
+                            </select>
+                            <input type="date" id="edit-prod-data-${index}" class="input-control" value="${prod.dataContratacao || ''}">
+                            <input type="text" id="edit-prod-mensalidade-${index}" class="input-control" value="${prod.mensalidade || ''}" placeholder="Valor (R$)">
+                        </div>
+                        <div class="grid-2">
+                            <div class="input-group">
+                                <label style="font-size: 0.7rem;">Nova Proposta</label>
+                                <input type="file" id="edit-prod-proposta-${index}" class="input-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                            </div>
+                            <div class="input-group">
+                                <label style="font-size: 0.7rem;">Novo Contrato</label>
+                                <input type="file" id="edit-prod-contrato-${index}" class="input-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
+                            </div>
+                        </div>
                     </div>
                 </td>
                 <td style="text-align: right;">
@@ -285,8 +393,8 @@ function renderProdutosTableRows(data) {
                 </td>
             `;
         } else {
-            const propLink = prod.propostaData ? `<a href="${prod.propostaData}" download="${prod.propostaName}" class="badge" style="background: rgba(79,70,229,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Proposta</a>` : '';
-            const contLink = prod.contratoData ? `<a href="${prod.contratoData}" download="${prod.contratoName}" class="badge" style="background: rgba(16,185,129,0.2); color: #fff; text-decoration: none;"><i class="ph ph-download-simple"></i> Contrato</a>` : '';
+            const propLink = prod.propostaData ? `<button class="badge" style="background: rgba(79,70,229,0.2); color: #fff; border:none; cursor:pointer;" onclick="ui.downloadProductFile(${index}, 'proposta')"><i class="ph ph-download-simple"></i> Proposta</button>` : '';
+            const contLink = prod.contratoData ? `<button class="badge" style="background: rgba(16,185,129,0.2); color: #fff; border:none; cursor:pointer;" onclick="ui.downloadProductFile(${index}, 'contrato')"><i class="ph ph-download-simple"></i> Contrato</button>` : '';
 
             tr.innerHTML = `
                 <td>
@@ -320,7 +428,7 @@ function renderProdutosTableRows(data) {
 
 export function renderDashboardsTable() {
     const body = document.getElementById('dashboards-table-body');
-    if(!body) return;
+    if (!body) return;
 
     if (!dashboardTableManager) {
         dashboardTableManager = new TableManager(
@@ -341,10 +449,10 @@ export function renderDashboardsTable() {
 
 function renderDashboardsTableRows(data) {
     const body = document.getElementById('dashboards-table-body');
-    if(!body) return;
+    if (!body) return;
     body.innerHTML = '';
-    
-    if(data.length === 0) {
+
+    if (data.length === 0) {
         body.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum dashboard registrado.</td></tr>`;
         return;
     }
@@ -365,7 +473,7 @@ function renderDashboardsTableRows(data) {
 
 export function renderNPSHistoryTable() {
     const body = document.getElementById('nps-history-table-body');
-    if(!body) return;
+    if (!body) return;
 
     if (!npsTableManager) {
         npsTableManager = new TableManager(
@@ -387,10 +495,10 @@ export function renderNPSHistoryTable() {
 
 function renderNPSHistoryTableRows(data) {
     const body = document.getElementById('nps-history-table-body');
-    if(!body) return;
+    if (!body) return;
     body.innerHTML = '';
-    
-    if(data.length === 0) {
+
+    if (data.length === 0) {
         body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada.</td></tr>`;
         return;
     }
@@ -412,7 +520,7 @@ function renderNPSHistoryTableRows(data) {
 
 export function renderCSMeetingsTable() {
     const body = document.getElementById('cs-meetings-table-body');
-    if(!body) return;
+    if (!body) return;
 
     if (!csMeetingTableManager) {
         csMeetingTableManager = new TableManager(
@@ -433,10 +541,10 @@ export function renderCSMeetingsTable() {
 
 function renderCSMeetingsTableRows(data) {
     const body = document.getElementById('cs-meetings-table-body');
-    if(!body) return;
+    if (!body) return;
     body.innerHTML = '';
-    
-    if(data.length === 0) {
+
+    if (data.length === 0) {
         body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma reunião de alinhamento registrada.</td></tr>`;
         return;
     }
@@ -458,15 +566,15 @@ function renderCSMeetingsTableRows(data) {
 
 export function renderTicketsTable() {
     const body = document.getElementById('tickets-table-body');
-    if(!body) return;
+    if (!body) return;
     body.innerHTML = '';
-    
-    if(state.tempChamados.length === 0) {
+
+    if (state.tempChamados.length === 0) {
         body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhum chamado registrado.</td></tr>`;
         return;
     }
 
-    state.tempChamados.sort((a,b) => b.data.localeCompare(a.data)).forEach((tk, index) => {
+    state.tempChamados.sort((a, b) => b.data.localeCompare(a.data)).forEach((tk, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500;">${tk.data}</td>
@@ -484,15 +592,15 @@ export function renderTicketsTable() {
 
 export function renderCSTimeline() {
     const timeline = document.getElementById('cs-timeline');
-    if(!timeline) return;
+    if (!timeline) return;
     timeline.innerHTML = '';
 
-    if(state.tempNotes.length === 0) {
+    if (state.tempNotes.length === 0) {
         timeline.innerHTML = `<div style="color: var(--text-muted); padding: 1rem; font-size: 0.85rem;">Nenhuma observação registrada.</div>`;
         return;
     }
 
-    state.tempNotes.sort((a,b) => b.timestamp - a.timestamp).forEach((note, index) => {
+    state.tempNotes.sort((a, b) => b.timestamp - a.timestamp).forEach((note, index) => {
         const item = document.createElement('div');
         item.style.padding = '0.8rem';
         item.style.background = 'rgba(255,255,255,0.02)';
@@ -516,7 +624,7 @@ export function renderCSTimeline() {
 
 export function renderReunioesTable() {
     const tableBody = document.getElementById('meetings-table-body');
-    if(!tableBody) return;
+    if (!tableBody) return;
 
     if (!meetingGeralTableManager) {
         meetingGeralTableManager = new TableManager(
@@ -538,10 +646,10 @@ export function renderReunioesTable() {
 
 function renderReunioesTableRows(data) {
     const tableBody = document.getElementById('meetings-table-body');
-    if(!tableBody) return;
+    if (!tableBody) return;
     tableBody.innerHTML = '';
-    
-    if(data.length === 0) {
+
+    if (data.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma reunião registrada.</td></tr>`;
         return;
     }
@@ -549,8 +657,8 @@ function renderReunioesTableRows(data) {
     data.forEach((meet, index) => {
         const tr = document.createElement('tr');
         let tempClass = 'badge-warm';
-        if(meet.temperatura === 'Hot') tempClass = 'badge-hot';
-        if(meet.temperatura === 'Cold') tempClass = 'badge-cold';
+        if (meet.temperatura === 'Hot') tempClass = 'badge-hot';
+        if (meet.temperatura === 'Cold') tempClass = 'badge-cold';
 
         tr.innerHTML = `
             <td>${meet.data}</td>
@@ -574,8 +682,6 @@ export function renderLogTestes() {
     const dataExecucao = '07/03/2026';
     const horaExecucao = '15:20';
     const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); white-space:nowrap;"><i class="ph ph-check-circle"></i> Sucesso</span>`;
-    const E2E   = `<span class="badge" style="background:rgba(139,92,246,0.15); color:#a78bfa; border:1px solid rgba(139,92,246,0.3);">E2E</span>`;
-    const UNIT  = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
 
     const testesRaw = [
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'config.js', descricao: 'DB_KEY deve estar definido e ser uma string', status: PASSOU },
@@ -630,8 +736,8 @@ function renderLogTableRows(data) {
     if (!body) return;
 
     const PASSOU = `<span class="badge" style="background:rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2);"><i class="ph ph-check-circle"></i> SUCESSO</span>`;
-    const UNIT_BADGE  = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
-    const E2E_BADGE   = `<span class="badge" style="background:rgba(167,139,250,0.15); color:#a78bfa; border:1px solid rgba(167,139,250,0.3);">E2E</span>`;
+    const UNIT_BADGE = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">Unitário</span>`;
+    const E2E_BADGE = `<span class="badge" style="background:rgba(167,139,250,0.15); color:#a78bfa; border:1px solid rgba(167,139,250,0.3);">E2E</span>`;
 
     body.innerHTML = '';
     data.forEach(item => {
@@ -647,7 +753,6 @@ function renderLogTableRows(data) {
         body.appendChild(tr);
     });
 
-    // Show/Hide Clear Filter button
     const clearBtn = document.getElementById('btn-clear-log-filters');
     if (clearBtn) {
         const hasFilters = Object.keys(logTableManager.filters).length > 0;
@@ -670,8 +775,7 @@ function getDataKey(key) {
     return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_)/, '');
 }
 
-// Handler para paginação (Mapeia Container ID -> Manager)
-window.getManagerForKeyPagination = function(containerId) {
+window.getManagerForKeyPagination = function (containerId) {
     if (containerId === 'pagination-companies') return companiesTableManager;
     if (containerId === 'pagination-dashboards') return dashboardTableManager;
     if (containerId === 'pagination-nps') return npsTableManager;
@@ -688,7 +792,6 @@ export function toggleFilterPopover(key, event) {
     const popover = document.getElementById(`filter-popover-${key}`);
     if (!popover) return;
 
-    // Close others
     document.querySelectorAll('.filter-popover').forEach(p => {
         if (p !== popover) p.classList.remove('show');
     });
@@ -782,8 +885,6 @@ export function handleCompaniesSort(key, event) {
 export function handleCompaniesSearch(term) {
     if (companiesTableManager) {
         companiesTableManager.setGlobalSearch(term);
-        
-        // Controla visibilidade do botão limpar busca (10/10 UX)
         const clearBtn = document.getElementById('clear-search');
         if (clearBtn) {
             clearBtn.style.display = term ? 'flex' : 'none';
@@ -844,7 +945,7 @@ export function clearCompaniesFilters() {
         companiesTableManager.filters = {};
         companiesTableManager.globalSearch = '';
         companiesTableManager.apply();
-        
+
         const searchInput = document.getElementById('search-empresa');
         if (searchInput) searchInput.value = '';
 
@@ -857,7 +958,6 @@ export function handleCompaniesFilter(key, value) {
         companiesTableManager.setFilter(key, value);
     }
 }
-
 
 export function handleLogSort(key, event) {
     if (event) event.stopPropagation();
@@ -876,11 +976,10 @@ export function clearLogFilters() {
         logTableManager.filters = {};
         logTableManager.globalSearch = '';
         logTableManager.apply();
-        
-        // Reset UI
+
         const searchInput = document.getElementById('log-search-global');
         if (searchInput) searchInput.value = '';
-        
+
         document.querySelectorAll('.btn-filter-column').forEach(btn => btn.classList.remove('active'));
         updateClearFiltersBtn();
     }
@@ -894,10 +993,8 @@ function updateClearFiltersBtn() {
     }
 }
 
-// Global click to close popovers
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.filter-popover') && !e.target.closest('.btn-filter-column')) {
         document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
     }
 });
-

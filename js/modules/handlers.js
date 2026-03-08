@@ -3,6 +3,7 @@ import * as utils from './utils.js';
 import * as ui from './ui.js';
 import { switchView } from './navigation.js';
 import { api } from './api.js';
+import { confirmar } from './confirmar.js';
 
 // --- Contact Handlers ---
 export function saveNewContato() {
@@ -56,10 +57,10 @@ export function saveEditContato(index) {
 }
 
 export function removeTempContato(index) {
-    if(confirm('Remover este contato?')) {
+    confirmar('Remover este contato?', () => {
         state.tempContatos.splice(index, 1);
         ui.renderContatosTable();
-    }
+    });
 }
 
 // --- Product Handlers ---
@@ -112,6 +113,22 @@ export async function saveEditProduto(index) {
         prod.nome = nomeInput.value;
         prod.dataContratacao = dataInput.value;
         prod.mensalidade = document.getElementById(`edit-prod-mensalidade-${index}`).value.trim();
+
+        // Check for new files
+        const propFile = document.getElementById(`edit-prod-proposta-${index}`).files[0];
+        const contFile = document.getElementById(`edit-prod-contrato-${index}`).files[0];
+        
+        if (propFile) {
+            const propuesta = await utils.getBase64(propFile);
+            prod.propostaName = propuesta.name;
+            prod.propostaData = propuesta.data;
+        }
+        
+        if (contFile) {
+            const contrato = await utils.getBase64(contFile);
+            prod.contratoName = contrato.name;
+            prod.contratoData = contrato.data;
+        }
         
         state.editingProdutoIndex = -1;
         ui.renderProdutosTable();
@@ -122,10 +139,10 @@ export async function saveEditProduto(index) {
 }
 
 export function removeTempProduto(index) {
-    if(confirm('Remover este produto?')) {
+    confirmar('Remover este produto?', () => {
         state.tempProdutos.splice(index, 1);
         ui.renderProdutosTable();
-    }
+    });
 }
 
 // --- Company Form Submit ---
@@ -143,24 +160,32 @@ export async function handleCompanySubmit(e) {
             Status: document.getElementById('emp-status').value,
             Estado: document.getElementById('emp-estado').value.trim(),
             Cidade: document.getElementById('emp-cidade').value.trim(),
+            Site: document.getElementById('emp-site').value.trim() || null,
             Tipo_de_empresa: document.getElementById('emp-tipo').value.trim(),
             Segmento_da_empresa: document.getElementById('emp-segmento').value.trim(),
-            Modo_da_empresa: document.getElementById('emp-canal').value.trim(), // Canal -> Modo
-            Health_Score: document.getElementById('emp-health-score').value,
+            Modo_da_empresa: document.getElementById('emp-canal').value.trim() || null,
+            Health_Score: document.getElementById('emp-health-score').value || null,
+            NPS: document.getElementById('emp-nps').value || null,
             
             // Qualificação
-            Tem_algum_comex: document.getElementById('qual-tem-comex').value,
-            Qual_comex: document.getElementById('qual-qual-comex').value,
-            ERP: document.getElementById('qual-tem-erp').value,
-            Dores_Gargalos: document.getElementById('qual-dores').value,
-            Principal_Objetivo: document.getElementById('qual-objetivo').value,
-            Expectativa_da_DATI: document.getElementById('qual-expectativa').value,
+            Tem_algum_comex: document.getElementById('qual-tem-comex').value || null,
+            Qual_comex: document.getElementById('qual-qual-comex').value || null,
+            ERP: document.getElementById('qual-tem-erp').value || null,
+            Dores_Gargalos: document.getElementById('qual-dores').value || null,
+            Principal_Objetivo: document.getElementById('qual-objetivo').value || null,
+            Expectativa_da_DATI: document.getElementById('qual-expectativa').value || null,
+            Qual_ERP: document.getElementById('qual-qual-erp').value.trim() || null,
 
             // Relacionamentos temporários do state
             Produtos: state.tempProdutos.map(p => ({
                 Produto_DATI: p.nome,
                 Valor_Total: parseFloat(p.mensalidade || 0),
-                Data_do_contrato: p.dataContratacao ? new Date(p.dataContratacao) : null
+                Valor_mensalidade: parseFloat(p.mensalidade || 0),
+                Data_do_contrato: p.dataContratacao ? new Date(p.dataContratacao) : null,
+                Proposta_comercial: p.propostaData || null,
+                Proposta_nome: p.propostaName || null,
+                Contrato: p.contratoData || null,
+                Contrato_nome: p.contratoName || null
             })),
             Contatos: state.tempContatos.map(c => ({
                 Nome_do_contato: c.nome,
@@ -193,7 +218,7 @@ export async function handleCompanySubmit(e) {
                 Destinatario: d.destinatarios,
                 Link: d.link
             })),
-            NPS: state.tempNPSHistory.map(n => ({
+            NPS_History: state.tempNPSHistory.map(n => ({
                 Data: n.data ? new Date(n.data) : null,
                 Destinatario: n.destinatarios,
                 Formulario: n.forms,

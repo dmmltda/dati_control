@@ -21,14 +21,16 @@
 }
 
 /* Status Colors */
-.status-prospect { background: #e5e7eb; color: #1f2937; }
-.status-lead { background: #c1ddee; color: #1e3a5f; }
-.status-reuniao { background: #e9d5f5; color: #4a1d63; }
-.status-proposta-andamento { background: #9fb2d3; color: #1e293b; }
-.status-proposta-recusada { background: #fecaca; color: #7f1d1d; }
-.status-cliente-ativo { background: #d1eeb2; color: #14532d; }
-.status-cliente-suspenso { background: #cda36f; color: #451a03; }
-.status-cliente-inativo { background: #fdceb1; color: #7c2d12; }
+/* Status Colors (Match config.js colors but as badges) */
+.status-prospect { background: #fbbf24; color: #451a03; }
+.status-lead { background: #60a5fa; color: #1e3a8a; }
+.status-reuniao { background: #c084fc; color: #4c1d95; }
+.status-proposta-andamento { background: #818cf8; color: #1e1b4b; }
+.status-proposta-recusada { background: #f87171; color: #450a0a; }
+.status-em-contrato { background: #38bdf8; color: #082f49; }
+.status-ativo { background: #4ade80; color: #064e3b; }
+.status-suspenso { background: #fb923c; color: #431407; }
+.status-inativo { background: #f43f5e; color: #4c0519; }
 
 select.status-select {
     appearance: none;

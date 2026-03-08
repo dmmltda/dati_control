@@ -12,12 +12,13 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient({
-  log: ['query', 'info', 'warn', 'error'],
+    log: ['query', 'info', 'warn', 'error'],
 });
 const PORT = process.env.PORT || 8000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Servir arquivos estáticos do frontend (10/10 logic)
 app.use(express.static(path.join(__dirname, '..')));
 
@@ -36,7 +37,7 @@ app.get('/api/companies', async (req, res) => {
                 Log_de_Testes: true,
                 Reunioes: true,
                 Dashboards: true,
-                NPS: true,
+                NPS_History: true,
                 Tickets: true,
                 Notas: true
             },
@@ -61,7 +62,7 @@ app.get('/api/companies/:id', async (req, res) => {
                 Log_de_Testes: true,
                 Reunioes: true,
                 Dashboards: true,
-                NPS: true,
+                NPS_History: true,
                 Tickets: true,
                 Notas: true
             }
@@ -77,27 +78,30 @@ app.get('/api/companies/:id', async (req, res) => {
 app.post('/api/companies', async (req, res) => {
     try {
         const data = req.body;
-        
+        console.log('📬 [POST] Recebendo payload:', JSON.stringify(data, null, 2));
+
         // Mapeamento dinâmico do payload do frontend para o banco 10/10
         const company = await prisma.company.create({
             data: {
                 Status: data.Status || data.status,
                 Nome_da_empresa: data.Nome_da_empresa || data.nome || data.name,
-                CNPJ_da_empresa: data.CNPJ_da_empresa || data.cnpj,
+                CNPJ_da_empresa: data.CNPJ_da_empresa || undefined,
                 Estado: data.Estado || data.estado,
                 Cidade: data.Cidade || data.cidade,
                 Tipo_de_empresa: data.Tipo_de_empresa || data.tipo,
                 Segmento_da_empresa: data.Segmento_da_empresa || data.segmento,
-                Modo_da_empresa: data.Modo_da_empresa || data.modo,
+                Modo_da_empresa: data.Modo_da_empresa || data.modo || data.canal,
                 Lead: data.Lead || data.leadSource,
                 Health_Score: data.Health_Score || data.healthScore,
-                
+                NPS: data.NPS || data.nps,
+                Site: data.Site || data.site,
+
                 // Comercial
                 Data_Interesse: data.Data_Interesse ? new Date(data.Data_Interesse) : null,
                 Decisor: data.Decisor,
                 Sucesso_Extraordinário: data.Sucesso_Extraordinário,
                 Situação_da_reunião: data.Situação_da_reunião,
-                
+
                 // Follow-up
                 Nome_do_usuário: data.Nome_do_usuário,
                 Data_de_follow_up: data.Data_de_follow_up ? new Date(data.Data_de_follow_up) : null,
@@ -105,6 +109,7 @@ app.post('/api/companies', async (req, res) => {
 
                 // Qualificação
                 ERP: data.ERP,
+                Qual_ERP: data.Qual_ERP,
                 Tem_algum_comex: data.Tem_algum_comex,
                 Qual_comex: data.Qual_comex,
                 Dores_Gargalos: data.Dores_Gargalos,
@@ -127,7 +132,7 @@ app.post('/api/companies', async (req, res) => {
                 Log_de_Testes: { create: data.Log_de_Testes || data.testLogs || [] },
                 Reunioes: { create: data.Reunioes || data.reunioes || [] },
                 Dashboards: { create: data.Dashboards || data.dashboardsHistory || [] },
-                NPS: { create: data.NPS || data.npsHistory || [] },
+                NPS_History: { create: data.NPS_History || data.npsHistory || [] },
                 Tickets: { create: data.Tickets || data.chamadosHistory || [] },
                 Notas: { create: data.Notas || data.csNotes || [] }
             }
@@ -144,20 +149,23 @@ app.put('/api/companies/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const data = req.body;
-        
+        console.log(`📬 [PUT] Atualizando empresa ${id}. Payload Reunioes:`, JSON.stringify(data.Reunioes, null, 2));
+
         const company = await prisma.company.update({
             where: { id },
             data: {
                 Status: data.Status,
                 Nome_da_empresa: data.Nome_da_empresa,
-                CNPJ_da_empresa: data.CNPJ_da_empresa,
+                CNPJ_da_empresa: data.CNPJ_da_empresa || undefined,
                 Estado: data.Estado,
                 Cidade: data.Cidade,
                 Tipo_de_empresa: data.Tipo_de_empresa,
                 Segmento_da_empresa: data.Segmento_da_empresa,
-                Modo_da_empresa: data.Modo_da_empresa,
+                Modo_da_empresa: data.Modo_da_empresa || data.canal,
                 Lead: data.Lead,
                 Health_Score: data.Health_Score,
+                NPS: data.NPS,
+                Site: data.Site,
                 Data_Interesse: data.Data_Interesse ? new Date(data.Data_Interesse) : null,
                 Decisor: data.Decisor,
                 Sucesso_Extraordinário: data.Sucesso_Extraordinário,
@@ -166,6 +174,7 @@ app.put('/api/companies/:id', async (req, res) => {
                 Data_de_follow_up: data.Data_de_follow_up ? new Date(data.Data_de_follow_up) : null,
                 Horário_de_follow_up: data.Horário_de_follow_up,
                 ERP: data.ERP,
+                Qual_ERP: data.Qual_ERP,
                 Tem_algum_comex: data.Tem_algum_comex,
                 Qual_comex: data.Qual_comex,
                 Dores_Gargalos: data.Dores_Gargalos,
@@ -186,12 +195,12 @@ app.put('/api/companies/:id', async (req, res) => {
                 Log_de_Testes: { deleteMany: {}, create: data.Log_de_Testes || [] },
                 Reunioes: { deleteMany: {}, create: data.Reunioes || [] },
                 Dashboards: { deleteMany: {}, create: data.Dashboards || [] },
-                NPS: { deleteMany: {}, create: data.NPS || [] },
+                NPS_History: { deleteMany: {}, create: data.NPS_History || [] },
                 Tickets: { deleteMany: {}, create: data.Tickets || [] },
                 Notas: { deleteMany: {}, create: data.Notas || [] }
             }
         });
-        
+
         res.json(company);
     } catch (error) {
         res.status(500).json({ error: error.message });

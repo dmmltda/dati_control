@@ -13,19 +13,26 @@ function mapFromDB(comp) {
         cidade: comp.Cidade,
         tipo: comp.Tipo_de_empresa,
         segmento: comp.Segmento_da_empresa,
-        modo: comp.Modo_da_empresa,
+        canal: comp.Modo_da_empresa,
+        site: comp.Site,
+        nps: comp.NPS,
         leadSource: comp.Lead,
         healthScore: comp.Health_Score,
-        
+
         // Relacionamentos
         produtos: (comp.Produtos || []).map(p => ({
             id: p.id,
             nome: p.Produto_DATI,
             valor: p.Valor_Total,
             mensalidade: p.Valor_mensalidade,
-            dataContratacao: p.Data_do_contrato ? new Date(p.Data_do_contrato).toISOString().split('T')[0] : null
+            dataContratacao: p.Data_do_contrato ? new Date(p.Data_do_contrato).toISOString().split('T')[0] : null,
+            propostaData: p.Proposta_comercial || null,
+            propostaName: p.Proposta_nome || 'proposta_comercial.pdf',
+            contratoData: p.Contrato || null,
+            contratoName: p.Contrato_nome || 'contrato.pdf'
         })),
-        
+        produtosNames: (comp.Produtos || []).map(p => p.Produto_DATI).join(', '),
+
         contatos: (comp.Contatos || []).map(c => ({
             id: c.id,
             nome: c.Nome_do_contato,
@@ -61,7 +68,7 @@ function mapFromDB(comp) {
             link: d.Link
         })),
 
-        npsHistory: (comp.NPS || []).map(n => ({
+        npsHistory: (comp.NPS_History || []).map(n => ({
             id: n.id,
             data: n.Data ? new Date(n.Data).toISOString().split('T')[0] : null,
             destinatario: n.Destinatario,

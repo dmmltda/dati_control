@@ -42,10 +42,9 @@ export function switchCSSubTab(tabId, btnElement) {
 }
 
 export function openCompanyForm(id = null) {
-    state.currentEditingId = id;
     document.getElementById('company-form').reset();
-    
-    resetTempState();
+    resetTempState(); // Zera tudo incluindo currentEditingId
+    state.currentEditingId = id; // Seta DEPOIS do reset para não ser apagado
     
     // Reset UI Toggles
     const containers = [
@@ -97,6 +96,8 @@ export function openCompanyForm(id = null) {
             document.getElementById('emp-segmento').value = comp.segmento || '';
             document.getElementById('emp-canal').value = comp.canal || '';
             document.getElementById('emp-estado').value = comp.estado || '';
+            document.getElementById('emp-health-score').value = comp.healthScore || '';
+            document.getElementById('emp-nps').value = comp.nps || '';
             
             if (comp.estado) {
                 loadCities(comp.estado, comp.cidade || '');
@@ -141,6 +142,17 @@ export function openCompanyForm(id = null) {
     ui.renderCSTimeline();
     ui.renderReunioesTable();
     
+    // Ajusta o texto do botão conforme contexto
+    const saveBtn = document.getElementById('btn-save-company');
+    if (saveBtn) {
+        if (id) {
+            saveBtn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+        } else {
+            saveBtn.innerHTML = '<i class="ph ph-plus-circle"></i> Criar Empresa';
+        }
+        saveBtn.disabled = false;
+    }
+
     updateStatusStyle(document.getElementById('emp-status'));
     switchView('company-form');
 }

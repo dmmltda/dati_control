@@ -5,6 +5,7 @@ import * as nav from './modules/navigation.js';
 import * as auth from './modules/auth.js';
 import * as handlers from './modules/handlers.js';
 import { api } from './modules/api.js';
+import { confirmar } from './modules/confirmar.js';
 
 // Globalize for inline onclicks
 window.ui = ui;
@@ -19,17 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
         auth.showApp();
     }
 
-    // --- Global Click Handlers ---
+    // --- Dynamic Delegate additions (Combined for performance and robustness) ---
     document.addEventListener('click', (e) => {
         const target = e.target;
-
-        // Nav Items (top-level only, ignore group toggles)
+        
+        // 1. Navigation Actions
         if (target.closest('.nav-item') && !target.closest('.nav-group-toggle') && !target.closest('.nav-sub-item')) {
             const view = target.closest('.nav-item').getAttribute('data-view');
             if (view) nav.switchView(view);
         }
 
-        // Nav Sub-Items (e.g. Log Testes)
         if (target.closest('.nav-sub-item')) {
             const subItem = target.closest('.nav-sub-item');
             document.querySelectorAll('.nav-sub-item').forEach(i => i.classList.remove('active'));
@@ -39,47 +39,46 @@ document.addEventListener('DOMContentLoaded', () => {
             if (view === 'log') ui.renderLogTestes();
         }
 
-        // New Company Buttons
         if (target.closest('.btn-new-company')) {
             nav.openCompanyForm();
         }
 
-        // Back to List
         if (target.closest('.btn-back-list')) {
             nav.switchView('company-list');
         }
 
-        // Action Buttons in Table
+        // 2. Company Action Buttons in Table
         if (target.closest('.btn-edit')) {
             nav.openCompanyForm(target.closest('.btn-edit').getAttribute('data-id'));
         }
+        
         if (target.closest('.btn-delete')) {
+            e.preventDefault();
+            e.stopPropagation();
             const id = target.closest('.btn-delete').getAttribute('data-id');
-            if(confirm('Deseja excluir esta empresa?')) {
+            confirmar('Deseja excluir esta empresa permanentemente?', () => {
                 (async () => {
                    try {
                        await api.deleteCompany(id);
                        state.companies = state.companies.filter(c => c.id !== id);
                        ui.renderDashboard();
                        ui.renderCompanyList();
-                       utils.showToast('Exclusão realizada no banco!', 'success');
+                       utils.showToast('Exclusão realizada com sucesso!', 'success');
                    } catch (err) {
-                       utils.showToast('Erro ao excluir do banco: ' + err.message, 'error');
+                       utils.showToast('Erro ao excluir: ' + err.message, 'error');
                    }
                 })();
-            }
+            });
         }
 
-        // Tab Menu Buttons
+        // 3. Tab Management
         if (target.closest('.tab-menu-btn')) {
             const btn = target.closest('.tab-menu-btn');
             const tabId = btn.getAttribute('data-tab');
             if (tabId) nav.switchFormTab(tabId, btn);
         }
 
-        // CS Submenu - handled via inline onclick which globalizes switchCSSubTab
-
-        // Dynamic Table Buttons (using delegates for performance)
+        // 4. Contact/Product Handlers (within forms)
         if (target.closest('.btn-edit-contato')) {
             handlers.startEditContato(parseInt(target.closest('.btn-edit-contato').dataset.index));
         }
@@ -93,10 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
             handlers.removeTempContato(parseInt(target.closest('.btn-remove-contato').dataset.index));
         }
 
-        // Product Delegates
         if (target.closest('.btn-edit-produto')) {
-            const index = parseInt(target.closest('.btn-edit-produto').dataset.index);
-            state.editingProdutoIndex = index;
+            state.editingProdutoIndex = parseInt(target.closest('.btn-edit-produto').dataset.index);
             ui.renderProdutosTable();
         }
         if (target.closest('.btn-remove-produto')) {
@@ -109,72 +106,73 @@ document.addEventListener('DOMContentLoaded', () => {
             state.editingProdutoIndex = -1;
             ui.renderProdutosTable();
         }
-        
-        // --- Added Removal Delegates for NEW Tables ---
-        if (target.closest('.btn-remove-temp-dashboard')) {
-            const index = parseInt(target.closest('.btn-remove-temp-dashboard').dataset.index);
-            state.tempDashboards.splice(index, 1);
-            ui.renderDashboardsTable();
+
+        // 5. Temporary Data Handlers (CS Tabs)
+        const tempRemovers = [
+            { class: '.btn-remove-temp-dashboard', stateArr: 'tempDashboards', render: 'renderDashboardsTable', msg: 'Excluir este dashboard?' },
+            { class: '.btn-remove-temp-nps', stateArr: 'tempNPSHistory', render: 'renderNPSHistoryTable', msg: 'Excluir esta pesquisa NPS?' },
+            { class: '.btn-remove-temp-csmeet', stateArr: 'tempReunioesCS', render: 'renderCSMeetingsTable', msg: 'Excluir esta reunião?' },
+            { class: '.btn-remove-temp-ticket', stateArr: 'tempChamados', render: 'renderTicketsTable', msg: 'Excluir este chamado?' },
+            { class: '.btn-remove-temp-reuniao', stateArr: 'tempReunioes', render: 'renderReunioesTable', msg: 'Excluir esta reunião?' }
+        ];
+
+        for (const r of tempRemovers) {
+            const btn = target.closest(r.class);
+            if (btn) {
+                const index = parseInt(btn.dataset.index);
+                confirmar(r.msg, () => {
+                    state[r.stateArr].splice(index, 1);
+                    ui[r.render]();
+                });
+                return; // Early return for these delegates
+            }
         }
-        if (target.closest('.btn-remove-temp-nps')) {
-            const index = parseInt(target.closest('.btn-remove-temp-nps').dataset.index);
-            state.tempNPSHistory.splice(index, 1);
-            ui.renderNPSHistoryTable();
-        }
-        if (target.closest('.btn-remove-temp-csmeet')) {
-            const index = parseInt(target.closest('.btn-remove-temp-csmeet').dataset.index);
-            state.tempReunioesCS.splice(index, 1);
-            ui.renderCSMeetingsTable();
-        }
-        if (target.closest('.btn-remove-temp-ticket')) {
-            const index = parseInt(target.closest('.btn-remove-temp-ticket').dataset.index);
-            state.tempChamados.splice(index, 1);
-            ui.renderTicketsTable();
-        }
+
         if (target.closest('.btn-remove-temp-note')) {
-            const index = parseInt(target.closest('.btn-remove-temp-note').dataset.index);
-            state.tempNotes.splice(index, 1);
-            ui.renderCSTimeline();
-        }
-        if (target.closest('.btn-remove-temp-reuniao')) {
-            const index = parseInt(target.closest('.btn-remove-temp-reuniao').dataset.index);
-            state.tempReunioes.splice(index, 1);
-            ui.renderReunioesTable();
+            handlers.removeTempNote(target.closest('.btn-remove-temp-note').dataset.index);
         }
     });
 
-    // --- Specific Form Listeners ---
+    // --- Static Form Listeners ---
     document.getElementById('login-form')?.addEventListener('submit', auth.handleLogin);
     document.getElementById('btn-logout')?.addEventListener('click', auth.handleLogout);
     document.getElementById('company-form')?.addEventListener('submit', handlers.handleCompanySubmit);
 
-    // Search & Filter (Connected to TableManager)
+    // Search & Filter
     document.getElementById('search-empresa')?.addEventListener('input', (e) => ui.handleCompaniesSearch(e.target.value));
 
-    // Dynamic Selects
+    // Dynamic Selects & Dependencies
     document.getElementById('emp-estado')?.addEventListener('change', (e) => {
         utils.loadCities(e.target.value, '');
-        document.getElementById('emp-cidade').value = ''; 
+        const cityEl = document.getElementById('emp-cidade');
+        if (cityEl) cityEl.value = ''; 
     });
+    
     document.getElementById('emp-status')?.addEventListener('change', (e) => utils.updateStatusStyle(e.target));
 
-    // Qualification Toggles
     document.getElementById('qual-tem-comex')?.addEventListener('change', (e) => {
-        document.getElementById('group-qual-comex').style.display = e.target.value === 'Sim' ? 'block' : 'none';
+        const group = document.getElementById('group-qual-comex');
+        if (group) group.style.display = e.target.value === 'Sim' ? 'block' : 'none';
     });
+    
     document.getElementById('qual-tem-erp')?.addEventListener('change', (e) => {
-        document.getElementById('group-qual-erp').style.display = e.target.value === 'Sim' ? 'block' : 'none';
+        const group = document.getElementById('group-qual-erp');
+        if (group) group.style.display = e.target.value === 'Sim' ? 'block' : 'none';
     });
 
-    // --- Toggle Show/Hide for inline forms ---
+    // --- View Toggle Utility ---
     const setupToggle = (toggleBtnId, containerId, cancelBtnId, resetFields = []) => {
         document.getElementById(toggleBtnId)?.addEventListener('click', () => {
-            document.getElementById(containerId).style.display = 'block';
-            document.getElementById(toggleBtnId).style.display = 'none';
+            const container = document.getElementById(containerId);
+            const toggleBtn = document.getElementById(toggleBtnId);
+            if (container) container.style.display = 'block';
+            if (toggleBtn) toggleBtn.style.display = 'none';
         });
         document.getElementById(cancelBtnId)?.addEventListener('click', () => {
-            document.getElementById(containerId).style.display = 'none';
-            document.getElementById(toggleBtnId).style.display = 'inline-flex';
+            const container = document.getElementById(containerId);
+            const toggleBtn = document.getElementById(toggleBtnId);
+            if (container) container.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'inline-flex';
             resetFields.forEach(f => { const el = document.getElementById(f); if(el) el.value = ''; });
         });
     };
@@ -187,74 +185,26 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggle('btn-toggle-contact-form', 'contact-form-container', 'btn-cancel-contact');
     setupToggle('btn-toggle-meeting-form', 'meeting-form-container', 'btn-cancel-meeting');
 
-    // --- Save Actions ---
+    // --- Save Button Actions ---
     document.getElementById('btn-save-contact')?.addEventListener('click', handlers.saveNewContato);
     document.getElementById('btn-save-produto')?.addEventListener('click', handlers.saveNewProduto);
-    
     document.getElementById('btn-save-dashboard')?.addEventListener('click', handlers.saveTempDashboard);
     document.getElementById('btn-save-nps')?.addEventListener('click', handlers.saveTempNPS);
     document.getElementById('btn-save-cs-meet')?.addEventListener('click', handlers.saveTempCSMeet);
     document.getElementById('btn-save-ticket')?.addEventListener('click', handlers.saveTempTicket);
     document.getElementById('btn-add-cs-note')?.addEventListener('click', handlers.addCSNote);
     document.getElementById('btn-add-meeting-submit')?.addEventListener('click', handlers.saveTempReuniao);
-
-    // Dynamic Delegate additions
-    document.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.closest('.btn-remove-temp-dashboard')) {
-            const index = target.closest('.btn-remove-temp-dashboard').dataset.index;
-            if(confirm('Excluir este dashboard?')) {
-                state.tempDashboards.splice(index, 1);
-                ui.renderDashboardsTable();
-            }
-        }
-        if (target.closest('.btn-remove-temp-nps')) {
-            const index = target.closest('.btn-remove-temp-nps').dataset.index;
-            if(confirm('Excluir esta pesquisa NPS?')) {
-                state.tempNPSHistory.splice(index, 1);
-                ui.renderNPSHistoryTable();
-            }
-        }
-        if (target.closest('.btn-remove-temp-csmeet')) {
-            const index = target.closest('.btn-remove-temp-csmeet').dataset.index;
-            if(confirm('Excluir esta reunião?')) {
-                state.tempReunioesCS.splice(index, 1);
-                ui.renderCSMeetingsTable();
-            }
-        }
-        if (target.closest('.btn-remove-temp-ticket')) {
-            const index = target.closest('.btn-remove-temp-ticket').dataset.index;
-            if(confirm('Excluir este chamado?')) {
-                state.tempChamados.splice(index, 1);
-                ui.renderTicketsTable();
-            }
-        }
-        if (target.closest('.btn-remove-temp-reuniao')) {
-            const index = target.closest('.btn-remove-temp-reuniao').dataset.index;
-            if(confirm('Excluir esta reunião?')) {
-                state.tempReunioes.splice(index, 1);
-                ui.renderReunioesTable();
-            }
-        }
-        if (target.closest('.btn-remove-temp-note')) {
-            handlers.removeTempNote(target.closest('.btn-remove-temp-note').dataset.index);
-        }
-    });
-
 });
 
-// Global assignment for legacy compatibility where strictly needed (though event delegation is preferred)
+// Global assignment for legacy HTML compatibility
 window.switchCSSubTab = nav.switchCSSubTab;
 window.switchFormTab = nav.switchFormTab;
 window.maskCurrency = utils.maskCurrency;
 window.maskCNPJ = utils.maskCNPJ;
-
-// Toggle expandable nav groups in the sidebar (e.g. "Log")
 window.toggleNavGroup = (groupId) => {
     const group = document.getElementById(groupId);
-    if (!group) return;
-    group.classList.toggle('open');
+    if (group) group.classList.toggle('open');
 };
 
-// Make ui global so inline HTML handlers (like onkeyup="ui.filterLogTestes()") can reach it
+// Make UI available globally for sorting/filtering in index.html
 window.ui = ui;
