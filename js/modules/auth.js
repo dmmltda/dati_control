@@ -1,13 +1,32 @@
 import { state } from './state.js';
-import { showToast, saveCompanies } from './utils.js';
 import { renderDashboard, renderCompanyList } from './ui.js';
-import { switchView } from './navigation.js';
+import { api } from './api.js';
+import { migrateFromLocalStorage } from './migration.js';
+import * as utils from './utils.js';
 
-export function showApp() {
+export async function showApp() {
+    console.log('🚀 Inicializando App 10/10...');
+    
+    // 1. Tentar Migração (LocalStorage -> DB)
+    await migrateFromLocalStorage();
+    
+    // 2. Carregar Dados Reais da API (PostgreSQL)
+    try {
+        console.log('📡 Buscando empresas do Backend...');
+        const companies = await api.getCompanies();
+        state.companies = companies;
+        console.log(`✅ ${companies.length} empresas carregadas do banco.`);
+    } catch (error) {
+        console.error('❌ Falha ao carregar empresas do banco:', error);
+        // Fallback para evitar tela branca se a API falhar
+    }
+
     const loginScreen = document.getElementById('login-screen');
     const appLayout = document.getElementById('app-layout');
-    loginScreen.classList.remove('flex-active');
-    appLayout.classList.add('flex-active');
+    
+    if (loginScreen) loginScreen.classList.remove('flex-active');
+    if (appLayout) appLayout.classList.add('flex-active');
+    
     renderDashboard();
     renderCompanyList();
 }
@@ -21,7 +40,7 @@ export function handleLogin(e) {
         sessionStorage.setItem('dati_auth', 'true');
         showApp();
         document.getElementById('login-error').style.display = 'none';
-        showToast('Login efetuado com sucesso!', 'success');
+        utils.showToast('Login efetuado com sucesso!', 'success');
     } else {
         document.getElementById('login-error').style.display = 'block';
     }

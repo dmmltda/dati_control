@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                      String    @id @default(uuid())
+  Status                  String?   
+  Nome_da_empresa         String    
+  CNPJ_da_empresa         String?   @unique
+  Estado                  String?
+  Cidade                  String?
+  Tipo_de_empresa         String?   
+  Segmento_da_empresa     String?   
+  Modo_da_empresa         String?   
+  Lead                    String?   
+  Health_Score            String?   // Verde, Amarelo, Roxo
+  
+  // Comercial / Pré-Venda
+  Data_Interesse          DateTime? 
+  Decisor                 String?   @map("É_decisor?")
+  Sucesso_Extraordinário  String? 
+  Situação_da_reunião     String?  
+  
+  // Follow-up
+  Nome_do_usuário         String?   
+  Data_de_follow_up       DateTime? 
+  Horário_de_follow_up    String?   
+
+  // Qualificação / TI
+  ERP                     String?   
+  Tem_algum_comex         String?   @map("Tem_algum_comex?")
+  Qual_comex              String?   @map("Qual?_(Módulo_/_Lotus)")
+  Dores_Gargalos          String?   
+  Principal_Objetivo      String?   
+  Expectativa_da_DATI     String?   
+
+  // CS / Onboarding
+  Nome_do_CS              String?   
+  Início_com_CS           DateTime? 
+  Data_de_churn           DateTime? 
+  Motivo_do_churn         String?   
+  Data_início_onboarding  DateTime? 
+  Data_término_onboarding DateTime? 
+  Fechamento_onboarding   String?   @map("Fechamento_onboarding_(Sim/Não)")
+  Usuário_Dati            String?   @map("Usuário_Dati_(Sim/Não)")
+
+  // Relacionamentos
+  Produtos                Product[]
+  Contatos                Contact[]
+  Log_de_Testes           TestLog[]
+  Reunioes                Meeting[]
+  Dashboards              Dashboard[]
+  NPS                     NPSSurvey[]
+  Tickets                 Ticket[]
+  Notas                   CSNote[]
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("companies")
+}
+
+model Meeting {
+  id                      String    @id @default(uuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data_reuniao            DateTime?
+  Participantes           String?
+  Temperatura             String?
+  Link_gravacao           String?
+  Observacoes             String?
+  Tipo_reuniao            String?   // Geral, CS, etc.
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("company_meetings")
+}
+
+model Dashboard {
+  id                String    @id @default(uuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data              DateTime?
+  Destinatario      String?
+  Link              String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("company_dashboards")
+}
+
+model NPSSurvey {
+  id                String    @id @default(uuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data              DateTime?
+  Destinatario      String?
+  Formulario        String?
+  Score             String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("company_nps")
+}
+
+model Ticket {
+  id                String    @id @default(uuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data              DateTime?
+  Numero            String?
+  Resumo            String?
+  Autor             String?
+  Link              String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("company_tickets")
+}
+
+model CSNote {
+  id                String    @id @default(uuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data              DateTime? @default(now())
+  Conteudo          String?
+  Autor             String?
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@map("company_notes")
+}
+
+model Product {
+  id                      String    @id @default(uuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Produto_DATI            String    
+  Valor_Total             Decimal?  @db.Decimal(15, 2) 
+  Valor_Fee               Decimal?  @db.Decimal(15, 2) @map("Valor_Fee_(s/_de_tributação)")
+  Proposta_comercial      String? 
+  Contrato                String?   
+  Valor_mensalidade       Decimal?  @db.Decimal(15, 2) 
+  
+  // Impostos
+  Valor_de_ISS            Decimal?  @db.Decimal(15, 2)
+  Valor_de_PIS            Decimal?  @db.Decimal(15, 2)
+  Valor_de_COFINS         Decimal?  @db.Decimal(15, 2)
+  Valor_de_CSLL           Decimal?  @db.Decimal(15, 2)
+  Valor_de_IRRF           Decimal?  @db.Decimal(15, 2)
+  Valor_Liquido           Decimal?  @db.Decimal(15, 2) 
+  
+  Data_do_contrato        DateTime? 
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("company_products")
+}
+
+model Contact {
+  id                      String    @id @default(uuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Nome_do_contato         String?   
+  Cargo_do_contato        String?   
+  Departamento_do_contato String?   
+  Email_1                 String?   
+  WhatsApp                String?   
+  LinkedIn                String?   
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("contacts")
+}
+
+model TestLog {
+  id                      String    @id @default(uuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data_teste              DateTime? 
+  Hora_teste              String?   
+  Tipo_teste              String?   
+  Módulo_teste            String?   
+  O_que_foi_testado       String?   
+  Quem_foi_testado        String?   
+  Status_teste            String?   
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("test_logs")
+}

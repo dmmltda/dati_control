@@ -852,6 +852,13 @@ export function clearCompaniesFilters() {
     }
 }
 
+export function handleCompaniesFilter(key, value) {
+    if (companiesTableManager) {
+        companiesTableManager.setFilter(key, value);
+    }
+}
+
+
 export function handleLogSort(key, event) {
     if (event) event.stopPropagation();
     if (logTableManager) logTableManager.toggleSort(key);

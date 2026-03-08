@@ -2,6 +2,7 @@ import { state } from './state.js';
 import * as utils from './utils.js';
 import * as ui from './ui.js';
 import { switchView } from './navigation.js';
+import { api } from './api.js';
 
 // --- Contact Handlers ---
 export function saveNewContato() {
@@ -128,89 +129,164 @@ export function removeTempProduto(index) {
 }
 
 // --- Company Form Submit ---
-export function handleCompanySubmit(e) {
-    e.preventDefault();
+export async function handleCompanySubmit(e) {
+    if (e) e.preventDefault();
 
-    const companyData = {
-        id: state.currentEditingId || 'comp_' + Date.now(),
-        nome: document.getElementById('emp-nome').value.trim(),
-        site: document.getElementById('emp-site').value.trim(),
-        status: document.getElementById('emp-status').value,
-        healthScore: document.getElementById('emp-health-score').value,
-        nps: document.getElementById('emp-nps').value,
-        cidade: document.getElementById('emp-cidade').value.trim(),
-        estado: document.getElementById('emp-estado').value.trim(),
-        canal: document.getElementById('emp-canal').value.trim(),
-        segmento: document.getElementById('emp-segmento').value.trim(),
-        tipo: document.getElementById('emp-tipo').value.trim(),
-        cnpj: document.getElementById('emp-cnpj').value.trim(),
-        contatos: state.tempContatos,
-        produtos: state.tempProdutos,
-        dashboardsHistory: state.tempDashboards,
-        npsHistory: state.tempNPSHistory,
-        reunioesCSHistory: state.tempReunioesCS,
-        chamadosHistory: state.tempChamados,
-        csNotes: state.tempNotes,
-        reunioes: state.tempReunioes,
-        qualificacao: {
-            temComex: document.getElementById('qual-tem-comex').value,
-            qualComex: document.getElementById('qual-qual-comex').value,
-            temERP: document.getElementById('qual-tem-erp').value,
-            qualERP: document.getElementById('qual-qual-erp').value,
-            objetivo: document.getElementById('qual-objetivo').value,
-            dores: document.getElementById('qual-dores').value,
-            expectativa: document.getElementById('qual-expectativa').value
-        },
-        updatedAt: Date.now()
-    };
+    console.log('💾 Iniciando salvamento 10/10...');
+    utils.showToast('Salvando dados...', 'info');
 
-    if (state.currentEditingId) {
-        const index = state.companies.findIndex(c => c.id === state.currentEditingId);
-        if (index > -1) state.companies[index] = companyData;
-    } else {
-        companyData.createdAt = Date.now();
-        state.companies.push(companyData);
+    try {
+        // Objeto fiel ao Schema Prisma (Português/Excel) 10/10
+        const dbPayload = {
+            Nome_da_empresa: document.getElementById('emp-nome').value.trim(),
+            CNPJ_da_empresa: document.getElementById('emp-cnpj').value.trim(),
+            Status: document.getElementById('emp-status').value,
+            Estado: document.getElementById('emp-estado').value.trim(),
+            Cidade: document.getElementById('emp-cidade').value.trim(),
+            Tipo_de_empresa: document.getElementById('emp-tipo').value.trim(),
+            Segmento_da_empresa: document.getElementById('emp-segmento').value.trim(),
+            Modo_da_empresa: document.getElementById('emp-canal').value.trim(), // Canal -> Modo
+            Health_Score: document.getElementById('emp-health-score').value,
+            
+            // Qualificação
+            Tem_algum_comex: document.getElementById('qual-tem-comex').value,
+            Qual_comex: document.getElementById('qual-qual-comex').value,
+            ERP: document.getElementById('qual-tem-erp').value,
+            Dores_Gargalos: document.getElementById('qual-dores').value,
+            Principal_Objetivo: document.getElementById('qual-objetivo').value,
+            Expectativa_da_DATI: document.getElementById('qual-expectativa').value,
+
+            // Relacionamentos temporários do state
+            Produtos: state.tempProdutos.map(p => ({
+                Produto_DATI: p.nome,
+                Valor_Total: parseFloat(p.mensalidade || 0),
+                Data_do_contrato: p.dataContratacao ? new Date(p.dataContratacao) : null
+            })),
+            Contatos: state.tempContatos.map(c => ({
+                Nome_do_contato: c.nome,
+                Cargo_do_contato: c.cargo,
+                Departamento_do_contato: c.departamento,
+                Email_1: c.email1,
+                WhatsApp: c.whatsapp,
+                LinkedIn: c.linkedin
+            })),
+            Reunioes: [
+                ...state.tempReunioes.map(r => ({
+                    Data_reuniao: r.data ? new Date(r.data) : null,
+                    Participantes: r.participantes,
+                    Temperatura: r.temperatura,
+                    Link_gravacao: r.link,
+                    Observacoes: r.observacoes,
+                    Tipo_reuniao: 'Geral'
+                })),
+                ...state.tempReunioesCS.map(r => ({
+                    Data_reuniao: r.data ? new Date(r.data) : null,
+                    Participantes: r.participantes,
+                    Temperatura: r.temperatura,
+                    Link_gravacao: r.link,
+                    Observacoes: r.obs,
+                    Tipo_reuniao: 'CS'
+                }))
+            ],
+            Dashboards: state.tempDashboards.map(d => ({
+                Data: d.data ? new Date(d.data) : null,
+                Destinatario: d.destinatarios,
+                Link: d.link
+            })),
+            NPS: state.tempNPSHistory.map(n => ({
+                Data: n.data ? new Date(n.data) : null,
+                Destinatario: n.destinatarios,
+                Formulario: n.forms,
+                Score: n.score
+            })),
+            Tickets: state.tempChamados.map(t => ({
+                Data: t.data ? new Date(t.data) : null,
+                Numero: t.numero,
+                Resumo: t.resumo,
+                Autor: t.autor,
+                Link: t.link
+            })),
+            Notas: state.tempNotes.map(n => ({
+                Data: n.data ? new Date(n.timestamp || Date.now()) : new Date(),
+                Conteudo: n.text,
+                Autor: n.author
+            }))
+        };
+
+        let result;
+        if (state.currentEditingId) {
+            console.log(`📝 Atualizando empresa ${state.currentEditingId}...`);
+            result = await api.updateCompany(state.currentEditingId, dbPayload);
+        } else {
+            console.log('🆕 Criando nova empresa...');
+            result = await api.createCompany(dbPayload);
+        }
+
+        if (result) {
+            const isUpdate = !!state.currentEditingId;
+            // Atualizar state e UI 10/10
+            await ui.renderDashboard(); 
+            // Recarregar lista completa da API para garantir sincronia
+            const updatedCompanies = await api.getCompanies();
+            state.companies = updatedCompanies;
+            
+            ui.renderCompanyList();
+            switchView('company-list');
+            utils.showToast(isUpdate ? 'Empresa atualizada com sucesso!' : 'Empresa criada com sucesso!', 'success');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro fatal ao salvar:', error);
+        utils.showToast('Erro ao salvar no banco: ' + error.message, 'error');
     }
-
-    utils.saveCompanies(() => {
-        ui.renderDashboard();
-        ui.renderCompanyList();
-        switchView('company-list');
-        utils.showToast(state.currentEditingId ? 'Empresa atualizada!' : 'Empresa criada!');
-    });
 }
 
 // --- CS Hub Modals/Forms Handlers ---
 export function saveTempDashboard() {
-    const data = document.getElementById('new-db-data').value;
-    const dest = document.getElementById('new-db-dest').value;
-    const link = document.getElementById('new-db-link').value;
-    if(!data || !dest || !link) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
-    state.tempDashboards.push({ data, destinatarios: dest, link });
-    document.getElementById('btn-cancel-dashboard').click();
-    ui.renderDashboardsTable();
-    utils.showToast('Dashboard registrado!', 'success');
+    try {
+        const data = document.getElementById('new-db-data').value;
+        const dest = document.getElementById('new-db-dest').value;
+        const link = document.getElementById('new-db-link').value;
+        if(!data || !dest || !link) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
+        state.tempDashboards.push({ data, destinatarios: dest, link });
+        document.getElementById('btn-cancel-dashboard').click();
+        ui.renderDashboardsTable();
+        utils.showToast('Dashboard registrado!', 'success');
+    } catch (err) {
+        console.error('❌ Erro no saveTempDashboard:', err);
+        utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
+    }
 }
 
 export function saveTempNPS() {
-    const data = document.getElementById('new-nps-data').value;
-    const dest = document.getElementById('new-nps-dest').value;
-    const score = document.getElementById('new-nps-score').value;
-    if(!data || !dest || !score) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
-    state.tempNPSHistory.push({ data, destinatarios: dest, forms: document.getElementById('new-nps-forms').value, score });
-    document.getElementById('btn-cancel-nps').click();
-    ui.renderNPSHistoryTable();
-    utils.showToast('Pesquisa NPS salva!', 'success');
+    try {
+        const data = document.getElementById('new-nps-data').value;
+        const dest = document.getElementById('new-nps-dest').value;
+        const score = document.getElementById('new-nps-score').value;
+        if(!data || !dest || !score) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
+        state.tempNPSHistory.push({ data, destinatarios: dest, forms: document.getElementById('new-nps-forms').value, score });
+        document.getElementById('btn-cancel-nps').click();
+        ui.renderNPSHistoryTable();
+        utils.showToast('Pesquisa NPS salva!', 'success');
+    } catch (err) {
+        console.error('❌ Erro no saveTempNPS:', err);
+        utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
+    }
 }
 
 export function saveTempCSMeet() {
-    const data = document.getElementById('new-cs-meet-data').value;
-    const parts = document.getElementById('new-cs-meet-parts').value;
-    if(!data || !parts) { utils.showToast('Data e Participantes são obrigatórios.', 'error'); return; }
-    state.tempReunioesCS.push({ data, participantes: parts, obs: document.getElementById('new-cs-meet-obs').value, link: document.getElementById('new-cs-meet-link').value });
-    document.getElementById('btn-cancel-cs-meet').click();
-    ui.renderCSMeetingsTable();
-    utils.showToast('Reunião CS registrada!', 'success');
+    try {
+        const data = document.getElementById('new-cs-meet-data').value;
+        const parts = document.getElementById('new-cs-meet-parts').value;
+        if(!data || !parts) { utils.showToast('Data e Participantes são obrigatórios.', 'error'); return; }
+        state.tempReunioesCS.push({ data, participantes: parts, obs: document.getElementById('new-cs-meet-obs').value, link: document.getElementById('new-cs-meet-link').value });
+        document.getElementById('btn-cancel-cs-meet').click();
+        ui.renderCSMeetingsTable();
+        utils.showToast('Reunião CS registrada!', 'success');
+    } catch (err) {
+        console.error('❌ Erro no saveTempCSMeet:', err);
+        utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
+    }
 }
 
 export function saveTempTicket() {
@@ -247,20 +323,30 @@ export function removeTempNote(index) {
 }
 
 export function saveTempReuniao() {
-    const dateVal = document.getElementById('new-meet-date').value;
-    if(!dateVal) {
-        utils.showToast('A data é obrigatória.', 'error');
-        return;
+    try {
+        console.log('📅 Tentando salvar reunião geral...');
+        const dateVal = document.getElementById('new-meet-date').value;
+        if(!dateVal) {
+            utils.showToast('A data é obrigatória.', 'error');
+            return;
+        }
+
+        const meet = {
+            data: dateVal,
+            temperatura: document.getElementById('new-meet-temp').value,
+            participantes: document.getElementById('new-meet-parts').value,
+            link: document.getElementById('new-meet-link').value
+        };
+
+        console.log('📝 Dados coletados:', meet);
+        state.tempReunioes.push(meet);
+
+        document.getElementById('btn-cancel-meeting').click();
+        ui.renderReunioesTable();
+        utils.showToast('Reunião registrada!', 'success');
+        console.log('✅ Reunião salva no state.tempReunioes');
+    } catch (err) {
+        console.error('❌ Erro no saveTempReuniao:', err);
+        utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
     }
-
-    state.tempReunioes.push({
-        data: dateVal,
-        temperatura: document.getElementById('new-meet-temp').value,
-        participantes: document.getElementById('new-meet-parts').value,
-        link: document.getElementById('new-meet-link').value
-    });
-
-    document.getElementById('btn-cancel-meeting').click();
-    ui.renderReunioesTable();
-    utils.showToast('Reunião registrada!', 'success');
 }

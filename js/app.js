@@ -4,6 +4,7 @@ import * as ui from './modules/ui.js';
 import * as nav from './modules/navigation.js';
 import * as auth from './modules/auth.js';
 import * as handlers from './modules/handlers.js';
+import { api } from './modules/api.js';
 
 // Globalize for inline onclicks
 window.ui = ui;
@@ -55,12 +56,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.closest('.btn-delete')) {
             const id = target.closest('.btn-delete').getAttribute('data-id');
             if(confirm('Deseja excluir esta empresa?')) {
-                state.companies = state.companies.filter(c => c.id !== id);
-                utils.saveCompanies(() => {
-                    ui.renderDashboard();
-                    ui.renderCompanyList();
-                    utils.showToast('Excluído com sucesso!');
-                });
+                (async () => {
+                   try {
+                       await api.deleteCompany(id);
+                       state.companies = state.companies.filter(c => c.id !== id);
+                       ui.renderDashboard();
+                       ui.renderCompanyList();
+                       utils.showToast('Exclusão realizada no banco!', 'success');
+                   } catch (err) {
+                       utils.showToast('Erro ao excluir do banco: ' + err.message, 'error');
+                   }
+                })();
             }
         }
 

@@ -32,7 +32,7 @@ function setupUiDOM() {
     });
 }
 
-beforeEach(() => {
+beforeEach(async () => {
     resetTempState();
     // Clear companies in-place to preserve the reference
     state.companies.splice(0, state.companies.length);
@@ -42,6 +42,10 @@ beforeEach(() => {
     if (search) search.value = '';
     const filter = document.getElementById('filter-status');
     if (filter) filter.value = '';
+
+    // Clear TableManager state 10/10
+    const { clearCompaniesFilters } = await import('../../modules/ui.js');
+    clearCompaniesFilters();
 });
 
 // ------- renderDashboard -------
@@ -73,7 +77,7 @@ describe('ui.js — renderCompanyList()', () => {
     it('deve mostrar mensagem de vazio quando não há empresas', async () => {
         const { renderCompanyList } = await import('../../modules/ui.js');
         renderCompanyList();
-        expect(document.getElementById('company-table-body').innerHTML).toContain('Nenhuma empresa encontrada');
+        expect(document.getElementById('company-table-body').innerHTML).toContain('Nenhum resultado encontrado');
     });
 
     it('deve renderizar uma linha da tabela por empresa', async () => {
@@ -88,13 +92,15 @@ describe('ui.js — renderCompanyList()', () => {
     });
 
     it('deve filtrar empresas pelo campo de busca', async () => {
-        state.companies = [
+        state.companies.splice(0, state.companies.length,
             { id: '1', nome: 'Alpha Corp', status: 'Prospect', updatedAt: Date.now() },
             { id: '2', nome: 'Beta Ltda', status: 'Lead', updatedAt: Date.now() }
-        ];
-        document.getElementById('search-empresa').value = 'alpha';
-        const { renderCompanyList } = await import('../../modules/ui.js');
+        );
+        
+        const { renderCompanyList, handleCompaniesSearch } = await import('../../modules/ui.js');
+        handleCompaniesSearch('alpha');
         renderCompanyList();
+        
         const body = document.getElementById('company-table-body').innerHTML;
         expect(body).toContain('Alpha Corp');
         expect(body).not.toContain('Beta Ltda');
@@ -117,10 +123,15 @@ describe('ui.js — renderCompanyList()', () => {
             { id: 'f1', nome: 'Alpha Prospect', status: 'Prospect', updatedAt: Date.now() },
             { id: 'f2', nome: 'Beta Cliente', status: 'Cliente Ativo', updatedAt: Date.now() }
         );
-        filterEl.value = 'Cliente Ativo';
+        state.companies.splice(0, state.companies.length,
+            { id: 'f1', nome: 'Alpha Prospect', status: 'Prospect', updatedAt: Date.now() },
+            { id: 'f2', nome: 'Beta Cliente', status: 'Cliente Ativo', updatedAt: Date.now() }
+        );
 
-        const { renderCompanyList } = await import('../../modules/ui.js');
+        const { renderCompanyList, handleCompaniesFilter } = await import('../../modules/ui.js');
+        handleCompaniesFilter('status', 'Cliente Ativo');
         renderCompanyList();
+        
         const body = document.getElementById('company-table-body').innerHTML;
         expect(body).toContain('Beta Cliente');
         expect(body).not.toContain('Alpha Prospect');

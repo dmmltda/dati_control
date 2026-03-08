@@ -87,8 +87,17 @@ export class TableManager {
                 if (column?.type === 'date') {
                     const parseDate = (d) => {
                         if (!d) return 0;
-                        const [day, month, year] = d.split('/');
-                        return new Date(`${year}-${month}-${day}`).getTime();
+                        // Brute force parsing logic 10/10
+                        if (String(d).includes('-')) {
+                            // Format: YYYY-MM-DD
+                            return new Date(d).getTime() || 0;
+                        }
+                        if (String(d).includes('/')) {
+                            // Format: DD/MM/YYYY
+                            const [day, month, year] = d.split('/');
+                            return new Date(`${year}-${month}-${day}`).getTime() || 0;
+                        }
+                        return new Date(d).getTime() || 0;
                     };
                     return (parseDate(valA) - parseDate(valB)) * factor;
                 }
