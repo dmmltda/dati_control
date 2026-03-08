@@ -235,6 +235,13 @@ export async function handleCompanySubmit(e) {
                 Data: n.data ? new Date(n.timestamp || Date.now()) : new Date(),
                 Conteudo: n.text,
                 Autor: n.author
+            })),
+            Follow_Ups: state.tempFollowUps.map(f => ({
+                Data_inclusao: f.data ? new Date(f.data) : new Date(),
+                Conteudo: f.conteudo,
+                Usuario: f.usuario,
+                Area: f.area,
+                Data_proximo_contato: f.proximoContato ? new Date(f.proximoContato) : null
             }))
         };
 
@@ -374,4 +381,36 @@ export function saveTempReuniao() {
         console.error('❌ Erro no saveTempReuniao:', err);
         utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
     }
+}
+
+export function saveTempFollowUp() {
+    try {
+        const usuario = document.getElementById('new-fw-usuario').value.trim();
+        const conteudo = document.getElementById('new-fw-content').value.trim();
+        if(!usuario || !conteudo) { 
+            utils.showToast('Usuário e Conteúdo são obrigatórios.', 'error'); 
+            return; 
+        }
+
+        state.tempFollowUps.push({
+            data: new Date().toISOString().split('T')[0],
+            usuario,
+            area: document.getElementById('new-fw-area').value,
+            conteudo,
+            proximoContato: document.getElementById('new-fw-next').value
+        });
+
+        document.getElementById('btn-cancel-followup').click();
+        ui.renderFollowUpsTable();
+        utils.showToast('Follow-up registrado!', 'success');
+    } catch (err) {
+        utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
+    }
+}
+
+export function removeTempFollowUp(index) {
+    confirmar('Remover este follow-up?', () => {
+        state.tempFollowUps.splice(index, 1);
+        ui.renderFollowUpsTable();
+    });
 }

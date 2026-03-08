@@ -113,7 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { class: '.btn-remove-temp-nps', stateArr: 'tempNPSHistory', render: 'renderNPSHistoryTable', msg: 'Excluir esta pesquisa NPS?' },
             { class: '.btn-remove-temp-csmeet', stateArr: 'tempReunioesCS', render: 'renderCSMeetingsTable', msg: 'Excluir esta reunião?' },
             { class: '.btn-remove-temp-ticket', stateArr: 'tempChamados', render: 'renderTicketsTable', msg: 'Excluir este chamado?' },
-            { class: '.btn-remove-temp-reuniao', stateArr: 'tempReunioes', render: 'renderReunioesTable', msg: 'Excluir esta reunião?' }
+            { class: '.btn-remove-temp-reuniao', stateArr: 'tempReunioes', render: 'renderReunioesTable', msg: 'Excluir esta reunião?' },
+            { class: '.btn-remove-temp-followup', stateArr: 'tempFollowUps', render: 'renderFollowUpsTable', msg: 'Excluir este follow-up?' }
         ];
 
         for (const r of tempRemovers) {
@@ -184,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggle('btn-toggle-produto-form', 'produto-form-container', 'btn-cancel-produto');
     setupToggle('btn-toggle-contact-form', 'contact-form-container', 'btn-cancel-contact');
     setupToggle('btn-toggle-meeting-form', 'meeting-form-container', 'btn-cancel-meeting');
+    setupToggle('btn-toggle-followup-form', 'followup-form-container', 'btn-cancel-followup', ['new-fw-usuario', 'new-fw-content', 'new-fw-next', 'new-fw-area']);
 
     // --- Save Button Actions ---
     document.getElementById('btn-save-contact')?.addEventListener('click', handlers.saveNewContato);
@@ -194,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-save-ticket')?.addEventListener('click', handlers.saveTempTicket);
     document.getElementById('btn-add-cs-note')?.addEventListener('click', handlers.addCSNote);
     document.getElementById('btn-add-meeting-submit')?.addEventListener('click', handlers.saveTempReuniao);
+    document.getElementById('btn-save-followup')?.addEventListener('click', handlers.saveTempFollowUp);
 });
 
 // Global assignment for legacy HTML compatibility

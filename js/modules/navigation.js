@@ -115,7 +115,7 @@ export function openCompanyForm(id = null) {
             state.tempChamados = [...(comp.chamadosHistory || [])];
             state.tempNotes = [...(comp.csNotes || [])];
             state.tempReunioes = [...(comp.reunioes || [])];
-
+            state.tempFollowUps = [...(comp.followUps || [])];
             document.getElementById('qual-tem-comex').value = comp.qualificacao?.temComex || '';
             document.getElementById('qual-qual-comex').value = comp.qualificacao?.qualComex || '';
             document.getElementById('group-qual-comex').style.display = comp.qualificacao?.temComex === 'Sim' ? 'block' : 'none';
@@ -141,6 +141,7 @@ export function openCompanyForm(id = null) {
     ui.renderTicketsTable();
     ui.renderCSTimeline();
     ui.renderReunioesTable();
+    ui.renderFollowUpsTable();
     
     // Ajusta o texto do botão conforme contexto
     const saveBtn = document.getElementById('btn-save-company');

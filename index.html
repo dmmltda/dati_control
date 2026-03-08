@@ -162,6 +162,9 @@
                                     </th>
                                     <th class="sortable-header" data-key="healthScore" style="text-align: center;"> Saúde </th>
                                     <th class="sortable-header" data-key="nps" style="text-align: center;"> NPS </th>
+                                    <th class="sortable-header" data-key="proximoPasso" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('proximoPasso', event)">Próximo Passo</span>
+                                    </th>
                                     <th class="sortable-header" data-key="produtosNames" style="text-align: center;"> 
                                         <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos DATI</span>
                                     </th>
@@ -433,6 +436,9 @@
                             </button>
                             <button type="button" class="tab-menu-btn" data-tab="tab-qualificacao">
                                 <i class="ph ph-identification-card"></i> Qualificação
+                            </button>
+                            <button type="button" class="tab-menu-btn" data-tab="tab-followup">
+                                <i class="ph ph-arrow-circle-right"></i> Follow-up
                             </button>
                         </aside>
 
@@ -1154,6 +1160,67 @@
                                         id="qual-dores" class="input-control" rows="2"></textarea></div>
                                 <div class="input-group"><label>O que esperam da DATI?</label><textarea
                                         id="qual-expectativa" class="input-control" rows="2"></textarea></div>
+                            </div>
+
+                            <!-- Tab: Follow-up -->
+                            <div id="tab-followup" class="tab-content glass-panel form-section" style="margin-top: 0;">
+                                <div class="form-header">
+                                    <h2>Histórico de Follow-up</h2>
+                                    <button type="button" id="btn-toggle-followup-form" class="btn btn-secondary">
+                                        <i class="ph ph-plus"></i> Novo Follow-up
+                                    </button>
+                                </div>
+
+                                <div id="followup-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                    <div class="grid-3" style="margin-bottom: 1rem;">
+                                        <div class="input-group">
+                                            <label>Usuário *</label>
+                                            <input type="text" id="new-fw-usuario" class="input-control" placeholder="Seu nome">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Área</label>
+                                            <select id="new-fw-area" class="input-control">
+                                                <option value="">Selecione...</option>
+                                                <option value="Comercial">Comercial</option>
+                                                <option value="CS">CS</option>
+                                                <option value="TI">TI</option>
+                                                <option value="Financeiro">Financeiro</option>
+                                                <option value="Outros">Outros</option>
+                                            </select>
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Próximo Contato</label>
+                                            <input type="date" id="new-fw-next" class="input-control">
+                                        </div>
+                                    </div>
+                                    <div class="input-group" style="margin-bottom: 1.5rem;">
+                                        <label>Follow-up (Conteúdo) *</label>
+                                        <textarea id="new-fw-content" class="input-control" rows="3" placeholder="Descreva o acompanhamento..."></textarea>
+                                    </div>
+                                    <div style="display: flex; gap: 0.8rem;">
+                                        <button type="button" id="btn-save-followup" class="btn btn-primary">Adicionar</button>
+                                        <button type="button" id="btn-cancel-followup" class="btn btn-secondary">Cancelar</button>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="company-table" style="font-size: 0.85rem;">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 15%">Data Inclusão</th>
+                                                <th>Follow-up</th>
+                                                <th style="width: 15%">Usuário</th>
+                                                <th style="width: 12%">Área</th>
+                                                <th style="width: 15%">Próximo Contato</th>
+                                                <th style="width: 8%">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="followup-table-body">
+                                            <!-- Preenchido via JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div id="pagination-followup" class="pagination-container"></div>
                             </div>
 
                         </div>

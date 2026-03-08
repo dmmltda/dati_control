@@ -18,6 +18,7 @@ function mapFromDB(comp) {
         nps: comp.NPS,
         leadSource: comp.Lead,
         healthScore: comp.Health_Score,
+        proximoPasso: comp.Data_de_follow_up ? new Date(comp.Data_de_follow_up).toLocaleDateString('pt-BR') : '-',
 
         // Relacionamentos
         produtos: (comp.Produtos || []).map(p => ({
@@ -91,6 +92,15 @@ function mapFromDB(comp) {
             author: n.Autor,
             date: n.Data ? new Date(n.Data).toLocaleString('pt-BR') : '',
             timestamp: n.Data ? new Date(n.Data).getTime() : Date.now()
+        })),
+
+        followUps: (comp.Follow_Ups || []).map(f => ({
+            id: f.id,
+            data: f.Data_inclusao ? new Date(f.Data_inclusao).toISOString().split('T')[0] : null,
+            conteudo: f.Conteudo,
+            usuario: f.Usuario,
+            area: f.Area,
+            proximoContato: f.Data_proximo_contato ? new Date(f.Data_proximo_contato).toISOString().split('T')[0] : null
         }))
     };
 }

@@ -9,6 +9,7 @@ let dashboardTableManager = null;
 let npsTableManager = null;
 let csMeetingTableManager = null;
 let meetingGeralTableManager = null;
+let followUpTableManager = null;
 let companiesTableManager = null;
 
 // ✅ CORREÇÃO: resetar managers de formulário ao abrir nova empresa
@@ -19,6 +20,7 @@ export function resetFormTableManagers() {
     npsTableManager = null;
     csMeetingTableManager = null;
     meetingGeralTableManager = null;
+    followUpTableManager = null;
 }
 
 // Helper to download base64 files correctly
@@ -126,6 +128,7 @@ export function renderCompanyList() {
                 { key: 'status', type: 'string' },
                 { key: 'healthScore', type: 'string' },
                 { key: 'nps', type: 'number' },
+                { key: 'proximoPasso', type: 'date' },
                 { key: 'produtosNames', type: 'string' },
                 { key: 'segmento', type: 'string' },
                 { key: 'updatedAt', type: 'number' }
@@ -134,7 +137,7 @@ export function renderCompanyList() {
             'view-company-list'
         );
         companiesTableManager.paginationContainerId = 'pagination-companies';
-        companiesTableManager.searchKeys = ['nome', 'segmento', 'produtosNames', 'cidade', 'estado', 'status', 'cnpj', 'site'];
+        companiesTableManager.searchKeys = ['nome', 'segmento', 'produtosNames', 'cidade', 'estado', 'status', 'cnpj', 'site', 'proximoPasso'];
         companiesTableManager.sort = { key: 'updatedAt', direction: 'desc' };
         companiesTableManager.apply();
     } else {
@@ -214,6 +217,7 @@ function renderCompanyTableRows(data) {
             <td style="text-align: center;"><span class="badge ${config.class}">${comp.status}</span></td>
             <td style="text-align: center;">${healthBadge}</td>
             <td style="text-align: center;">${npsBadge}</td>
+            <td style="text-align: center;"><span style="font-weight: 500; font-size: 0.85rem; color: var(--text-main);">${comp.proximoPasso || '-'}</span></td>
             <td style="text-align: center;">
                 <div class="product-pills-container">
                     ${(comp.produtos || []).slice(0, 3).map(p => `<span class="product-pill">${p.nome}</span>`).join('')}
@@ -594,12 +598,6 @@ export function renderCSTimeline() {
     const timeline = document.getElementById('cs-timeline');
     if (!timeline) return;
     timeline.innerHTML = '';
-
-    if (state.tempNotes.length === 0) {
-        timeline.innerHTML = `<div style="color: var(--text-muted); padding: 1rem; font-size: 0.85rem;">Nenhuma observação registrada.</div>`;
-        return;
-    }
-
     state.tempNotes.sort((a, b) => b.timestamp - a.timestamp).forEach((note, index) => {
         const item = document.createElement('div');
         item.style.padding = '0.8rem';
@@ -619,6 +617,55 @@ export function renderCSTimeline() {
             <div style="position: absolute; left: -1.3rem; top: 1.2rem; width: 0.6rem; height: 0.6rem; background: var(--dark-border); border: 2px solid var(--bg-main); border-radius: 50%;"></div>
         `;
         timeline.appendChild(item);
+    });
+}
+
+export function renderFollowUpsTable() {
+    const body = document.getElementById('followup-table-body');
+    if (!body) return;
+
+    if (!followUpTableManager) {
+        followUpTableManager = new TableManager(
+            state.tempFollowUps,
+            [
+                { key: 'data', type: 'date' },
+                { key: 'usuario', type: 'string' },
+                { key: 'area', type: 'string' }
+            ],
+            (data) => renderFollowUpsTableRows(data),
+            'tab-followup'
+        );
+        followUpTableManager.paginationContainerId = 'pagination-followup';
+        followUpTableManager.sort = { key: 'data', direction: 'desc' };
+        followUpTableManager.apply();
+    } else {
+        followUpTableManager.setData(state.tempFollowUps);
+    }
+}
+
+function renderFollowUpsTableRows(data) {
+    const body = document.getElementById('followup-table-body');
+    if (!body) return;
+    body.innerHTML = '';
+
+    if (data.length === 0) {
+        body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum follow-up registrado.</td></tr>`;
+        return;
+    }
+
+    data.forEach((fw, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color: var(--text-muted);">${fw.data || '-'}</td>
+            <td style="font-weight: 500; white-space: pre-wrap; line-height: 1.5;">${fw.conteudo}</td>
+            <td>${fw.usuario || '-'}</td>
+            <td><span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-main); font-size: 0.75rem;">${fw.area || '-'}</span></td>
+            <td style="color: var(--secondary); font-weight: 600;">${fw.proximoContato || '-'}</td>
+            <td style="text-align: right;">
+                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-followup" data-index="${index}"><i class="ph ph-trash"></i></button>
+            </td>
+        `;
+        body.appendChild(tr);
     });
 }
 

@@ -61,6 +61,7 @@ model Company {
   NPS_History             NPSSurvey[] @relation("CompanyNPS")
   Tickets                 Ticket[]
   Notas                   CSNote[]
+  Follow_Ups              FollowUp[]
   
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
@@ -214,4 +215,21 @@ model TestLog {
   updatedAt               DateTime  @updatedAt
 
   @@map("test_logs")
+}
+
+model FollowUp {
+  id                      String    @id @default(uuid())
+  companyId               String
+  company                 Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  Data_inclusao           DateTime? @default(now())
+  Conteudo                String?   @db.Text
+  Usuario                 String?
+  Area                    String?
+  Data_proximo_contato    DateTime?
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("company_followups")
 }

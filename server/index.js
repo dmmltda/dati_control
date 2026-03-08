@@ -39,7 +39,8 @@ app.get('/api/companies', async (req, res) => {
                 Dashboards: true,
                 NPS_History: true,
                 Tickets: true,
-                Notas: true
+                Notas: true,
+                Follow_Ups: true
             },
             orderBy: { updatedAt: 'desc' }
         });
@@ -64,7 +65,8 @@ app.get('/api/companies/:id', async (req, res) => {
                 Dashboards: true,
                 NPS_History: true,
                 Tickets: true,
-                Notas: true
+                Notas: true,
+                Follow_Ups: true
             }
         });
         if (!company) return res.status(404).json({ error: 'Empresa não encontrada' });
@@ -134,7 +136,8 @@ app.post('/api/companies', async (req, res) => {
                 Dashboards: { create: data.Dashboards || data.dashboardsHistory || [] },
                 NPS_History: { create: data.NPS_History || data.npsHistory || [] },
                 Tickets: { create: data.Tickets || data.chamadosHistory || [] },
-                Notas: { create: data.Notas || data.csNotes || [] }
+                Notas: { create: data.Notas || data.csNotes || [] },
+                Follow_Ups: { create: data.Follow_Ups || data.followUps || [] }
             }
         });
         res.status(201).json(company);
@@ -197,7 +200,8 @@ app.put('/api/companies/:id', async (req, res) => {
                 Dashboards: { deleteMany: {}, create: data.Dashboards || [] },
                 NPS_History: { deleteMany: {}, create: data.NPS_History || [] },
                 Tickets: { deleteMany: {}, create: data.Tickets || [] },
-                Notas: { deleteMany: {}, create: data.Notas || [] }
+                Notas: { deleteMany: {}, create: data.Notas || [] },
+                Follow_Ups: { deleteMany: {}, create: data.Follow_Ups || [] }
             }
         });
 

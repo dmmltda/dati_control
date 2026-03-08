@@ -16,8 +16,8 @@ export let state = {
     tempReunioesCS: [],
     tempChamados: [],
     tempNotes: [],
-    
-    tempReunioes: []
+    tempReunioes: [],
+    tempFollowUps: []
 };
 
 // Helper to reset temp state
@@ -33,4 +33,5 @@ export function resetTempState() {
     state.tempChamados = [];
     state.tempNotes = [];
     state.tempReunioes = [];
+    state.tempFollowUps = [];
 }
