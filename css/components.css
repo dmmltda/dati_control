@@ -178,10 +178,16 @@ select.input-control { appearance: none; background-image: url("data:image/svg+x
     border-radius: var(--radius-sm);
     padding: 0.75rem;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-    z-index: 1000;
-    min-width: 180px;
+    z-index: 9999;
+    min-width: 220px;
     display: none;
     margin-top: 0.5rem;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+.filter-popover.align-right {
+    left: auto;
+    right: 0;
 }
 .filter-popover.show {
     display: block;

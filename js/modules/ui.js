@@ -913,6 +913,25 @@ export function toggleFilterPopover(key, event) {
     } else {
         renderFilterOptions(key, popover);
         popover.classList.add('show');
+
+        // Smart positioning logic: detect screen boundaries
+        popover.classList.remove('align-right', 'align-top');
+        popover.style.bottom = 'auto'; // Reset custom bottom
+        popover.style.top = '100%';    // Reset default top
+
+        const rect = popover.getBoundingClientRect();
+        
+        // Horizontal check
+        if (rect.right > window.innerWidth - 20) {
+            popover.classList.add('align-right');
+        }
+
+        // Vertical check: if it goes off bottom, flip it to open upwards
+        if (rect.bottom > window.innerHeight - 20) {
+            popover.style.top = 'auto';
+            popover.style.bottom = '100%';
+            popover.parentElement.style.position = 'relative'; // Ensure parent is relative
+        }
     }
 }
 
