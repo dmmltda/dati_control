@@ -44,6 +44,12 @@ export class TableManager {
         this.apply();
     }
 
+    setSort(key, direction) {
+        this.sort.key = key;
+        this.sort.direction = direction; // 'asc', 'desc', or 'none'
+        this.apply();
+    }
+
     toggleSort(key) {
         if (this.sort.key === key) {
             if (this.sort.direction === 'asc') this.sort.direction = 'desc';
@@ -56,20 +62,58 @@ export class TableManager {
         this.apply();
     }
 
+    _deepSearch(obj) {
+        if (obj === null || obj === undefined) return '';
+        if (typeof obj !== 'object') return String(obj).toLowerCase();
+        
+        return Object.values(obj)
+            .map(val => this._deepSearch(val))
+            .join(' ');
+    }
+
+    _parseDateToTime(d) {
+        if (!d || d === '-') return 0;
+        const s = String(d);
+        // Format: YYYY-MM-DD
+        if (s.includes('-') && s.split('-')[0].length === 4) {
+            return new Date(s).getTime() || 0;
+        }
+        // Format: DD/MM/YYYY
+        if (s.includes('/')) {
+            const [day, month, year] = s.split('/');
+            return new Date(`${year}-${month}-${day}`).getTime() || 0;
+        }
+        return new Date(d).getTime() || 0;
+    }
+
     apply() {
         // 1. Filtragem
         this.currentData = this.originalData.filter(item => {
             const matchColumns = Object.entries(this.filters).every(([key, filterValue]) => {
-                const itemValue = String(item[key] || '').toLowerCase();
+                if (!filterValue) return true;
+                
+                const column = this.columns.find(c => c.key === key);
+                const itemValue = item[key];
+
+                // Filtro de Intervalo de Data (Range)
+                if (column?.type === 'date' && String(filterValue).includes(' a ')) {
+                    const [startStr, endStr] = String(filterValue).split(' a ');
+                    const itemTime = this._parseDateToTime(itemValue);
+                    const startTime = this._parseDateToTime(startStr);
+                    const endTime = this._parseDateToTime(endStr) + (24 * 60 * 60 * 1000 - 1); // Fim do dia
+
+                    if (!itemTime) return false;
+                    return itemTime >= startTime && itemTime <= endTime;
+                }
+
+                // Filtro Padrão (Literal)
+                const itemValueStr = String(itemValue || '').toLowerCase();
                 const val = String(filterValue).toLowerCase();
-                return itemValue.includes(val);
+                return itemValueStr.includes(val);
             });
 
-            const matchGlobal = !this.globalSearch || (this.searchKeys || Object.keys(item)).some(key => {
-                const val = item[key];
-                if (typeof val === 'object' || Array.isArray(val)) return false;
-                return String(val || '').toLowerCase().includes(this.globalSearch);
-            });
+            // Deep Search: Localiza absolutamente tudo (inclusive dentro de objetos/arrays)
+            const matchGlobal = !this.globalSearch || this._deepSearch(item).includes(this.globalSearch);
 
             return matchColumns && matchGlobal;
         });
@@ -85,21 +129,7 @@ export class TableManager {
                 let valB = b[key];
 
                 if (column?.type === 'date') {
-                    const parseDate = (d) => {
-                        if (!d) return 0;
-                        // Brute force parsing logic 10/10
-                        if (String(d).includes('-')) {
-                            // Format: YYYY-MM-DD
-                            return new Date(d).getTime() || 0;
-                        }
-                        if (String(d).includes('/')) {
-                            // Format: DD/MM/YYYY
-                            const [day, month, year] = d.split('/');
-                            return new Date(`${year}-${month}-${day}`).getTime() || 0;
-                        }
-                        return new Date(d).getTime() || 0;
-                    };
-                    return (parseDate(valA) - parseDate(valB)) * factor;
+                    return (this._parseDateToTime(valA) - this._parseDateToTime(valB)) * factor;
                 }
 
                 if (column?.type === 'number') {

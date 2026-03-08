@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('dati_auth') === 'true') {
         auth.showApp();
     }
+    ui.initGlobalPickers();
 
     // --- Dynamic Delegate additions (Combined for performance and robustness) ---
     document.addEventListener('click', (e) => {
@@ -60,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 (async () => {
                    try {
                        await api.deleteCompany(id);
-                       state.companies = state.companies.filter(c => c.id !== id);
+                       state.companies = state.companies.filter(c => c.id != id);
                        ui.renderDashboard();
                        ui.renderCompanyList();
                        utils.showToast('Exclusão realizada com sucesso!', 'success');

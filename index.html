@@ -18,6 +18,12 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/views.css">
+
+    <!-- Flatpickr (Calendário 10/10) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
 </head>
 
 <body>
@@ -139,7 +145,15 @@
                             </div>
                         </div>
                     </div>
-
+                    <!-- Active Filters Indicator (UX 10/10) -->
+                    <div id="active-filters-bar" class="active-filters-bar" style="display: none;">
+                        <div class="active-filters-chips" id="active-filters-chips">
+                            <!-- Chips will be injected here -->
+                        </div>
+                        <button class="btn-clear-all-filters" onclick="ui.clearAllCompaniesFilters()">
+                            <i class="ph ph-trash"></i> Limpar Tudo
+                        </button>
+                    </div>
                     <div class="company-table-container">
                         <table class="company-table">
                             <thead>
@@ -160,15 +174,46 @@
                                         </button>
                                         <div class="filter-popover" id="filter-popover-comp_status"></div>
                                     </th>
-                                    <th class="sortable-header" data-key="healthScore" style="text-align: center;"> Saúde </th>
-                                    <th class="sortable-header" data-key="nps" style="text-align: center;"> NPS </th>
+                                    <th class="sortable-header" data-key="healthScore" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('healthScore', event)">Saúde</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_healthScore', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_healthScore"></div>
+                                    </th>
+                                    <th class="sortable-header" data-key="nps" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('nps', event)">NPS</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_nps', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_nps"></div>
+                                    </th>
                                     <th class="sortable-header" data-key="proximoPasso" style="text-align: center;">
                                         <span onclick="ui.handleCompaniesSort('proximoPasso', event)">Próximo Passo</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_proximoPasso', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_proximoPasso"></div>
                                     </th>
                                     <th class="sortable-header" data-key="produtosNames" style="text-align: center;"> 
                                         <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos DATI</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_produtosNames', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_produtosNames"></div>
                                     </th>
-                                    <th class="sortable-header" data-key="segmento" style="text-align: center;"> Segmento </th>
+                                    <th class="sortable-header" data-key="segmento" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('segmento', event)">Segmento</span>
+                                        <button type="button" class="btn-filter-column"
+                                            onclick="ui.toggleFilterPopover('comp_segmento', event)">
+                                            <i class="ph ph-funnel"></i>
+                                        </button>
+                                        <div class="filter-popover" id="filter-popover-comp_segmento"></div>
+                                    </th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>

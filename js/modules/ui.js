@@ -143,6 +143,70 @@ export function renderCompanyList() {
     } else {
         companiesTableManager.setData(state.companies);
     }
+    updateActiveFiltersUI();
+}
+
+export function updateActiveFiltersUI() {
+    const bar = document.getElementById('active-filters-bar');
+    const container = document.getElementById('active-filters-chips');
+    if (!bar || !container || !companiesTableManager) return;
+
+    const activeFilters = Object.entries(companiesTableManager.filters);
+    
+    // Highlight headers
+    document.querySelectorAll('#view-company-list .btn-filter-column').forEach(btn => {
+        const popoverId = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+        if (popoverId) {
+            const dataKey = getDataKey(popoverId);
+            const isActive = companiesTableManager.filters[dataKey];
+            btn.classList.toggle('active', !!isActive);
+        }
+    });
+
+    if (activeFilters.length === 0) {
+        bar.style.display = 'none';
+        return;
+    }
+
+    bar.style.display = 'flex';
+    container.innerHTML = activeFilters.map(([key, value]) => {
+        const label = getLabelForKey(key);
+        return `
+            <div class="filter-chip">
+                <span><strong>${label}:</strong> ${value}</span>
+                <i class="ph ph-x-circle" onclick="ui.clearColumnFilterFromChip('${key}', event)"></i>
+            </div>
+        `;
+    }).join('');
+}
+
+function getLabelForKey(dataKey) {
+    const labels = {
+        'nome': 'Empresa',
+        'status': 'Status',
+        'healthScore': 'Saúde',
+        'nps': 'NPS',
+        'segmento': 'Segmento',
+        'produtosNames': 'Produtos',
+        'proximoPasso': 'Próximo Passo'
+    };
+    return labels[dataKey] || dataKey;
+}
+
+export function clearColumnFilterFromChip(dataKey, event) {
+    if (event) event.stopPropagation();
+    if (companiesTableManager) {
+        companiesTableManager.setFilter(dataKey, '');
+        updateActiveFiltersUI();
+    }
+}
+
+export function clearAllCompaniesFilters() {
+    if (companiesTableManager) {
+        companiesTableManager.filters = {};
+        companiesTableManager.apply();
+        updateActiveFiltersUI();
+    }
 }
 
 function renderCompanyTableRows(data) {
@@ -856,22 +920,111 @@ function renderFilterOptions(key, container) {
     const manager = getManagerForKey(key);
     if (!manager) return;
     const dataKey = getDataKey(key);
+    const column = manager.columns.find(c => c.key === dataKey);
     const values = manager.getUniqueValues(dataKey);
     const selectedValue = manager.filters[dataKey];
+    const currentSort = manager.sort.key === dataKey ? manager.sort.direction : 'none';
+
+    if (column?.type === 'date') {
+        container.innerHTML = `
+            <div class="filter-group">
+                <span class="filter-label">Ordenar</span>
+                <div class="sort-buttons">
+                    <button class="btn-sort ${currentSort === 'asc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'asc', event)">
+                        <i class="ph ph-sort-ascending"></i> Cresc.
+                    </button>
+                    <button class="btn-sort ${currentSort === 'desc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'desc', event)">
+                        <i class="ph ph-sort-descending"></i> Decresc.
+                    </button>
+                </div>
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Intervalo de Datas</span>
+                <div class="filter-date-wrapper">
+                    <i class="ph ph-calendar"></i>
+                    <input type="text" class="filter-date-range" id="filter-date-${key}" placeholder="Selecionar período..." value="${selectedValue || ''}" readonly>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-clear-filter" onclick="ui.clearColumnFilter('${key}', event)">
+                    <i class="ph ph-trash"></i> Limpar Filtro
+                </button>
+            </div>
+        `;
+
+        // Inicializar Flatpickr 10/10
+        setTimeout(() => {
+            flatpickr(`#filter-date-${key}`, {
+                mode: "range",
+                dateFormat: "d/m/Y",
+                locale: "pt",
+                locale: {
+                    rangeSeparator: " a "
+                },
+                onChange: (selectedDates, dateStr) => {
+                    if (selectedDates.length === 2) {
+                        ui.applyGenericFilter(key, dateStr);
+                    }
+                }
+            });
+        }, 10);
+        return;
+    }
 
     container.innerHTML = `
-        <input type="text" class="filter-search" placeholder="Pesquisar..." onkeyup="ui.searchFilterOptions('${key}', this)">
-        <div class="filter-list">
-            <div class="filter-option ${!selectedValue ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '', event)">
-                (Tudo)
+        <div class="filter-group">
+            <span class="filter-label">Ordenar</span>
+            <div class="sort-buttons">
+                <button class="btn-sort ${currentSort === 'asc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'asc', event)">
+                    <i class="ph ph-sort-ascending"></i> Cresc.
+                </button>
+                <button class="btn-sort ${currentSort === 'desc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'desc', event)">
+                    <i class="ph ph-sort-descending"></i> Decresc.
+                </button>
             </div>
-            ${values.map(val => `
-                <div class="filter-option ${selectedValue === val ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '${val}', event)">
-                    ${val}
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Filtrar Valores</span>
+            <input type="text" class="filter-search" placeholder="Pesquisar..." onkeyup="ui.searchFilterOptions('${key}', this)">
+            <div class="filter-list">
+                <div class="filter-option ${!selectedValue ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '', event)">
+                    (Tudo)
                 </div>
-            `).join('')}
+                ${values.map(val => `
+                    <div class="filter-option ${selectedValue === val ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '${val}', event)">
+                        ${val}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn-clear-filter" onclick="ui.clearColumnFilter('${key}', event)">
+                <i class="ph ph-trash"></i> Limpar Filtro
+            </button>
         </div>
     `;
+}
+
+export function applyColumnSort(key, direction, event) {
+    if (event) event.stopPropagation();
+    const manager = getManagerForKey(key);
+    if (manager) {
+        const dataKey = getDataKey(key);
+        manager.setSort(dataKey, direction);
+        if (manager === companiesTableManager) updateActiveFiltersUI();
+    }
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+}
+
+export function clearColumnFilter(key, event) {
+    if (event) event.stopPropagation();
+    const manager = getManagerForKey(key);
+    if (manager) {
+        const dataKey = getDataKey(key);
+        manager.setFilter(dataKey, '');
+        if (manager === companiesTableManager) updateActiveFiltersUI();
+    }
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
 }
 
 export function searchFilterOptions(key, input) {
@@ -890,6 +1043,7 @@ export function applyGenericFilter(key, value, event) {
     if (manager) {
         const dataKey = getDataKey(key);
         manager.setFilter(dataKey, value);
+        if (manager === companiesTableManager) updateActiveFiltersUI();
     }
     document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
 }
@@ -1045,3 +1199,12 @@ document.addEventListener('click', (e) => {
         document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
     }
 });
+export function initGlobalPickers() {
+    // Aplicar Flatpickr em todos os inputs de data do sistema
+    flatpickr("input[type='date'], .datepicker", {
+        dateFormat: "Y-m-d", // Formato para o DB continuar funcionando
+        altInput: true,
+        altFormat: "d/m/Y", // Formato visual 10/10
+        locale: "pt"
+    });
+}

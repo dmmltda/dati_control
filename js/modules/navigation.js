@@ -16,6 +16,7 @@ export function switchView(viewId) {
             item.classList.add('active');
         }
     });
+    ui.initGlobalPickers();
 }
 
 export function switchFormTab(tabId, btnElement) {
@@ -85,7 +86,7 @@ export function openCompanyForm(id = null) {
     cidadeInput.placeholder = 'Selecione um estado primeiro...';
 
     if (id) {
-        const comp = state.companies.find(c => c.id === id);
+        const comp = state.companies.find(c => c.id == id);
         if (comp) {
             document.getElementById('company-id').value = comp.id;
             document.getElementById('emp-nome').value = comp.nome;
@@ -155,5 +156,6 @@ export function openCompanyForm(id = null) {
     }
 
     updateStatusStyle(document.getElementById('emp-status'));
+    ui.initGlobalPickers();
     switchView('company-form');
 }
