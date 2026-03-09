@@ -11,6 +11,7 @@ export function saveNewContato() {
     if (!nome) { utils.showToast('O Nome do Contato é obrigatório!', 'error'); return; }
 
     state.tempContatos.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
         nome,
         email1: document.getElementById('new-cont-email1').value.trim(),
         telefone: document.getElementById('new-cont-tel').value.trim(),
@@ -29,37 +30,42 @@ export function saveNewContato() {
     utils.showToast('Contato adicionado!', 'success');
 }
 
-export function startEditContato(index) {
-    state.editingContatoIndex = index;
+export function startEditContato(id) {
+    state.editingContatoId = id;
     ui.renderContatosTable();
 }
 
 export function cancelEditContato() {
-    state.editingContatoIndex = -1;
+    state.editingContatoId = null;
     ui.renderContatosTable();
 }
 
-export function saveEditContato(index) {
-    const nomeInput = document.getElementById(`edit-cont-nome-${index}`);
-    if (!nomeInput.value.trim()) {
+export function saveEditContato(id) {
+    const nomeInput = document.getElementById(`edit-cont-nome-${id}`);
+    if (!nomeInput || !nomeInput.value.trim()) {
         utils.showToast('O Nome do Contato é obrigatório!', 'error');
         return;
     }
 
-    const cont = state.tempContatos[index];
+    const cont = state.tempContatos.find(c => String(c.id) === String(id));
+    if (!cont) return;
+
     cont.nome = nomeInput.value.trim();
-    cont.email1 = document.getElementById(`edit-cont-email1-${index}`).value.trim();
-    cont.telefone = document.getElementById(`edit-cont-tel-${index}`).value.trim();
+    cont.email1 = document.getElementById(`edit-cont-email1-${id}`).value.trim();
+    cont.telefone = document.getElementById(`edit-cont-tel-${id}`).value.trim();
     
-    state.editingContatoIndex = -1;
+    state.editingContatoId = null;
     ui.renderContatosTable();
     utils.showToast('Contato atualizado!', 'success');
 }
 
-export function removeTempContato(index) {
+export function removeTempContato(id) {
     confirmar('Remover este contato?', () => {
-        state.tempContatos.splice(index, 1);
-        ui.renderContatosTable();
+        const index = state.tempContatos.findIndex(c => String(c.id) === String(id));
+        if (index !== -1) {
+            state.tempContatos.splice(index, 1);
+            ui.renderContatosTable();
+        }
     });
 }
 

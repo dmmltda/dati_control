@@ -332,21 +332,22 @@ function renderContatosTableRows(data) {
     }
 
     data.forEach(cont => {
-        const index = state.tempContatos.indexOf(cont);
         const tr = document.createElement('tr');
-        if (state.editingContatoIndex === index) {
+        const isEditing = state.editingContatoId && String(cont.id) === String(state.editingContatoId);
+
+        if (isEditing) {
             tr.className = 'editing-row';
             tr.innerHTML = `
                 <td colspan="6">
                     <div class="grid-3" style="padding: 1rem;">
-                        <input type="text" id="edit-cont-nome-${index}" class="input-control" value="${cont.nome}" placeholder="Nome *">
-                        <input type="email" id="edit-cont-email1-${index}" class="input-control" value="${cont.email1 || ''}" placeholder="E-mail">
-                        <input type="tel" id="edit-cont-tel-${index}" class="input-control" value="${cont.telefone || ''}" placeholder="Telefone">
+                        <input type="text" id="edit-cont-nome-${cont.id}" class="input-control" value="${cont.nome}" placeholder="Nome *">
+                        <input type="email" id="edit-cont-email1-${cont.id}" class="input-control" value="${cont.email1 || ''}" placeholder="E-mail">
+                        <input type="tel" id="edit-cont-tel-${cont.id}" class="input-control" value="${cont.telefone || ''}" placeholder="Telefone">
                     </div>
                 </td>
                 <td style="text-align: right;">
                     <div class="actions">
-                        <button type="button" class="btn btn-primary btn-icon btn-save-edit-contato" data-index="${index}"><i class="ph ph-check"></i></button>
+                        <button type="button" class="btn btn-primary btn-icon btn-save-edit-contato" data-id="${cont.id}"><i class="ph ph-check"></i></button>
                         <button type="button" class="btn btn-secondary btn-icon btn-cancel-edit-contato"><i class="ph ph-x"></i></button>
                     </div>
                 </td>
@@ -361,8 +362,8 @@ function renderContatosTableRows(data) {
                 <td style="font-size: 0.85rem;">${cont.linkedin ? 'Link' : '-'}</td>
                 <td style="text-align: right;">
                     <div class="actions" style="justify-content: flex-end;">
-                        <button type="button" class="btn btn-secondary btn-icon btn-edit-contato" data-index="${index}"><i class="ph ph-pencil-simple"></i></button>
-                        <button type="button" class="btn btn-danger btn-icon btn-remove-contato" data-index="${index}"><i class="ph ph-trash"></i></button>
+                        <button type="button" class="btn btn-secondary btn-icon btn-edit-contato" data-id="${cont.id}"><i class="ph ph-pencil-simple"></i></button>
+                        <button type="button" class="btn btn-danger btn-icon btn-remove-contato" data-id="${cont.id}"><i class="ph ph-trash"></i></button>
                     </div>
                 </td>
             `;

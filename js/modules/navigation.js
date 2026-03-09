@@ -135,7 +135,7 @@ export function openCompanyForm(id = null) {
 
     // Always re-render tables
     ui.renderContatosTable();
-    ui.renderProdutosTable();
+    if (ui.renderProdutosTable) ui.renderProdutosTable();
     ui.renderDashboardsTable();
     ui.renderNPSHistoryTable();
     ui.renderCSMeetingsTable();

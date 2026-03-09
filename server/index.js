@@ -30,7 +30,7 @@ app.get('/health', (req, res) => {
 // GET all companies with relations
 app.get('/api/companies', async (req, res) => {
     try {
-        const companies = await prisma.company.findMany({
+        const companies = await prisma.companies.findMany({
             include: {
                 company_products: {
                     include: { product_historico: true }
@@ -48,7 +48,8 @@ app.get('/api/companies', async (req, res) => {
         });
         res.json(companies);
     } catch (error) {
-        console.error('Error fetching companies:', error);
+        console.error('❌ ERRO REAL NA API /api/companies:');
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -57,7 +58,7 @@ app.get('/api/companies', async (req, res) => {
 app.get('/api/companies/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const company = await prisma.company.findUnique({
+        const company = await prisma.companies.findUnique({
             where: { id },
             include: {
                 company_products: {
@@ -87,7 +88,7 @@ app.post('/api/companies', async (req, res) => {
         console.log('📬 [POST] Recebendo payload:', JSON.stringify(data, null, 2));
 
         // Mapeamento dinâmico do payload do frontend para o banco 10/10
-        const company = await prisma.company.create({
+        const company = await prisma.companies.create({
             data: {
                 Status: data.Status || data.status,
                 Nome_da_empresa: data.Nome_da_empresa || data.nome || data.name,
@@ -211,7 +212,7 @@ app.post('/api/companies', async (req, res) => {
                     Conteudo: f.Conteudo || f.conteudo,
                     Usuario: f.Usuario || f.usuario,
                     Area: f.Area || f.area,
-                    Data_proximo_contato: f.Data_proximo_contato || f.proximoContato ? new Date(f.Data_proximo_contato || f.proximoContato) : null
+                    Data_proximo_contato: (f.Data_proximo_contato || f.proximoContato) ? new Date(f.Data_proximo_contato || f.proximoContato) : null
                 })) }
             }
         });
@@ -229,7 +230,7 @@ app.put('/api/companies/:id', async (req, res) => {
         const data = req.body;
         console.log(`📬 [PUT] Atualizando empresa ${id}. Payload Reunioes:`, JSON.stringify(data.Reunioes, null, 2));
 
-        const company = await prisma.company.update({
+        const company = await prisma.companies.update({
             where: { id },
             data: {
                 Status: data.Status,
@@ -347,13 +348,14 @@ app.put('/api/companies/:id', async (req, res) => {
                     Conteudo: f.Conteudo || f.conteudo,
                     Usuario: f.Usuario || f.usuario,
                     Area: f.Area || f.area,
-                    Data_proximo_contato: f.Data_proximo_contato || f.proximoContato ? new Date(f.Data_proximo_contato || f.proximoContato) : null
+                    Data_proximo_contato: (f.Data_proximo_contato || f.proximoContato) ? new Date(f.Data_proximo_contato || f.proximoContato) : null
                 })) }
             }
         });
 
         res.json(company);
     } catch (error) {
+        console.error('❌ Erro ao atualizar empresa:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -362,7 +364,7 @@ app.put('/api/companies/:id', async (req, res) => {
 app.delete('/api/companies/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await prisma.company.delete({ where: { id } });
+        await prisma.companies.delete({ where: { id } });
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: error.message });

@@ -6,7 +6,7 @@ export let state = {
     
     // Temporary form state
     tempContatos: [],
-    editingContatoIndex: -1,
+    editingContatoId: null,
     
     tempDashboards: [],
     tempNPSHistory: [],
@@ -21,7 +21,7 @@ export let state = {
 export function resetTempState() {
     state.currentEditingId = null;
     state.tempContatos = [];
-    state.editingContatoIndex = -1;
+    state.editingContatoId = null;
     state.tempDashboards = [];
     state.tempNPSHistory = [];
     state.tempReunioesCS = [];

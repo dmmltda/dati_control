@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target.closest('.nav-item') && !target.closest('.nav-group-toggle') && !target.closest('.nav-sub-item')) {
             const view = target.closest('.nav-item').getAttribute('data-view');
             if (view) nav.switchView(view);
+            return;
         }
 
         if (target.closest('.nav-sub-item')) {
@@ -38,19 +39,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const view = subItem.getAttribute('data-view');
             if (view) nav.switchView(view);
             if (view === 'log') ui.renderLogTestes();
+            return;
         }
 
         if (target.closest('.btn-new-company')) {
             nav.openCompanyForm();
+            return;
         }
 
         if (target.closest('.btn-back-list')) {
             nav.switchView('company-list');
+            return;
         }
 
         // 2. Company Action Buttons in Table
         if (target.closest('.btn-edit')) {
             nav.openCompanyForm(target.closest('.btn-edit').getAttribute('data-id'));
+            return;
         }
         
         if (target.closest('.btn-delete')) {
@@ -77,20 +82,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = target.closest('.tab-menu-btn');
             const tabId = btn.getAttribute('data-tab');
             if (tabId) nav.switchFormTab(tabId, btn);
+            return;
         }
 
         // 4. Contact/Product Handlers (within forms)
         if (target.closest('.btn-edit-contato')) {
-            handlers.startEditContato(parseInt(target.closest('.btn-edit-contato').dataset.index));
+            handlers.startEditContato(target.closest('.btn-edit-contato').dataset.id);
+            return;
         }
         if (target.closest('.btn-cancel-edit-contato')) {
             handlers.cancelEditContato();
+            return;
         }
         if (target.closest('.btn-save-edit-contato')) {
-            handlers.saveEditContato(parseInt(target.closest('.btn-save-edit-contato').dataset.index));
+            handlers.saveEditContato(target.closest('.btn-save-edit-contato').dataset.id);
+            return;
         }
         if (target.closest('.btn-remove-contato')) {
-            handlers.removeTempContato(parseInt(target.closest('.btn-remove-contato').dataset.index));
+            handlers.removeTempContato(target.closest('.btn-remove-contato').dataset.id);
+            return;
         }
 
 
@@ -119,73 +129,82 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (target.closest('.btn-remove-temp-note')) {
             handlers.removeTempNote(target.closest('.btn-remove-temp-note').dataset.index);
+            return;
         }
+
+        // --- View Toggle Utility (Delegated) ---
+        const toggleConfigs = [
+            { toggleId: 'btn-toggle-dashboard-form', containerId: 'dashboard-form-container', cancelId: 'btn-cancel-dashboard', reset: ['new-db-data', 'new-db-dest', 'new-db-link'], mode: 'block' },
+            { toggleId: 'btn-toggle-nps-form', containerId: 'nps-form-container', cancelId: 'btn-cancel-nps', reset: ['new-nps-data', 'new-nps-dest', 'new-nps-forms', 'new-nps-score'], mode: 'block' },
+            { toggleId: 'btn-toggle-cs-meet-form', containerId: 'cs-meet-form-container', cancelId: 'btn-cancel-cs-meet', reset: ['new-cs-meet-data', 'new-cs-meet-parts', 'new-cs-meet-obs', 'new-cs-meet-link'], mode: 'block' },
+            { toggleId: 'btn-toggle-ticket-form', containerId: 'ticket-form-container', cancelId: 'btn-cancel-ticket', reset: ['new-tk-data', 'new-tk-autor', 'new-tk-num', 'new-tk-link', 'new-tk-resumo'], mode: 'block' },
+            { toggleId: 'btn-toggle-contact-form', containerId: 'contact-form-container', cancelId: 'btn-cancel-contact', reset: [], mode: 'block' },
+            { toggleId: 'btn-toggle-meeting-form', containerId: 'meeting-form-container', cancelId: 'btn-cancel-meeting', reset: [], mode: 'block' },
+            { toggleId: 'btn-toggle-followup-form', containerId: 'followup-form-container', cancelId: 'btn-cancel-followup', reset: ['new-fw-usuario', 'new-fw-content', 'new-fw-next', 'new-fw-area'], mode: 'block' }
+        ];
+
+        const matchToggle = toggleConfigs.find(c => target.closest(`#${c.toggleId}`));
+        if (matchToggle) {
+            const container = document.getElementById(matchToggle.containerId);
+            const toggleBtn = document.getElementById(matchToggle.toggleId);
+            if (container) container.style.display = matchToggle.mode;
+            if (toggleBtn) toggleBtn.style.display = 'none';
+            return;
+        }
+
+        const matchCancel = toggleConfigs.find(c => target.closest(`#${c.cancelId}`));
+        if (matchCancel) {
+            const container = document.getElementById(matchCancel.containerId);
+            const toggleBtn = document.getElementById(matchCancel.toggleId);
+            if (container) container.style.display = 'none';
+            if (toggleBtn) toggleBtn.style.display = 'inline-flex';
+            if (matchCancel.reset) {
+                matchCancel.reset.forEach(f => {
+                    const el = document.getElementById(f);
+                    if (el) el.value = '';
+                });
+            }
+            return;
+        }
+
+        // --- Save Button Actions (Delegated) ---
+        const targetId = target.id;
+        if (targetId === 'btn-save-contact') return handlers.saveNewContato();
+        if (targetId === 'btn-save-dashboard') return handlers.saveTempDashboard();
+        if (targetId === 'btn-save-nps') return handlers.saveTempNPS();
+        if (targetId === 'btn-save-cs-meet') return handlers.saveTempCSMeet();
+        if (targetId === 'btn-save-ticket') return handlers.saveTempTicket();
+        if (targetId === 'btn-add-cs-note') return handlers.addCSNote();
+        if (targetId === 'btn-add-meeting-submit') return handlers.saveTempReuniao();
+        if (targetId === 'btn-save-followup') return handlers.saveTempFollowUp();
+        if (targetId === 'btn-logout') return auth.handleLogout();
+
     });
 
     // --- Static Form Listeners ---
     document.getElementById('login-form')?.addEventListener('submit', auth.handleLogin);
-    document.getElementById('btn-logout')?.addEventListener('click', auth.handleLogout);
     document.getElementById('company-form')?.addEventListener('submit', handlers.handleCompanySubmit);
 
-    // Search & Filter
-    document.getElementById('search-empresa')?.addEventListener('input', (e) => ui.handleCompaniesSearch(e.target.value));
-
-    // Dynamic Selects & Dependencies
+    // --- Static Change Listeners (form elements, never recreated by DOM) ---
     document.getElementById('emp-estado')?.addEventListener('change', (e) => {
         utils.loadCities(e.target.value, '');
         const cityEl = document.getElementById('emp-cidade');
-        if (cityEl) cityEl.value = ''; 
+        if (cityEl) cityEl.value = '';
     });
-    
-    document.getElementById('emp-status')?.addEventListener('change', (e) => utils.updateStatusStyle(e.target));
+
+    document.getElementById('emp-status')?.addEventListener('change', (e) => {
+        utils.updateStatusStyle(e.target);
+    });
 
     document.getElementById('qual-tem-comex')?.addEventListener('change', (e) => {
         const group = document.getElementById('group-qual-comex');
         if (group) group.style.display = e.target.value === 'Sim' ? 'block' : 'none';
     });
-    
+
     document.getElementById('qual-tem-erp')?.addEventListener('change', (e) => {
         const group = document.getElementById('group-qual-erp');
         if (group) group.style.display = e.target.value === 'Sim' ? 'block' : 'none';
     });
-
-    // --- View Toggle Utility ---
-    const setupToggle = (toggleBtnId, containerId, cancelBtnId, resetFields = [], displayMode = 'block') => {
-        document.getElementById(toggleBtnId)?.addEventListener('click', () => {
-            const container = document.getElementById(containerId);
-            const toggleBtn = document.getElementById(toggleBtnId);
-            if (container) container.style.display = displayMode;
-            if (toggleBtn) toggleBtn.style.display = 'none';
-        });
-        const closeBtn = document.getElementById(cancelBtnId);
-        closeBtn?.addEventListener('click', () => {
-            const container = document.getElementById(containerId);
-            const toggleBtn = document.getElementById(toggleBtnId);
-            if (container) container.style.display = 'none';
-            if (toggleBtn) toggleBtn.style.display = 'inline-flex';
-            resetFields.forEach(f => { const el = document.getElementById(f); if(el) el.value = ''; });
-        });
-    };
-
-    setupToggle('btn-toggle-dashboard-form', 'dashboard-form-container', 'btn-cancel-dashboard', ['new-db-data', 'new-db-dest', 'new-db-link']);
-    setupToggle('btn-toggle-nps-form', 'nps-form-container', 'btn-cancel-nps', ['new-nps-data', 'new-nps-dest', 'new-nps-forms', 'new-nps-score']);
-    setupToggle('btn-toggle-cs-meet-form', 'cs-meet-form-container', 'btn-cancel-cs-meet', ['new-cs-meet-data', 'new-cs-meet-parts', 'new-cs-meet-obs', 'new-cs-meet-link']);
-    setupToggle('btn-toggle-ticket-form', 'ticket-form-container', 'btn-cancel-ticket', ['new-tk-data', 'new-tk-autor', 'new-tk-num', 'new-tk-link', 'new-tk-resumo']);
-
-    setupToggle('btn-toggle-contact-form', 'contact-form-container', 'btn-cancel-contact');
-    setupToggle('btn-toggle-meeting-form', 'meeting-form-container', 'btn-cancel-meeting');
-    setupToggle('btn-toggle-followup-form', 'followup-form-container', 'btn-cancel-followup', ['new-fw-usuario', 'new-fw-content', 'new-fw-next', 'new-fw-area']);
-
-    // --- Save Button Actions ---
-    document.getElementById('btn-save-contact')?.addEventListener('click', handlers.saveNewContato);
-
-    document.getElementById('btn-save-dashboard')?.addEventListener('click', handlers.saveTempDashboard);
-    document.getElementById('btn-save-nps')?.addEventListener('click', handlers.saveTempNPS);
-    document.getElementById('btn-save-cs-meet')?.addEventListener('click', handlers.saveTempCSMeet);
-    document.getElementById('btn-save-ticket')?.addEventListener('click', handlers.saveTempTicket);
-    document.getElementById('btn-add-cs-note')?.addEventListener('click', handlers.addCSNote);
-    document.getElementById('btn-add-meeting-submit')?.addEventListener('click', handlers.saveTempReuniao);
-    document.getElementById('btn-save-followup')?.addEventListener('click', handlers.saveTempFollowUp);
 });
 
 // Global assignment for legacy HTML compatibility
