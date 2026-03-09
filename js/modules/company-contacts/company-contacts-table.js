@@ -125,7 +125,7 @@ function renderContatosPagination({ currentPage, totalPages, pageSize, totalReco
     }
 
     const start = Math.min((currentPage - 1) * pageSize + 1, totalRecords);
-    const end   = Math.min(currentPage * pageSize, totalRecords);
+    const end = Math.min(currentPage * pageSize, totalRecords);
 
     container.style.display = 'flex';
     container.innerHTML = `
@@ -134,11 +134,11 @@ function renderContatosPagination({ currentPage, totalPages, pageSize, totalReco
                 <i class="ph ph-caret-left"></i>
             </button>
             ${pageItems.map(item =>
-                item === '...'
-                    ? '<span class="pagination-dots">···</span>'
-                    : `<button class="pagination-page ${item === currentPage ? 'active' : ''}"
+        item === '...'
+            ? '<span class="pagination-dots">···</span>'
+            : `<button class="pagination-page ${item === currentPage ? 'active' : ''}"
                                data-cont-page="${item}">${item}</button>`
-            ).join('')}
+    ).join('')}
             <button class="pagination-btn" data-cont-action="next" ${!hasNext ? 'disabled' : ''} title="Próxima página">
                 <i class="ph ph-caret-right"></i>
             </button>
@@ -220,8 +220,8 @@ export function updateContatosBulkUI() {
     const toolbar = document.getElementById('contatos-bulk-toolbar');
     if (!toolbar || !mgr) return;
 
-    const ids    = mgr.getSelectedIds();
-    const count  = ids.length;
+    const ids = mgr.getSelectedIds();
+    const count = ids.length;
     const hasAny = count > 0;
 
     toolbar.classList.toggle('has-selection', hasAny);
@@ -234,17 +234,19 @@ export function updateContatosBulkUI() {
     }
 
     const deleteBtn = document.getElementById('bulk-delete-contatos-btn');
-    const clearBtn  = document.getElementById('bulk-clear-contatos-btn');
+    const editBtn = document.getElementById('bulk-edit-contatos-btn');
+    const clearBtn = document.getElementById('bulk-clear-contatos-btn');
     if (deleteBtn) deleteBtn.disabled = !hasAny;
-    if (clearBtn)  clearBtn.disabled  = !hasAny;
+    if (editBtn) editBtn.disabled = !hasAny;
+    if (clearBtn) clearBtn.disabled = !hasAny;
 
     const selectAllCb = document.getElementById('select-all-contatos');
     if (selectAllCb) {
-        const pageData    = mgr.getPaginatedData();
-        const pageIds     = pageData.map(c => String(c.id ?? c._id)).filter(Boolean);
-        const allSelected  = pageIds.length > 0 && pageIds.every(id => mgr.isSelected(id));
+        const pageData = mgr.getPaginatedData();
+        const pageIds = pageData.map(c => String(c.id ?? c._id)).filter(Boolean);
+        const allSelected = pageIds.length > 0 && pageIds.every(id => mgr.isSelected(id));
         const someSelected = pageIds.some(id => mgr.isSelected(id));
-        selectAllCb.checked       = allSelected;
+        selectAllCb.checked = allSelected;
         selectAllCb.indeterminate = someSelected && !allSelected;
     }
 }
@@ -265,18 +267,18 @@ export function initCompanyContactsTable() {
     companyContactsManager = new TableManager({
         data: state.tempContatos || [],
         columns: [
-            { key: 'nome',         label: 'Nome',         type: 'string', sortable: true,  searchable: true,  filterable: true  },
-            { key: 'cargo',        label: 'Cargo',        type: 'string', sortable: true,  searchable: false, filterable: true  },
-            { key: 'departamento', label: 'Departamento', type: 'string', sortable: true,  searchable: false, filterable: true  },
-            { key: 'email1',       label: 'E-mail',       type: 'string', sortable: false, searchable: true,  filterable: true  },
-            { key: 'whatsapp',     label: 'WhatsApp',     type: 'string', sortable: false, searchable: false, filterable: false },
-            { key: 'linkedin',     label: 'LinkedIn',     type: 'string', sortable: false, searchable: false, filterable: false },
+            { key: 'nome', label: 'Nome', type: 'string', sortable: true, searchable: true, filterable: true },
+            { key: 'cargo', label: 'Cargo', type: 'string', sortable: true, searchable: false, filterable: true },
+            { key: 'departamento', label: 'Departamento', type: 'string', sortable: true, searchable: false, filterable: true },
+            { key: 'email1', label: 'E-mail', type: 'string', sortable: false, searchable: true, filterable: true },
+            { key: 'whatsapp', label: 'WhatsApp', type: 'string', sortable: false, searchable: false, filterable: false },
+            { key: 'linkedin', label: 'LinkedIn', type: 'string', sortable: false, searchable: false, filterable: false },
         ],
         pageSize: 10,
-        tableId:  'contatos-table',
-        renderRows:       renderContatosRows,
+        tableId: 'contatos-table',
+        renderRows: renderContatosRows,
         renderPagination: renderContatosPagination,
-        renderFilters:    renderContatosActiveFilters,
+        renderFilters: renderContatosActiveFilters,
     });
 
     // ── Wire: paginação ──────────────────────────────────────────────────────
@@ -287,9 +289,9 @@ export function initCompanyContactsTable() {
             const btn = e.target.closest('[data-cont-page], [data-cont-action]');
             if (!btn || !companyContactsManager) return;
             const action = btn.dataset.contAction;
-            const page   = btn.dataset.contPage;
-            if (action === 'prev')       companyContactsManager.prevPage();
-            else if (action === 'next')  companyContactsManager.nextPage();
+            const page = btn.dataset.contPage;
+            if (action === 'prev') companyContactsManager.prevPage();
+            else if (action === 'next') companyContactsManager.nextPage();
             else if (page !== undefined) companyContactsManager.goToPage(parseInt(page));
         });
     }

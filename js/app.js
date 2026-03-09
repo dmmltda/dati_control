@@ -16,6 +16,7 @@ import {
     openContatoEditor,
     saveContatoEditor,
     closeContatoEditor,
+    openBulkContatoEditor,
 } from './modules/company-contacts/company-contacts-editor.js';
 import { refreshCompanyContactsTable } from './modules/company-contacts/company-contacts-table.js';
 
@@ -71,8 +72,8 @@ function handleCompanyActions(target, e) {
     if (target.closest('.btn-delete')) {
         e.preventDefault();
         e.stopPropagation();
-        const id  = target.closest('.btn-delete').getAttribute('data-id');
-        const v2  = ui.getCompaniesManagerV2?.();
+        const id = target.closest('.btn-delete').getAttribute('data-id');
+        const v2 = ui.getCompaniesManagerV2?.();
 
         // Se a linha clicada faz parte de uma seleção múltipla → bulk delete
         const selectedIds = v2 ? [...v2.getSelectedIds()] : [];
@@ -149,10 +150,10 @@ function handleContactActions(target, e) {
     // ── TM2: Delete contato individual ─────────────────────────────────────────
     if (target.closest('.btn-delete-contato')) {
         e.stopPropagation();
-        const contId  = target.closest('.btn-delete-contato').dataset.contId;
-        const cont    = (state.tempContatos || []).find(c => String(c.id) === String(contId));
-        const mgr     = ui.getCompanyContactsManager ? ui.getCompanyContactsManager() : null;
-        const selIds  = mgr ? mgr.getSelectedIds() : [];
+        const contId = target.closest('.btn-delete-contato').dataset.contId;
+        const cont = (state.tempContatos || []).find(c => String(c.id) === String(contId));
+        const mgr = ui.getCompanyContactsManager ? ui.getCompanyContactsManager() : null;
+        const selIds = mgr ? mgr.getSelectedIds() : [];
         const isInSelection = selIds.includes(String(contId)) && selIds.length > 1;
 
         if (isInSelection) {
@@ -359,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Produtos DATI: Editar / Excluir individual via event delegation ────────
     document.getElementById('produtos-table-body')?.addEventListener('click', (e) => {
-        const editBtn   = e.target.closest('.btn-edit-produto');
+        const editBtn = e.target.closest('.btn-edit-produto');
         const deleteBtn = e.target.closest('.btn-delete-produto');
 
         if (editBtn) {
@@ -371,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (deleteBtn) {
             e.stopPropagation();
             const prodId = deleteBtn.dataset.prodId;
-            const prod   = (state.tempProdutos || []).find(p => String(p.id) === String(prodId));
+            const prod = (state.tempProdutos || []).find(p => String(p.id) === String(prodId));
             confirmar(
                 `Remover o produto "${prod?.nome || 'produto'}" desta empresa?`,
                 () => {
@@ -496,6 +497,15 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     });
 
+    // ── Contatos: Editar em massa ─────────────────────────────────────────────
+    document.getElementById('bulk-edit-contatos-btn')?.addEventListener('click', () => {
+        const mgr = ui.getCompanyContactsManager ? ui.getCompanyContactsManager() : null;
+        if (!mgr) return;
+        const ids = mgr.getSelectedIds();
+        if (!ids.length) return;
+        openBulkContatoEditor(ids);
+    });
+
     // ── Contatos: Limpar seleção ──────────────────────────────────────────────
     document.getElementById('bulk-clear-contatos-btn')?.addEventListener('click', () => {
         ui.clearContatosBulkSelection?.();
@@ -523,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!v2) return;
 
         const pageData = v2.getPaginatedData();
-        const ids      = pageData.map(row => row.id);
+        const ids = pageData.map(row => row.id);
 
         v2.toggleSelectAll(e.target.checked);
 
@@ -559,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // IIFE async separada para garantir execução completa
                 (async () => {
                     let successCount = 0;
-                    let errorCount   = 0;
+                    let errorCount = 0;
 
                     for (const id of ids) {
                         console.log(`[Bulk Delete] Tentando excluir ID: ${id}`);

@@ -61,7 +61,7 @@ export function resetFormTableManagers() {
 // Helper to download base64 files correctly
 export async function downloadFile(base64Data, fileName = 'arquivo_dati.pdf') {
     if (!base64Data) return;
-    
+
     try {
         // 1. Converter para Blob usando o método nativo (mais performático para arquivos grandes)
         const response = await fetch(base64Data);
@@ -70,7 +70,7 @@ export async function downloadFile(base64Data, fileName = 'arquivo_dati.pdf') {
 
         // 2. Definir nome e extensão
         let finalName = fileName || 'arquivo_dati.pdf';
-        
+
         // Se o nome vier como UUID ou sem extensão, força .pdf
         if (!finalName.includes('.')) {
             finalName += '.pdf';
@@ -82,7 +82,7 @@ export async function downloadFile(base64Data, fileName = 'arquivo_dati.pdf') {
         a.download = finalName;
         document.body.appendChild(a);
         a.click();
-        
+
         // Cleanup
         setTimeout(() => {
             if (document.body.contains(a)) document.body.removeChild(a);
@@ -149,16 +149,16 @@ export function renderCompanyList() {
         companiesTableManagerV2 = new TableManager2({
             data: state.companies,
             columns: [
-                { key: 'nome',          label: 'Empresa',    type: 'string', searchable: true, sortable: true   },
-                { key: 'status',        label: 'Status',     type: 'string', searchable: true, filterable: true  },
-                { key: 'healthScore',   label: 'Saúde',      type: 'string', searchable: true                    },
-                { key: 'nps',           label: 'NPS',        type: 'number', sortable: true                      },
-                { key: 'segmento',      label: 'Segmento',   type: 'string', searchable: true, filterable: true  },
-                { key: 'updatedAt',     label: 'Atualizado', type: 'date',   sortable: true                      },
-                { key: 'cidade',        label: 'Cidade',     type: 'string', searchable: true                    },
-                { key: 'estado',        label: 'Estado',     type: 'string', searchable: true                    },
-                { key: 'cnpj',          label: 'CNPJ',       type: 'string', searchable: true                    },
-                { key: 'produtosNames', label: 'Produtos',   type: 'string', searchable: true                    },
+                { key: 'nome', label: 'Empresa', type: 'string', searchable: true, sortable: true },
+                { key: 'status', label: 'Status', type: 'string', searchable: true, filterable: true },
+                { key: 'healthScore', label: 'Saúde', type: 'string', searchable: true },
+                { key: 'nps', label: 'NPS', type: 'number', sortable: true },
+                { key: 'segmento', label: 'Segmento', type: 'string', searchable: true, filterable: true },
+                { key: 'updatedAt', label: 'Atualizado', type: 'date', sortable: true },
+                { key: 'cidade', label: 'Cidade', type: 'string', searchable: true },
+                { key: 'estado', label: 'Estado', type: 'string', searchable: true },
+                { key: 'cnpj', label: 'CNPJ', type: 'string', searchable: true },
+                { key: 'produtosNames', label: 'Produtos', type: 'string', searchable: true },
             ],
             pageSize: 10,
             tableId: 'view-company-list',
@@ -199,7 +199,7 @@ export function renderCompanyList() {
                 }
 
                 const start = Math.min((currentPage - 1) * pageSize + 1, totalRecords);
-                const end   = Math.min(currentPage * pageSize, totalRecords);
+                const end = Math.min(currentPage * pageSize, totalRecords);
 
                 container.style.display = 'flex';
                 container.innerHTML = `
@@ -209,10 +209,10 @@ export function renderCompanyList() {
                         </button>
 
                         ${pageItems.map(item =>
-                            item === '...'
-                                ? `<span class="pagination-dots">···</span>`
-                                : `<button class="pagination-page ${item === currentPage ? 'active' : ''}" data-v2-page="${item}">${item}</button>`
-                        ).join('')}
+                    item === '...'
+                        ? `<span class="pagination-dots">···</span>`
+                        : `<button class="pagination-page ${item === currentPage ? 'active' : ''}" data-v2-page="${item}">${item}</button>`
+                ).join('')}
 
                         <button class="pagination-btn" data-v2-action="next" ${!hasNext ? 'disabled' : ''} title="Próxima página">
                             <i class="ph ph-caret-right"></i>
@@ -249,7 +249,7 @@ export function renderCompanyList() {
                 if (!btn || !companiesTableManagerV2) return;
 
                 const action = btn.dataset.v2Action;
-                const page   = btn.dataset.v2Page;
+                const page = btn.dataset.v2Page;
 
                 if (action === 'prev') {
                     console.log('[UI] Pagination click → prevPage');
@@ -360,7 +360,7 @@ function renderCompanyTableRows(data) {
     data.forEach(comp => {
         const config = STATUS_CONFIG[comp.status] || STATUS_CONFIG['Prospect'] || { color: '#64748b', class: 'status-prospect' };
         const tr = document.createElement('tr');
-        
+
         const healthBadge = (comp.healthScore && CS_VISIBLE_STATUSES.includes(comp.status)) ? `
             <span class="badge" style="font-size: 0.65rem; background: ${comp.healthScore === 'Saudável' ? 'rgba(16,185,129,0.15)' : comp.healthScore === 'Atenção' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)'}; color: ${comp.healthScore === 'Saudável' ? '#10b981' : comp.healthScore === 'Atenção' ? '#f59e0b' : '#ef4444'}; border: 1px solid currentColor;">
                 ${comp.healthScore === 'Saudável' ? '🟢' : comp.healthScore === 'Atenção' ? '🟡' : '🔴'} ${comp.healthScore}
@@ -412,7 +412,7 @@ function renderCompanyTableRows(data) {
                     </span>
                     ${comp.nome.length > 20 ? `<div class="name-tooltip">${comp.nome}</div>` : ''}
                 </div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">${comp.tipo || '-'}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2pt;">${comp.tipo || '-'}</div>
             </td>
             <td style="text-align: center;"><span class="badge ${config.class}">${comp.status}</span></td>
             <td style="text-align: center;">${healthBadge}</td>
@@ -452,8 +452,8 @@ export function updateBulkSelectionUI() {
     if (!companiesTableManagerV2) return;
 
     const selected = companiesTableManagerV2.getSelectedIds();
-    const count    = selected.length;
-    const hasAny   = count > 0;
+    const count = selected.length;
+    const hasAny = count > 0;
 
     // Toolbar — classe visual
     const toolbar = document.getElementById('bulk-toolbar');
@@ -472,19 +472,19 @@ export function updateBulkSelectionUI() {
     // ⚠️ CRÍTICO: atributo HTML disabled bloqueia eventos click independente de CSS.
     // É necessário remover/adicionar o atributo diretamente.
     const deleteBtn = document.getElementById('bulk-delete-btn');
-    const clearBtn  = document.getElementById('bulk-clear-btn');
-    const editBtn   = document.getElementById('bulk-edit-btn');
+    const clearBtn = document.getElementById('bulk-clear-btn');
+    const editBtn = document.getElementById('bulk-edit-btn');
     if (deleteBtn) deleteBtn.disabled = !hasAny;
-    if (clearBtn)  clearBtn.disabled  = !hasAny;
-    if (editBtn)   editBtn.disabled   = !hasAny;
+    if (clearBtn) clearBtn.disabled = !hasAny;
+    if (editBtn) editBtn.disabled = !hasAny;
 
     // Estado do checkbox "selecionar todos"
     const selectAllCb = document.getElementById('select-all-companies');
     if (selectAllCb) {
-        const pageData       = companiesTableManagerV2.getPaginatedData();
-        const pageCount      = pageData.length;
+        const pageData = companiesTableManagerV2.getPaginatedData();
+        const pageCount = pageData.length;
         const selectedOnPage = pageData.filter(row => companiesTableManagerV2.isSelected(row.id)).length;
-        selectAllCb.checked       = pageCount > 0 && selectedOnPage === pageCount;
+        selectAllCb.checked = pageCount > 0 && selectedOnPage === pageCount;
         selectAllCb.indeterminate = selectedOnPage > 0 && selectedOnPage < pageCount;
     }
 }
@@ -922,7 +922,7 @@ export function toggleFilterPopover(key, event) {
         popover.style.top = '100%';    // Reset default top
 
         const rect = popover.getBoundingClientRect();
-        
+
         // Horizontal check
         if (rect.right > window.innerWidth - 20) {
             popover.classList.add('align-right');
@@ -1318,19 +1318,19 @@ export function initGlobalPickers() {
 export function switchProdTab(event, tabId) {
     const parent = event.target.closest('#produto-form-container');
     if (!parent) return;
-    
+
     const tabs = parent.querySelectorAll('.prod-tab-content');
     const btns = parent.querySelectorAll('.prod-tab-btn');
-    
+
     tabs.forEach(t => t.style.display = 'none');
     btns.forEach(b => {
         b.classList.remove('active');
         b.style.color = 'var(--text-muted)';
     });
-    
+
     const target = document.getElementById(tabId);
     if (target) target.style.display = 'block';
-    
+
     event.target.classList.add('active');
     event.target.style.color = 'var(--text-main)';
 }

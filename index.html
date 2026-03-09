@@ -105,7 +105,8 @@
             <div id="view-dashboard" class="view-section">
                 <div class="top-bar">
                     <div>
-                        <h1><i class="ph ph-squares-four" style="color: var(--primary); margin-right: 0.5rem;"></i> Dashboard</h1>
+                        <h1><i class="ph ph-squares-four" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                            Dashboard</h1>
                         <p>Bem-vindo ao DATI Control! Aqui está o resumo das suas contas.</p>
                     </div>
                     <button class="btn btn-primary btn-new-company">
@@ -122,7 +123,8 @@
             <div id="view-company-list" class="view-section" style="display: none;">
                 <div class="top-bar">
                     <div>
-                        <h1><i class="ph ph-users-three" style="color: var(--primary); margin-right: 0.5rem;"></i> Empresas</h1>
+                        <h1><i class="ph ph-users-three" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                            Empresas</h1>
                         <p>Gerencie todas as empresas cadastradas no sistema.</p>
                     </div>
                     <button class="btn btn-primary btn-new-company">
@@ -164,17 +166,20 @@
                             </div>
                         </div>
                         <div class="bulk-toolbar-actions">
-                            <button type="button" id="bulk-edit-btn" class="bulk-action-btn bulk-action-edit" disabled title="Editar campos em todas as empresas selecionadas">
+                            <button type="button" id="bulk-edit-btn" class="bulk-action-btn bulk-action-edit" disabled
+                                title="Editar campos em todas as empresas selecionadas">
                                 <i class="ph ph-pencil-simple"></i>
                                 <span>Editar em massa</span>
                             </button>
                             <div class="bulk-toolbar-divider"></div>
-                            <button type="button" id="bulk-delete-btn" class="bulk-action-btn bulk-action-danger" disabled title="Selecione empresas para excluir em massa">
+                            <button type="button" id="bulk-delete-btn" class="bulk-action-btn bulk-action-danger"
+                                disabled title="Selecione empresas para excluir em massa">
                                 <i class="ph ph-trash"></i>
                                 <span>Excluir selecionadas</span>
                             </button>
                             <div class="bulk-toolbar-divider"></div>
-                            <button type="button" id="bulk-clear-btn" class="bulk-action-btn" disabled onclick="ui.clearBulkSelection()" title="Limpar seleção">
+                            <button type="button" id="bulk-clear-btn" class="bulk-action-btn" disabled
+                                onclick="ui.clearBulkSelection()" title="Limpar seleção">
                                 <i class="ph ph-x-circle"></i>
                                 <span>Limpar</span>
                             </button>
@@ -186,7 +191,8 @@
                             <thead>
                                 <tr>
                                     <th class="checkbox-column" style="width:40px; text-align:center;">
-                                        <input type="checkbox" id="select-all-companies" title="Selecionar todos da página" style="cursor:pointer;">
+                                        <input type="checkbox" id="select-all-companies"
+                                            title="Selecionar todos da página" style="cursor:pointer;">
                                     </th>
                                     <th class="sortable-header" data-key="nome">
                                         <span onclick="ui.handleCompaniesSort('nome', event)">Empresa</span>
@@ -221,15 +227,17 @@
                                         <div class="filter-popover" id="filter-popover-comp_nps"></div>
                                     </th>
                                     <th class="sortable-header" data-key="proximoPasso" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('proximoPasso', event)">Próximo Passo</span>
+                                        <span onclick="ui.handleCompaniesSort('proximoPasso', event)">Próximo
+                                            Passo</span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_proximoPasso', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
                                         <div class="filter-popover" id="filter-popover-comp_proximoPasso"></div>
                                     </th>
-                                    <th class="sortable-header" data-key="produtosNames" style="text-align: center;"> 
-                                        <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos DATI</span>
+                                    <th class="sortable-header" data-key="produtosNames" style="text-align: center;">
+                                        <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos
+                                            DATI</span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_produtosNames', event)">
                                             <i class="ph ph-funnel"></i>
@@ -260,7 +268,8 @@
             <div id="view-log" class="view-section" style="display: none;">
                 <div class="top-bar">
                     <div>
-                        <h1><i class="ph ph-clipboard-text" style="color: var(--primary); margin-right: 0.5rem;"></i> Log</h1>
+                        <h1><i class="ph ph-clipboard-text" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                            Log</h1>
                         <p>Registro de testes, eventos e histórico de execuções do sistema.</p>
                     </div>
                     <button type="button" class="btn btn-primary"
@@ -524,7 +533,8 @@
                             <!-- Tab: Dados -->
                             <div id="tab-dados" class="tab-content active glass-panel form-section"
                                 style="margin-top: 0;">
-                                <h2><i class="ph ph-buildings" style="color: var(--primary); margin-right: 0.5rem;"></i> Dados Básicos</h2>
+                                <h2><i class="ph ph-buildings" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                                    Dados Básicos</h2>
                                 <div class="grid-2">
                                     <div class="input-group">
                                         <label>Nome da Empresa *</label>
@@ -650,7 +660,8 @@
                                 </div>
                                 <div class="input-group">
                                     <label>Site</label>
-                                    <input type="text" id="emp-site" class="input-control" placeholder="www.empresa.com.br">
+                                    <input type="text" id="emp-site" class="input-control"
+                                        placeholder="www.empresa.com.br">
                                 </div>
                             </div>
 
@@ -658,7 +669,8 @@
                             <div id="tab-produtos" class="tab-content glass-panel form-section" style="margin-top: 0;">
                                 <div class="form-header">
                                     <h2>
-                                        <i class="ph ph-package" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                                        <i class="ph ph-package"
+                                            style="color: var(--primary); margin-right: 0.5rem;"></i>
                                         Produtos DATI
                                     </h2>
                                     <button type="button" id="btn-add-produto" class="btn btn-primary">
@@ -670,19 +682,18 @@
                                 <div class="search-container" style="margin-top: 1.25rem; flex: 1;">
                                     <div class="search-wrapper">
                                         <i class="ph ph-magnifying-glass search-icon"></i>
-                                        <input type="text" id="search-produto"
-                                            class="search-input"
+                                        <input type="text" id="search-produto" class="search-input"
                                             placeholder="Buscar produto, tipo de cobrança, usuários...">
-                                        <button type="button" id="clear-search-produto"
-                                            class="btn-clear-search" style="display:none;"
-                                            title="Limpar busca">
+                                        <button type="button" id="clear-search-produto" class="btn-clear-search"
+                                            style="display:none;" title="Limpar busca">
                                             <i class="ph ph-x"></i>
                                         </button>
                                     </div>
                                 </div>
 
                                 <!-- Chips de filtros ativos -->
-                                <div id="produtos-active-filters" class="active-filters-bar" style="display:none;"></div>
+                                <div id="produtos-active-filters" class="active-filters-bar" style="display:none;">
+                                </div>
 
                                 <!-- Bulk Toolbar -->
                                 <div id="produtos-bulk-toolbar" class="bulk-toolbar">
@@ -697,7 +708,7 @@
                                             class="bulk-action-btn bulk-action-edit" disabled
                                             title="Editar campos nos produtos selecionados">
                                             <i class="ph ph-pencil-simple"></i>
-                                            <span>Editar selecionados</span>
+                                            <span>Editar em massa</span>
                                         </button>
                                         <div class="bulk-toolbar-divider"></div>
                                         <button type="button" id="bulk-delete-produtos-btn"
@@ -707,9 +718,8 @@
                                             <span>Excluir selecionados</span>
                                         </button>
                                         <div class="bulk-toolbar-divider"></div>
-                                        <button type="button" id="bulk-clear-produtos-btn"
-                                            class="bulk-action-btn" disabled
-                                            title="Limpar seleção">
+                                        <button type="button" id="bulk-clear-produtos-btn" class="bulk-action-btn"
+                                            disabled title="Limpar seleção">
                                             <i class="ph ph-x-circle"></i>
                                             <span>Limpar</span>
                                         </button>
@@ -738,23 +748,27 @@
                                                 </th>
                                                 <!-- Tipo de Cobrança: string filter -->
                                                 <th class="sortable-header" data-key="tipoCobranca">
-                                                    <span onclick="ui.handleProdutosSort('tipoCobranca', event)">Tipo de Cobrança</span>
+                                                    <span onclick="ui.handleProdutosSort('tipoCobranca', event)">Tipo de
+                                                        Cobrança</span>
                                                     <button type="button" class="btn-filter-column"
                                                         onclick="ui.toggleFilterPopover('prod_tipoCobranca', event)"
                                                         title="Filtrar por Tipo de Cobrança">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_tipoCobranca"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_tipoCobranca">
+                                                    </div>
                                                 </th>
                                                 <!-- Valor Unitário: number/range filter -->
                                                 <th class="sortable-header" data-key="valorUnitario">
-                                                    <span onclick="ui.handleProdutosSort('valorUnitario', event)">Valor Unitário</span>
+                                                    <span onclick="ui.handleProdutosSort('valorUnitario', event)">Valor
+                                                        Unitário</span>
                                                     <button type="button" class="btn-filter-column"
                                                         onclick="ui.toggleFilterPopover('prod_valorUnitario', event)"
                                                         title="Filtrar por Valor Unitário">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_valorUnitario"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_valorUnitario">
+                                                    </div>
                                                 </th>
                                                 <!-- Valor Setup: number/range filter -->
                                                 <th data-key="valorSetup">
@@ -764,7 +778,8 @@
                                                         title="Filtrar por Valor Setup">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_valorSetup"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_valorSetup">
+                                                    </div>
                                                 </th>
                                                 <!-- Usuários: string filter -->
                                                 <th data-key="qtdUsuarios">
@@ -774,17 +789,20 @@
                                                         title="Filtrar por Quantidade de Usuários">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_qtdUsuarios"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_qtdUsuarios">
+                                                    </div>
                                                 </th>
                                                 <!-- Help Desk: number/range filter -->
                                                 <th class="sortable-header" data-key="totalHorasHd">
-                                                    <span onclick="ui.handleProdutosSort('totalHorasHd', event)">Help Desk</span>
+                                                    <span onclick="ui.handleProdutosSort('totalHorasHd', event)">Help
+                                                        Desk</span>
                                                     <button type="button" class="btn-filter-column"
                                                         onclick="ui.toggleFilterPopover('prod_totalHorasHd', event)"
                                                         title="Filtrar por Horas de Help Desk">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_totalHorasHd"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_totalHorasHd">
+                                                    </div>
                                                 </th>
                                                 <!-- Proposta: boolean-date filter -->
                                                 <th data-key="propostaData">
@@ -794,7 +812,8 @@
                                                         title="Filtrar por Proposta">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_propostaData"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_propostaData">
+                                                    </div>
                                                 </th>
                                                 <!-- Contrato: boolean-date filter -->
                                                 <th data-key="contratoData">
@@ -804,7 +823,8 @@
                                                         title="Filtrar por Contrato">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-prod_contratoData"></div>
+                                                    <div class="filter-popover" id="filter-popover-prod_contratoData">
+                                                    </div>
                                                 </th>
                                                 <th style="width:90px;">Ações</th>
                                             </tr>
@@ -832,35 +852,54 @@
                                 </div>
 
                                 <!-- Barra de busca -->
-                                <div class="search-bar-wrapper" style="margin-bottom: 1rem;">
-                                    <div class="search-bar-inner">
+                                <div class="search-container" style="margin-top: 1.25rem; flex: 1;">
+                                    <div class="search-wrapper">
                                         <i class="ph ph-magnifying-glass search-icon"></i>
                                         <input type="text" id="search-contato" class="search-input"
-                                            placeholder="Buscar por nome, e-mail...">
-                                        <button type="button" id="clear-search-contato" class="clear-search-btn"
+                                            placeholder="Buscar por nome, cargo, e-mail...">
+                                        <button type="button" id="clear-search-contato" class="btn-clear-search"
                                             style="display:none;" title="Limpar busca">
                                             <i class="ph ph-x"></i>
                                         </button>
                                     </div>
                                 </div>
 
-                                <!-- Bulk toolbar -->
+                                <!-- Chips de filtros ativos -->
+                                <div id="contatos-active-filters" class="active-filters-bar" style="display:none;">
+                                </div>
+
+                                <!-- Bulk Toolbar -->
                                 <div id="contatos-bulk-toolbar" class="bulk-toolbar">
-                                    <span id="contatos-bulk-count" class="bulk-count">Nenhum contato selecionado</span>
-                                    <div class="bulk-actions">
-                                        <button type="button" id="bulk-delete-contatos-btn"
-                                                class="btn btn-danger btn-sm" disabled>
-                                            <i class="ph ph-trash"></i> Excluir selecionados
+                                    <div class="bulk-toolbar-left">
+                                        <div class="bulk-selection-info">
+                                            <i class="ph ph-selection"></i>
+                                            <span id="contatos-bulk-count">Nenhum contato selecionado</span>
+                                        </div>
+                                    </div>
+                                    <div class="bulk-toolbar-actions">
+                                        <button type="button" id="bulk-edit-contatos-btn"
+                                            class="bulk-action-btn bulk-action-edit" disabled
+                                            title="Editar campos nos contatos selecionados">
+                                            <i class="ph ph-pencil-simple"></i>
+                                            <span>Editar em massa</span>
                                         </button>
-                                        <button type="button" id="bulk-clear-contatos-btn"
-                                                class="btn btn-secondary btn-sm" disabled>
-                                            <i class="ph ph-x"></i> Limpar
+                                        <div class="bulk-toolbar-divider"></div>
+                                        <button type="button" id="bulk-delete-contatos-btn"
+                                            class="bulk-action-btn bulk-action-danger" disabled
+                                            title="Excluir contatos selecionados">
+                                            <i class="ph ph-trash"></i>
+                                            <span>Excluir selecionados</span>
+                                        </button>
+                                        <div class="bulk-toolbar-divider"></div>
+                                        <button type="button" id="bulk-clear-contatos-btn" class="bulk-action-btn"
+                                            disabled title="Limpar seleção">
+                                            <i class="ph ph-x-circle"></i>
+                                            <span>Limpar</span>
                                         </button>
                                     </div>
                                 </div>
 
-                                <!-- Chips de filtros ativos -->
-                                <div id="contatos-active-filters" class="active-filters-bar" style="display:none;"></div>
+
 
                                 <!-- Tabela (TableManager 2.0) -->
                                 <div class="table-wrapper" style="margin-top: 0.5rem;">
@@ -874,7 +913,8 @@
                                                 </th>
                                                 <!-- Nome: string filter -->
                                                 <th class="sortable-header" data-key="nome">
-                                                    <span onclick="ui.handleContatosSort('nome', event)">Nome do Contato</span>
+                                                    <span onclick="ui.handleContatosSort('nome', event)">Nome do
+                                                        Contato</span>
                                                     <button type="button" class="btn-filter-column"
                                                         onclick="ui.toggleFilterPopover('contatos_nome', event)">
                                                         <i class="ph ph-funnel"></i>
@@ -888,16 +928,19 @@
                                                         onclick="ui.toggleFilterPopover('contatos_cargo', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-contatos_cargo"></div>
+                                                    <div class="filter-popover" id="filter-popover-contatos_cargo">
+                                                    </div>
                                                 </th>
                                                 <!-- Departamento: string filter -->
                                                 <th class="sortable-header" data-key="departamento">
-                                                    <span onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
+                                                    <span
+                                                        onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
                                                     <button type="button" class="btn-filter-column"
                                                         onclick="ui.toggleFilterPopover('contatos_departamento', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-contatos_departamento"></div>
+                                                    <div class="filter-popover"
+                                                        id="filter-popover-contatos_departamento"></div>
                                                 </th>
                                                 <!-- E-mail: string filter -->
                                                 <th data-key="email1">
@@ -906,7 +949,8 @@
                                                         onclick="ui.toggleFilterPopover('contatos_email1', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
-                                                    <div class="filter-popover" id="filter-popover-contatos_email1"></div>
+                                                    <div class="filter-popover" id="filter-popover-contatos_email1">
+                                                    </div>
                                                 </th>
                                                 <!-- WhatsApp: sem filtro -->
                                                 <th>WhatsApp</th>
@@ -1320,11 +1364,13 @@
                                     </button>
                                 </div>
 
-                                <div id="followup-form-container" style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
+                                <div id="followup-form-container"
+                                    style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
                                     <div class="grid-3" style="margin-bottom: 1rem;">
                                         <div class="input-group">
                                             <label>Usuário *</label>
-                                            <input type="text" id="new-fw-usuario" class="input-control" placeholder="Seu nome">
+                                            <input type="text" id="new-fw-usuario" class="input-control"
+                                                placeholder="Seu nome">
                                         </div>
                                         <div class="input-group">
                                             <label>Área</label>
@@ -1344,11 +1390,14 @@
                                     </div>
                                     <div class="input-group" style="margin-bottom: 1.5rem;">
                                         <label>Follow-up (Conteúdo) *</label>
-                                        <textarea id="new-fw-content" class="input-control" rows="3" placeholder="Descreva o acompanhamento..."></textarea>
+                                        <textarea id="new-fw-content" class="input-control" rows="3"
+                                            placeholder="Descreva o acompanhamento..."></textarea>
                                     </div>
                                     <div style="display: flex; gap: 0.8rem;">
-                                        <button type="button" id="btn-save-followup" class="btn btn-primary">Adicionar</button>
-                                        <button type="button" id="btn-cancel-followup" class="btn btn-secondary">Cancelar</button>
+                                        <button type="button" id="btn-save-followup"
+                                            class="btn btn-primary">Adicionar</button>
+                                        <button type="button" id="btn-cancel-followup"
+                                            class="btn btn-secondary">Cancelar</button>
                                     </div>
                                 </div>
 
@@ -1397,14 +1446,13 @@
     <!-- Modal: Contato Editor (Add / Edit) -->
     <div id="contato-editor-overlay" class="produto-modal-overlay">
         <div id="contato-editor-modal" class="produto-modal" role="dialog" aria-modal="true"
-             aria-labelledby="contato-modal-title" style="max-width:580px;">
+            aria-labelledby="contato-modal-title" style="max-width:580px;">
             <div class="produto-modal-header">
                 <h2 id="contato-modal-title" class="produto-modal-title">
                     <i class="ph ph-user-circle-plus"></i>
                     <span class="contato-editor-title">Novo Contato</span>
                 </h2>
-                <button type="button" id="btn-cancel-contato-editor"
-                        class="btn-modal-close" title="Fechar">
+                <button type="button" id="btn-cancel-contato-editor" class="btn-modal-close" title="Fechar">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
@@ -1412,8 +1460,7 @@
                 <!-- Preenchido dinamicamente pelo JS -->
             </div>
             <div class="produto-modal-footer">
-                <button type="button" class="btn btn-secondary"
-                        onclick="ui.closeContatoEditor()">
+                <button type="button" class="btn btn-secondary" onclick="ui.closeContatoEditor()">
                     Cancelar
                 </button>
                 <div class="produto-modal-footer-right">
