@@ -66,6 +66,37 @@ export function maskCNPJ(input) {
     input.value = value;
 }
 
+// Mapa estático de cidades por UF (fallback quando a BrasilAPI não responde)
+const CIDADES_FALLBACK = {
+    AC: ['Rio Branco', 'Cruzeiro do Sul', 'Sena Madureira', 'Tarauacá', 'Feijó'],
+    AL: ['Maceió', 'Arapiraca', 'Rio Largo', 'Palmeira dos Índios', 'União dos Palmares', 'Penedo', 'São Miguel dos Campos', 'Delmiro Gouveia'],
+    AM: ['Manaus', 'Parintins', 'Itacoatiara', 'Manacapuru', 'Coari', 'Tefé', 'Tabatinga', 'Maués'],
+    AP: ['Macapá', 'Santana', 'Laranjal do Jari', 'Oiapoque', 'Mazagão'],
+    BA: ['Salvador', 'Feira de Santana', 'Vitória da Conquista', 'Camaçari', 'Juazeiro', 'Petrolina', 'Ilhéus', 'Lauro de Freitas', 'Itabuna', 'Jequié', 'Teixeira de Freitas', 'Barreiras', 'Alagoinhas', 'Porto Seguro'],
+    CE: ['Fortaleza', 'Caucaia', 'Juazeiro do Norte', 'Maracanaú', 'Sobral', 'Crato', 'Itapipoca', 'Maranguape', 'Iguatu', 'Quixadá'],
+    DF: ['Brasília', 'Ceilândia', 'Taguatinga', 'Samambaia', 'Planaltina', 'Gama', 'Sobradinho', 'Recanto das Emas', 'Santa Maria'],
+    ES: ['Vitória', 'Serra', 'Vila Velha', 'Cariacica', 'Linhares', 'São Mateus', 'Cachoeiro de Itapemirim', 'Colatina', 'Guarapari'],
+    GO: ['Goiânia', 'Aparecida de Goiânia', 'Anápolis', 'Rio Verde', 'Luziânia', 'Águas Lindas', 'Valparaíso', 'Trindade', 'Formosa', 'Novo Gama'],
+    MA: ['São Luís', 'Imperatriz', 'São José de Ribamar', 'Timon', 'Caxias', 'Codó', 'Paço do Lumiar', 'Açailândia', 'Bacabal'],
+    MG: ['Belo Horizonte', 'Uberlândia', 'Contagem', 'Juiz de Fora', 'Betim', 'Montes Claros', 'Ribeirão das Neves', 'Uberaba', 'Governador Valadares', 'Ipatinga', 'Sete Lagoas', 'Divinópolis', 'Santa Luzia', 'Ibirité', 'Poços de Caldas', 'Patos de Minas', 'Pouso Alegre', 'Teófilo Otoni', 'Barbacena', 'Sabará'],
+    MS: ['Campo Grande', 'Dourados', 'Três Lagoas', 'Corumbá', 'Ponta Porã', 'Naviraí', 'Nova Andradina', 'Aquidauana', 'Sidrolândia'],
+    MT: ['Cuiabá', 'Várzea Grande', 'Rondonópolis', 'Sinop', 'Tangará da Serra', 'Cáceres', 'Sorriso', 'Lucas do Rio Verde', 'Alto Araguaia'],
+    PA: ['Belém', 'Ananindeua', 'Santarém', 'Marabá', 'Parauapebas', 'Castanhal', 'Abaetetuba', 'Cametá', 'Itaituba'],
+    PB: ['João Pessoa', 'Campina Grande', 'Santa Rita', 'Patos', 'Bayeux', 'Sousa', 'Cajazeiras', 'Cabedelo'],
+    PE: ['Recife', 'Caruaru', 'Petrolina', 'Olinda', 'Paulista', 'Camaçari', 'Jaboatão dos Guararapes', 'Garanhuns', 'Vitória de Santo Antão', 'Igarassu', 'Cabo de Santo Agostinho'],
+    PI: ['Teresina', 'Parnaíba', 'Picos', 'Piripiri', 'Floriano', 'Campo Maior', 'Barras'],
+    PR: ['Curitiba', 'Londrina', 'Maringá', 'Ponta Grossa', 'Cascavel', 'São José dos Pinhais', 'Foz do Iguaçu', 'Colombo', 'Guarapuava', 'Paranaguá', 'Araucária', 'Toledo', 'Apucarana', 'Pinhais', 'Campo Largo', 'Almirante Tamandaré'],
+    RJ: ['Rio de Janeiro', 'São Gonçalo', 'Duque de Caxias', 'Nova Iguaçu', 'Niterói', 'Belford Roxo', 'São João de Meriti', 'Campos dos Goytacazes', 'Petrópolis', 'Magé', 'Volta Redonda', 'Itaboraí', 'Angra dos Reis', 'Mesquita', 'Nova Friburgo', 'Macaé', 'Nilópolis', 'Queimados'],
+    RN: ['Natal', 'Mossoró', 'Parnamirim', 'São Gonçalo do Amarante', 'Macaíba', 'Ceará-Mirim', 'Caicó', 'Assu'],
+    RO: ['Porto Velho', 'Ji-Paraná', 'Ariquemes', 'Cacoal', 'Vilhena', 'Jaru', 'Rolim de Moura'],
+    RR: ['Boa Vista', 'Rorainópolis', 'Caracaraí', 'Alto Alegre', 'Mucajaí'],
+    RS: ['Porto Alegre', 'Caxias do Sul', 'Pelotas', 'Canoas', 'Santa Maria', 'Gravataí', 'Viamão', 'Novo Hamburgo', 'São Leopoldo', 'Rio Grande', 'Alvorada', 'Passo Fundo', 'Sapucaia do Sul', 'Uruguaiana', 'Santa Cruz do Sul', 'Cachoeirinha', 'Bento Gonçalves', 'Erechim', 'Guaíba'],
+    SC: ['Florianópolis', 'Joinville', 'Blumenau', 'São José', 'Criciúma', 'Chapecó', 'Itajaí', 'Jaraguá do Sul', 'Lages', 'Palhoça', 'Balneário Camboriú', 'Brusque', 'Tubarão', 'São Bento do Sul'],
+    SE: ['Aracaju', 'Nossa Senhora do Socorro', 'Lagarto', 'Itabaiana', 'São Cristóvão', 'Estância', 'Tobias Barreto'],
+    SP: ['São Paulo', 'Guarulhos', 'Campinas', 'São Bernardo do Campo', 'Santo André', 'Osasco', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santos', 'Mauá', 'Mogi das Cruzes', 'São Vicente', 'Diadema', 'Jundiaí', 'Carapicuíba', 'Piracicaba', 'Bauru', 'Itaquaquecetuba', 'São José do Rio Preto', 'Franca', 'Guarujá', 'Limeira', 'São Carlos', 'Taubaté', 'Praia Grande', 'Barueri', 'Suzano', 'Taboão da Serra', 'Jacareí', 'Marília'],
+    TO: ['Palmas', 'Araguaína', 'Gurupi', 'Porto Nacional', 'Paraíso do Tocantins', 'Colinas do Tocantins', 'Guaraí'],
+};
+
 export async function loadCities(uf, defaultCity = '') {
     const cidadeInput = document.getElementById('emp-cidade');
     const cidadesList = document.getElementById('cidades-list');
@@ -83,9 +114,18 @@ export async function loadCities(uf, defaultCity = '') {
     cidadeInput.disabled = true;
     cidadeInput.placeholder = 'Carregando cidades...';
 
+    // Tenta BrasilAPI com timeout de 5s; se falhar usa o fallback local
     try {
-        const response = await fetch(`https://brasilapi.com.br/api/ibge/municipios/v1/${uf}`);
-        if (!response.ok) throw new Error('Falha ao buscar cidades');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(
+            `https://brasilapi.com.br/api/ibge/municipios/v1/${uf}`,
+            { signal: controller.signal }
+        );
+        clearTimeout(timeout);
+
+        if (!response.ok) throw new Error('Resposta inválida da BrasilAPI');
         const cidades = await response.json();
 
         cidades.forEach(cidade => {
@@ -93,17 +133,23 @@ export async function loadCities(uf, defaultCity = '') {
             option.value = cidade.nome;
             cidadesList.appendChild(option);
         });
-
-        cidadeInput.disabled = false;
-        cidadeInput.placeholder = 'Digite para buscar ou selecione...';
-        if (defaultCity) cidadeInput.value = defaultCity;
     } catch (error) {
-        console.error('Erro ao buscar cidades:', error);
-        cidadeInput.disabled = false;
-        cidadeInput.placeholder = 'Erro ao carregar cidades. Digite o nome:';
-        if (defaultCity) cidadeInput.value = defaultCity;
+        // Fallback: usa lista local de cidades
+        console.warn(`[loadCities] BrasilAPI falhou (${error.message}). Usando lista local para ${uf}.`);
+        const fallback = CIDADES_FALLBACK[uf] || [];
+        fallback.forEach(nome => {
+            const option = document.createElement('option');
+            option.value = nome;
+            cidadesList.appendChild(option);
+        });
     }
+
+    // Habilita o campo independente de qual fonte foi usada
+    cidadeInput.disabled = false;
+    cidadeInput.placeholder = 'Digite para buscar ou selecione...';
+    if (defaultCity) cidadeInput.value = defaultCity;
 }
+
 
 export function updateStatusStyle(select) {
     if (!select) return;

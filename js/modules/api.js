@@ -20,9 +20,26 @@ function mapFromDB(comp) {
         healthScore: comp.Health_Score,
         proximoPasso: comp.Data_de_follow_up ? new Date(comp.Data_de_follow_up).toLocaleDateString('pt-BR') : '-',
 
-        // Relacionamentos (Nomes exatos do schema.prisma 10/10)
-        produtos: [],
-        produtosNames: '',
+        // Relacionamentos
+        produtos: (comp.company_products || []).map(p => ({
+            id:            p.id,
+            nome:          p.Produto_DATI,
+            tipoCobranca:  p.Tipo_cobranca,
+            valorUnitario: p.Valor_unitario  != null ? parseFloat(p.Valor_unitario)  : null,
+            valorMinimo:   p.Valor_minimo    != null ? parseFloat(p.Valor_minimo)    : null,
+            valorTotal:    p.Valor_total     != null ? parseFloat(p.Valor_total)     : null,
+            cobrancaSetup: p.Cobranca_setup,
+            valorSetup:    p.Valor_setup     != null ? parseFloat(p.Valor_setup)     : null,
+            qtdUsuarios:   p.Qtd_usuarios,
+            valorUserAdic: p.Valor_usuario_adicional != null ? parseFloat(p.Valor_usuario_adicional) : null,
+            totalHorasHd:  p.Total_horas_hd,
+            valorAdicHd:   p.Valor_adic_hd   != null ? parseFloat(p.Valor_adic_hd)   : null,
+            propostaData:  p.Proposta_comercial,
+            propostaName:  p.Proposta_nome,
+            contratoData:  p.Contrato,
+            contratoName:  p.Contrato_nome,
+        })),
+        produtosNames: (comp.company_products || []).map(p => p.Produto_DATI).filter(Boolean).join(', '),
 
         contatos: (comp.contacts || []).map(c => ({
             id: c.id,
@@ -130,8 +147,12 @@ export const api = {
     },
 
     async deleteCompany(id) {
-        await fetch(`${API_URL}/companies/${id}`, {
+        const res = await fetch(`${API_URL}/companies/${id}`, {
             method: 'DELETE'
         });
+        if (!res.ok) {
+            const body = await res.text().catch(() => '');
+            throw new Error(`Falha ao excluir: HTTP ${res.status}${body ? ' — ' + body : ''}`);
+        }
     }
 };

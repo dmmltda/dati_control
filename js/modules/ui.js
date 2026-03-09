@@ -1,6 +1,37 @@
 import { state } from './state.js';
 import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { TableManager } from './table-manager.js';
+import { TableManager as TableManager2 } from '../core/table-manager.js'; // 🧪 TableManager 2.0 - teste paralelo
+import {
+    initCompanyProductsTable as _initProdutosTable,
+    refreshCompanyProductsTable as _refreshProdutosTable,
+    getCompanyProductsManager,
+    updateProdutosBulkUI,
+    clearProdutosBulkSelection,
+} from './company-products/company-products-table.js';
+import {
+    initCompanyContactsTable as _initContatosTable,
+    refreshCompanyContactsTable as _refreshContatosTable,
+    getCompanyContactsManager,
+    updateContatosBulkUI,
+    clearContatosBulkSelection,
+} from './company-contacts/company-contacts-table.js';
+import {
+    openContatoEditor as _openContatoEditor,
+    saveContatoEditor as _saveContatoEditor,
+    closeContatoEditor as _closeContatoEditor,
+} from './company-contacts/company-contacts-editor.js';
+
+// Re-export: navigation.js usa `ui.renderProdutosTable`
+export const renderProdutosTable = () => _initProdutosTable();
+
+// Re-export: navigation.js usa `ui.renderContatosTable`
+export const renderContatosTable = () => _initContatosTable();
+
+// Re-export: acessíveis via window.ui (inline onclicks)
+export { updateProdutosBulkUI, clearProdutosBulkSelection, getCompanyProductsManager };
+export { updateContatosBulkUI, clearContatosBulkSelection, getCompanyContactsManager };
+export { _openContatoEditor as openContatoEditor, _saveContatoEditor as saveContatoEditor, _closeContatoEditor as closeContatoEditor };
 
 let contactsTableManager = null;
 let logTableManager = null;
@@ -10,6 +41,12 @@ let csMeetingTableManager = null;
 let meetingGeralTableManager = null;
 let followUpTableManager = null;
 let companiesTableManager = null;
+
+// ✅ TableManager 2.0 — motor primário da tabela de empresas
+let companiesTableManagerV2 = null;
+
+/** Getter público para acesso ao motor v2 de empresas (usado em app.js e externamente) */
+export function getCompaniesManagerV2() { return companiesTableManagerV2; }
 
 // ✅ CORREÇÃO: resetar managers de formulário ao abrir nova empresa
 export function resetFormTableManagers() {
@@ -107,45 +144,148 @@ export function renderCompanyList() {
     const tableBody = document.getElementById('company-table-body');
     if (!tableBody) return;
 
-    if (!companiesTableManager) {
-        companiesTableManager = new TableManager(
-            state.companies,
-            [
-                { key: 'nome', type: 'string' },
-                { key: 'status', type: 'string' },
-                { key: 'healthScore', type: 'string' },
-                { key: 'nps', type: 'number' },
-                { key: 'proximoPasso', type: 'date' },
-                { key: 'produtosNames', type: 'string' },
-                { key: 'segmento', type: 'string' },
-                { key: 'updatedAt', type: 'number' }
+    if (!companiesTableManagerV2) {
+        // ✅ TableManager 2.0 — motor primário da tabela de empresas
+        companiesTableManagerV2 = new TableManager2({
+            data: state.companies,
+            columns: [
+                { key: 'nome',          label: 'Empresa',    type: 'string', searchable: true, sortable: true   },
+                { key: 'status',        label: 'Status',     type: 'string', searchable: true, filterable: true  },
+                { key: 'healthScore',   label: 'Saúde',      type: 'string', searchable: true                    },
+                { key: 'nps',           label: 'NPS',        type: 'number', sortable: true                      },
+                { key: 'segmento',      label: 'Segmento',   type: 'string', searchable: true, filterable: true  },
+                { key: 'updatedAt',     label: 'Atualizado', type: 'date',   sortable: true                      },
+                { key: 'cidade',        label: 'Cidade',     type: 'string', searchable: true                    },
+                { key: 'estado',        label: 'Estado',     type: 'string', searchable: true                    },
+                { key: 'cnpj',          label: 'CNPJ',       type: 'string', searchable: true                    },
+                { key: 'produtosNames', label: 'Produtos',   type: 'string', searchable: true                    },
             ],
-            (data) => renderCompanyTableRows(data),
-            'view-company-list'
-        );
-        companiesTableManager.paginationContainerId = 'pagination-companies';
-        companiesTableManager.searchKeys = ['nome', 'segmento', 'produtosNames', 'cidade', 'estado', 'status', 'cnpj', 'site', 'proximoPasso'];
-        companiesTableManager.sort = { key: 'updatedAt', direction: 'desc' };
-        companiesTableManager.apply();
+            pageSize: 10,
+            tableId: 'view-company-list',
+
+            renderRows: (data) => {
+                renderCompanyTableRows(data);
+            },
+
+            renderPagination: ({ currentPage, totalPages, pageSize, totalRecords, hasPrev, hasNext }) => {
+                const container = document.getElementById('pagination-companies');
+                if (!container) return;
+
+                if (totalPages <= 1) {
+                    container.innerHTML = '';
+                    container.style.display = 'none';
+                    return;
+                }
+
+                // Calcular quais páginas exibir (janela deslizante + extremos)
+                const pages = [];
+                for (let i = 1; i <= totalPages; i++) {
+                    if (
+                        i === 1 ||
+                        i === totalPages ||
+                        (i >= currentPage - 1 && i <= currentPage + 1)
+                    ) {
+                        pages.push(i);
+                    }
+                }
+
+                // Inserir ellipsis onde há saltos
+                const pageItems = [];
+                let prev = 0;
+                for (const p of pages) {
+                    if (p - prev > 1) pageItems.push('...');
+                    pageItems.push(p);
+                    prev = p;
+                }
+
+                const start = Math.min((currentPage - 1) * pageSize + 1, totalRecords);
+                const end   = Math.min(currentPage * pageSize, totalRecords);
+
+                container.style.display = 'flex';
+                container.innerHTML = `
+                    <div class="pagination">
+                        <button class="pagination-btn" data-v2-action="prev" ${!hasPrev ? 'disabled' : ''} title="Página anterior">
+                            <i class="ph ph-caret-left"></i>
+                        </button>
+
+                        ${pageItems.map(item =>
+                            item === '...'
+                                ? `<span class="pagination-dots">···</span>`
+                                : `<button class="pagination-page ${item === currentPage ? 'active' : ''}" data-v2-page="${item}">${item}</button>`
+                        ).join('')}
+
+                        <button class="pagination-btn" data-v2-action="next" ${!hasNext ? 'disabled' : ''} title="Próxima página">
+                            <i class="ph ph-caret-right"></i>
+                        </button>
+                    </div>
+                    <div class="pagination-info">
+                        ${start}–${end} de <strong>${totalRecords}</strong> registros &nbsp;·&nbsp; Página ${currentPage} de ${totalPages}
+                    </div>
+                `;
+            },
+
+            renderFilters: (activeFilters, search) => {
+                // Filtros ativos renderizados por updateActiveFiltersUI()
+            },
+        });
+
+        // Conectar busca ao motor v2
+        const searchInput = document.getElementById('search-empresa');
+        if (searchInput && !searchInput.dataset.v2Connected) {
+            searchInput.dataset.v2Connected = '1';
+            searchInput.addEventListener('input', (e) => {
+                companiesTableManagerV2.setSearch(e.target.value);
+                const clearBtn = document.getElementById('clear-search');
+                if (clearBtn) clearBtn.style.display = e.target.value ? 'flex' : 'none';
+            });
+        }
+
+        // Conectar paginação via Event Delegation
+        const paginationContainer = document.getElementById('pagination-companies');
+        if (paginationContainer && !paginationContainer.dataset.v2PaginationConnected) {
+            paginationContainer.dataset.v2PaginationConnected = '1';
+            paginationContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-v2-page], [data-v2-action]');
+                if (!btn || !companiesTableManagerV2) return;
+
+                const action = btn.dataset.v2Action;
+                const page   = btn.dataset.v2Page;
+
+                if (action === 'prev') {
+                    console.log('[UI] Pagination click → prevPage');
+                    companiesTableManagerV2.prevPage();
+                } else if (action === 'next') {
+                    console.log('[UI] Pagination click → nextPage');
+                    companiesTableManagerV2.nextPage();
+                } else if (page !== undefined) {
+                    const n = parseInt(page);
+                    console.log(`[UI] Pagination click → page ${n}`);
+                    companiesTableManagerV2.goToPage(n);
+                }
+            });
+        }
+
+        console.log('[TableManager 2.0] Running as primary table engine');
     } else {
-        companiesTableManager.setData(state.companies);
+        companiesTableManagerV2.setData(state.companies);
     }
+
     updateActiveFiltersUI();
 }
 
 export function updateActiveFiltersUI() {
     const bar = document.getElementById('active-filters-bar');
     const container = document.getElementById('active-filters-chips');
-    if (!bar || !container || !companiesTableManager) return;
+    if (!bar || !container || !companiesTableManagerV2) return;
 
-    const activeFilters = Object.entries(companiesTableManager.filters);
-    
-    // Highlight headers
+    const activeFilters = companiesTableManagerV2.getActiveFilters();
+
+    // Highlight filter buttons
     document.querySelectorAll('#view-company-list .btn-filter-column').forEach(btn => {
         const popoverId = btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
         if (popoverId) {
             const dataKey = getDataKey(popoverId);
-            const isActive = companiesTableManager.filters[dataKey];
+            const isActive = companiesTableManagerV2._filters[dataKey];
             btn.classList.toggle('active', !!isActive);
         }
     });
@@ -156,15 +296,12 @@ export function updateActiveFiltersUI() {
     }
 
     bar.style.display = 'flex';
-    container.innerHTML = activeFilters.map(([key, value]) => {
-        const label = getLabelForKey(key);
-        return `
-            <div class="filter-chip">
-                <span><strong>${label}:</strong> ${value}</span>
-                <i class="ph ph-x-circle" onclick="ui.clearColumnFilterFromChip('${key}', event)"></i>
-            </div>
-        `;
-    }).join('');
+    container.innerHTML = activeFilters.map(({ key, label, value }) => `
+        <div class="filter-chip">
+            <span><strong>${label}:</strong> ${value}</span>
+            <i class="ph ph-x-circle" onclick="ui.clearColumnFilterFromChip('${key}', event)"></i>
+        </div>
+    `).join('');
 }
 
 function getLabelForKey(dataKey) {
@@ -182,16 +319,15 @@ function getLabelForKey(dataKey) {
 
 export function clearColumnFilterFromChip(dataKey, event) {
     if (event) event.stopPropagation();
-    if (companiesTableManager) {
-        companiesTableManager.setFilter(dataKey, '');
+    if (companiesTableManagerV2) {
+        companiesTableManagerV2.setFilter(dataKey, '');
         updateActiveFiltersUI();
     }
 }
 
 export function clearAllCompaniesFilters() {
-    if (companiesTableManager) {
-        companiesTableManager.filters = {};
-        companiesTableManager.apply();
+    if (companiesTableManagerV2) {
+        companiesTableManagerV2.clearFilters();
         updateActiveFiltersUI();
     }
 }
@@ -204,13 +340,13 @@ function renderCompanyTableRows(data) {
     if (data.length === 0) {
         tableBody.innerHTML = `
             <tr>
-                <td colspan="7">
+                <td colspan="8">
                     <div class="empty-results">
                         <div class="empty-icon">
                             <i class="ph ph-magnifying-glass"></i>
                         </div>
                         <h3>Nenhum resultado encontrado</h3>
-                        <p>Não encontramos nada para o termo "<strong>${companiesTableManager.globalSearch}</strong>".</p>
+                        <p>Não encontramos nada para o termo "<strong>${companiesTableManagerV2?._search || ''}</strong>".</p>
                         <button class="btn btn-secondary btn-sm" onclick="ui.clearCompaniesFilters()" style="margin-top: 1rem">
                             <i class="ph ph-x"></i> Limpar Filtros
                         </button>
@@ -255,7 +391,20 @@ function renderCompanyTableRows(data) {
             `;
         }
 
+        const isSelected = companiesTableManagerV2?.isSelected(comp.id) || false;
+        tr.dataset.id = comp.id;
+        if (isSelected) tr.classList.add('row-selected');
+
         tr.innerHTML = `
+            <td class="checkbox-column" style="text-align:center;">
+                <input
+                    type="checkbox"
+                    class="company-checkbox"
+                    data-id="${comp.id}"
+                    ${isSelected ? 'checked' : ''}
+                    style="cursor:pointer;"
+                >
+            </td>
             <td>
                 <div class="company-name-wrapper">
                     <span class="company-name-text">
@@ -299,88 +448,55 @@ function renderCompanyTableRows(data) {
     });
 }
 
-export function renderContatosTable() {
-    const contatosTableBody = document.getElementById('contatos-table-body');
-    if (!contatosTableBody) return;
+export function updateBulkSelectionUI() {
+    if (!companiesTableManagerV2) return;
 
-    if (!contactsTableManager) {
-        contactsTableManager = new TableManager(
-            state.tempContatos,
-            [
-                { key: 'nome', type: 'string' },
-                { key: 'cargo', type: 'string' },
-                { key: 'departamento', type: 'string' }
-            ],
-            (data) => renderContatosTableRows(data),
-            'tab-contatos'
-        );
-        contactsTableManager.paginationContainerId = 'pagination-contatos';
-        contactsTableManager.apply();
-    } else {
-        contactsTableManager.setData(state.tempContatos);
-    }
-}
+    const selected = companiesTableManagerV2.getSelectedIds();
+    const count    = selected.length;
+    const hasAny   = count > 0;
 
-function renderContatosTableRows(data) {
-    const body = document.getElementById('contatos-table-body');
-    if (!body) return;
-    body.innerHTML = '';
+    // Toolbar — classe visual
+    const toolbar = document.getElementById('bulk-toolbar');
+    if (toolbar) toolbar.classList.toggle('has-selection', hasAny);
 
-    if (data.length === 0) {
-        body.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum contato cadastrado.</td></tr>`;
-        return;
+    // Contador de texto
+    const countEl = document.getElementById('bulk-count');
+    if (countEl) {
+        countEl.textContent = count === 0
+            ? 'Nenhuma empresa selecionada'
+            : count === 1
+                ? '1 empresa selecionada'
+                : `${count} empresas selecionadas`;
     }
 
-    data.forEach(cont => {
-        const tr = document.createElement('tr');
-        const isEditing = state.editingContatoId && String(cont.id) === String(state.editingContatoId);
+    // ⚠️ CRÍTICO: atributo HTML disabled bloqueia eventos click independente de CSS.
+    // É necessário remover/adicionar o atributo diretamente.
+    const deleteBtn = document.getElementById('bulk-delete-btn');
+    const clearBtn  = document.getElementById('bulk-clear-btn');
+    const editBtn   = document.getElementById('bulk-edit-btn');
+    if (deleteBtn) deleteBtn.disabled = !hasAny;
+    if (clearBtn)  clearBtn.disabled  = !hasAny;
+    if (editBtn)   editBtn.disabled   = !hasAny;
 
-        if (isEditing) {
-            tr.className = 'editing-row';
-            tr.innerHTML = `
-                <td colspan="6">
-                    <div class="grid-3" style="padding: 1rem;">
-                        <input type="text" id="edit-cont-nome-${cont.id}" class="input-control" value="${cont.nome}" placeholder="Nome *">
-                        <input type="email" id="edit-cont-email1-${cont.id}" class="input-control" value="${cont.email1 || ''}" placeholder="E-mail">
-                        <input type="tel" id="edit-cont-tel-${cont.id}" class="input-control" value="${cont.telefone || ''}" placeholder="Telefone">
-                    </div>
-                </td>
-                <td style="text-align: right;">
-                    <div class="actions">
-                        <button type="button" class="btn btn-primary btn-icon btn-save-edit-contato" data-id="${cont.id}"><i class="ph ph-check"></i></button>
-                        <button type="button" class="btn btn-secondary btn-icon btn-cancel-edit-contato"><i class="ph ph-x"></i></button>
-                    </div>
-                </td>
-            `;
-        } else {
-            tr.innerHTML = `
-                <td style="font-weight: 500;">${cont.nome}</td>
-                <td style="font-size: 0.85rem;">${cont.email1 || '-'}</td>
-                <td style="color: var(--text-muted); font-size: 0.85rem;">${cont.cargo || '-'}</td>
-                <td style="color: var(--text-muted); font-size: 0.85rem;">${cont.departamento || '-'}</td>
-                <td style="font-size: 0.85rem;">${cont.whatsapp || cont.telefone || '-'}</td>
-                <td style="font-size: 0.85rem;">${cont.linkedin ? 'Link' : '-'}</td>
-                <td style="text-align: right;">
-                    <div class="actions" style="justify-content: flex-end;">
-                        <button type="button" class="btn btn-secondary btn-icon btn-edit-contato" data-id="${cont.id}"><i class="ph ph-pencil-simple"></i></button>
-                        <button type="button" class="btn btn-danger btn-icon btn-remove-contato" data-id="${cont.id}"><i class="ph ph-trash"></i></button>
-                    </div>
-                </td>
-            `;
-        }
-        body.appendChild(tr);
-    });
-
-    const clearBtn = document.getElementById('btn-clear-contatos-filters');
-    if (clearBtn && contactsTableManager) {
-        const hasFilters = Object.keys(contactsTableManager.filters).length > 0;
-        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    // Estado do checkbox "selecionar todos"
+    const selectAllCb = document.getElementById('select-all-companies');
+    if (selectAllCb) {
+        const pageData       = companiesTableManagerV2.getPaginatedData();
+        const pageCount      = pageData.length;
+        const selectedOnPage = pageData.filter(row => companiesTableManagerV2.isSelected(row.id)).length;
+        selectAllCb.checked       = pageCount > 0 && selectedOnPage === pageCount;
+        selectAllCb.indeterminate = selectedOnPage > 0 && selectedOnPage < pageCount;
     }
 }
 
 
-
-
+export function clearBulkSelection() {
+    if (!companiesTableManagerV2) return;
+    companiesTableManagerV2.clearSelection();
+    updateBulkSelectionUI();
+    // Re-renderizar a página para desmarcar checkboxes visuais
+    renderCompanyTableRows(companiesTableManagerV2.getPaginatedData());
+}
 
 export function renderDashboardsTable() {
     const body = document.getElementById('dashboards-table-body');
@@ -759,27 +875,28 @@ function renderLogTableRows(data) {
 }
 
 function getManagerForKey(key) {
-    if (key.startsWith('contatos_')) return contactsTableManager;
+    if (key.startsWith('contatos_')) return getCompanyContactsManager(); // ✅ TM2 contatos
     if (key.startsWith('db_')) return dashboardTableManager;
     if (key.startsWith('nps_')) return npsTableManager;
     if (key.startsWith('csmt_')) return csMeetingTableManager;
     if (key.startsWith('meet_')) return meetingGeralTableManager;
-    if (key.startsWith('comp_')) return companiesTableManager;
+    if (key.startsWith('comp_')) return companiesTableManagerV2;
+    if (key.startsWith('prod_')) return getCompanyProductsManager(); // ✅ produtos
     return logTableManager;
 }
 
 function getDataKey(key) {
-    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_)/, '');
+    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_|prod_)/, '');
 }
 
 window.getManagerForKeyPagination = function (containerId) {
-    if (containerId === 'pagination-companies') return companiesTableManager;
+    if (containerId === 'pagination-companies') return companiesTableManagerV2;
     if (containerId === 'pagination-dashboards') return dashboardTableManager;
     if (containerId === 'pagination-nps') return npsTableManager;
     if (containerId === 'pagination-cs-meetings') return csMeetingTableManager;
     if (containerId === 'pagination-meetings-geral') return meetingGeralTableManager;
     if (containerId === 'pagination-log') return logTableManager;
-    if (containerId === 'pagination-contatos') return contactsTableManager;
+    if (containerId === 'pagination-contatos') return getCompanyContactsManager(); // ✅ TM2 contatos
     return null;
 };
 
@@ -829,19 +946,23 @@ function renderFilterOptions(key, container) {
     const selectedValue = manager.filters[dataKey];
     const currentSort = manager.sort.key === dataKey ? manager.sort.direction : 'none';
 
+    const sortHTML = `
+        <div class="filter-group">
+            <span class="filter-label">Ordenar</span>
+            <div class="sort-buttons">
+                <button class="btn-sort ${currentSort === 'asc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'asc', event)">
+                    <i class="ph ph-sort-ascending"></i> Cresc.
+                </button>
+                <button class="btn-sort ${currentSort === 'desc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'desc', event)">
+                    <i class="ph ph-sort-descending"></i> Decresc.
+                </button>
+            </div>
+        </div>`;
+
+    // ── Coluna de data: seletor de período com Flatpickr ─────────────────────
     if (column?.type === 'date') {
         container.innerHTML = `
-            <div class="filter-group">
-                <span class="filter-label">Ordenar</span>
-                <div class="sort-buttons">
-                    <button class="btn-sort ${currentSort === 'asc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'asc', event)">
-                        <i class="ph ph-sort-ascending"></i> Cresc.
-                    </button>
-                    <button class="btn-sort ${currentSort === 'desc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'desc', event)">
-                        <i class="ph ph-sort-descending"></i> Decresc.
-                    </button>
-                </div>
-            </div>
+            ${sortHTML}
             <div class="filter-group">
                 <span class="filter-label">Intervalo de Datas</span>
                 <div class="filter-date-wrapper">
@@ -855,38 +976,92 @@ function renderFilterOptions(key, container) {
                 </button>
             </div>
         `;
-
-        // Inicializar Flatpickr 10/10
         setTimeout(() => {
             flatpickr(`#filter-date-${key}`, {
                 mode: "range",
                 dateFormat: "d/m/Y",
-                locale: "pt",
-                locale: {
-                    rangeSeparator: " a "
-                },
+                locale: { rangeSeparator: " a " },
                 onChange: (selectedDates, dateStr) => {
-                    if (selectedDates.length === 2) {
-                        ui.applyGenericFilter(key, dateStr);
-                    }
+                    if (selectedDates.length === 2) ui.applyGenericFilter(key, dateStr);
                 }
             });
         }, 10);
         return;
     }
 
-    container.innerHTML = `
-        <div class="filter-group">
-            <span class="filter-label">Ordenar</span>
-            <div class="sort-buttons">
-                <button class="btn-sort ${currentSort === 'asc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'asc', event)">
-                    <i class="ph ph-sort-ascending"></i> Cresc.
+    // ── Coluna numérica: intervalo de valores (De/Até) ────────────────────────
+    if (column?.type === 'number') {
+        const rangeVal = (selectedValue && typeof selectedValue === 'object') ? selectedValue : {};
+        const minVal = rangeVal.min ?? '';
+        const maxVal = rangeVal.max ?? '';
+        const hasRange = minVal !== '' || maxVal !== '';
+
+        container.innerHTML = `
+            ${sortHTML}
+            <div class="filter-group">
+                <span class="filter-label">Intervalo de Valores</span>
+                <div class="filter-range-wrapper">
+                    <div class="filter-range-row">
+                        <span class="filter-range-label">De</span>
+                        <input type="number" id="filter-range-min-${key}"
+                            class="filter-range-input"
+                            placeholder="Mínimo"
+                            value="${minVal}"
+                            step="0.01" min="0">
+                    </div>
+                    <div class="filter-range-row">
+                        <span class="filter-range-label">Até</span>
+                        <input type="number" id="filter-range-max-${key}"
+                            class="filter-range-input"
+                            placeholder="Máximo"
+                            value="${maxVal}"
+                            step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-apply-filter" onclick="ui.applyRangeFilter('${key}', event)">
+                    <i class="ph ph-check"></i> Aplicar
                 </button>
-                <button class="btn-sort ${currentSort === 'desc' ? 'active' : ''}" onclick="ui.applyColumnSort('${key}', 'desc', event)">
-                    <i class="ph ph-sort-descending"></i> Decresc.
+                <button class="btn-clear-filter ${!hasRange ? 'disabled' : ''}" onclick="ui.clearColumnFilter('${key}', event)">
+                    <i class="ph ph-trash"></i> Limpar
                 </button>
             </div>
-        </div>
+        `;
+        return;
+    }
+
+    // ── boolean-date: Sim / Não ───────────────────────────────────────────────
+    if (column?.filterType === 'boolean-date') {
+        const sel = String(selectedValue || '').toLowerCase();
+        container.innerHTML = `
+            ${sortHTML}
+            <div class="filter-group">
+                <span class="filter-label">Filtrar</span>
+                <div class="filter-list">
+                    <div class="filter-option ${!selectedValue ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', '', event)">
+                        (Tudo)
+                    </div>
+                    <div class="filter-option ${sel === 'sim' ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', 'Sim', event)">
+                        <span class="badge-prod-yes"><i class="ph ph-check"></i> Sim</span>
+                    </div>
+                    <div class="filter-option ${sel === 'não' ? 'selected' : ''}" onclick="ui.applyGenericFilter('${key}', 'Não', event)">
+                        <span class="badge-prod-no">Não</span>
+                    </div>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="btn-clear-filter" onclick="ui.clearColumnFilter('${key}', event)">
+                    <i class="ph ph-trash"></i> Limpar Filtro
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // ── String: lista de valores únicos ──────────────────────────────────────
+    container.innerHTML = `
+        ${sortHTML}
         <div class="filter-group">
             <span class="filter-label">Filtrar Valores</span>
             <input type="text" class="filter-search" placeholder="Pesquisar..." onkeyup="ui.searchFilterOptions('${key}', this)">
@@ -909,13 +1084,42 @@ function renderFilterOptions(key, container) {
     `;
 }
 
+/**
+ * Aplica um filtro de intervalo numérico.
+ * Lê os inputs #filter-range-min-{key} e #filter-range-max-{key}
+ * e chama setFilter(key, {min, max}) no manager correspondente.
+ */
+export function applyRangeFilter(key, event) {
+    if (event) event.stopPropagation();
+    const manager = getManagerForKey(key);
+    if (!manager) return;
+
+    const minEl = document.getElementById(`filter-range-min-${key}`);
+    const maxEl = document.getElementById(`filter-range-max-${key}`);
+    const min = minEl?.value !== '' ? parseFloat(minEl.value) : null;
+    const max = maxEl?.value !== '' ? parseFloat(maxEl.value) : null;
+
+    const dataKey = getDataKey(key);
+    if (min === null && max === null) {
+        manager.setFilter(dataKey, null);
+    } else {
+        manager.setFilter(dataKey, { min, max });
+    }
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+}
+
 export function applyColumnSort(key, direction, event) {
     if (event) event.stopPropagation();
     const manager = getManagerForKey(key);
     if (manager) {
         const dataKey = getDataKey(key);
-        manager.setSort(dataKey, direction);
-        if (manager === companiesTableManager) updateActiveFiltersUI();
+        // TableManager 2.0 usa setSortExplicit(key, dir); legado usa setSort(key, dir)
+        if (typeof manager.setSortExplicit === 'function') {
+            manager.setSortExplicit(dataKey, direction);
+        } else {
+            manager.setSort(dataKey, direction);
+        }
+        if (manager === companiesTableManagerV2) updateActiveFiltersUI();
     }
     document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
 }
@@ -926,7 +1130,7 @@ export function clearColumnFilter(key, event) {
     if (manager) {
         const dataKey = getDataKey(key);
         manager.setFilter(dataKey, '');
-        if (manager === companiesTableManager) updateActiveFiltersUI();
+        if (manager === companiesTableManagerV2) updateActiveFiltersUI();
     }
     document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
 }
@@ -947,19 +1151,21 @@ export function applyGenericFilter(key, value, event) {
     if (manager) {
         const dataKey = getDataKey(key);
         manager.setFilter(dataKey, value);
-        if (manager === companiesTableManager) updateActiveFiltersUI();
+        if (manager === companiesTableManagerV2) updateActiveFiltersUI();
     }
     document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
 }
 
 export function handleProdutosSort(key, event) {
     if (event) event.stopPropagation();
-    if (productsTableManager) productsTableManager.toggleSort(key);
+    const mgr = getCompanyProductsManager();
+    if (mgr) mgr.setSort(key);
 }
 
 export function handleContatosSort(key, event) {
     if (event) event.stopPropagation();
-    if (contactsTableManager) contactsTableManager.toggleSort(key);
+    const mgr = getCompanyContactsManager();
+    if (mgr) mgr.setSort(key);
 }
 
 export function handleDashboardsSort(key, event) {
@@ -984,31 +1190,29 @@ export function handleReunioesSort(key, event) {
 
 export function handleCompaniesSort(key, event) {
     if (event) event.stopPropagation();
-    if (companiesTableManager) companiesTableManager.toggleSort(key);
+    if (companiesTableManagerV2) companiesTableManagerV2.setSort(key);
 }
 
 export function handleCompaniesSearch(term) {
-    if (companiesTableManager) {
-        companiesTableManager.setGlobalSearch(term);
+    if (companiesTableManagerV2) {
+        companiesTableManagerV2.setSearch(term);
         const clearBtn = document.getElementById('clear-search');
-        if (clearBtn) {
-            clearBtn.style.display = term ? 'flex' : 'none';
-        }
+        if (clearBtn) clearBtn.style.display = term ? 'flex' : 'none';
     }
 }
 
 export function clearProdutosFilters() {
-    if (productsTableManager) {
-        productsTableManager.filters = {};
-        productsTableManager.apply();
+    const mgr = getCompanyProductsManager();
+    if (mgr) {
+        mgr.clearFilters();
         document.querySelectorAll('#tab-produtos .btn-filter-column').forEach(btn => btn.classList.remove('active'));
     }
 }
 
 export function clearContatosFilters() {
-    if (contactsTableManager) {
-        contactsTableManager.filters = {};
-        contactsTableManager.apply();
+    const mgr = getCompanyContactsManager();
+    if (mgr) {
+        mgr.clearFilters();
         document.querySelectorAll('#tab-contatos .btn-filter-column').forEach(btn => btn.classList.remove('active'));
     }
 }
@@ -1046,21 +1250,20 @@ export function clearReunioesGeralFilters() {
 }
 
 export function clearCompaniesFilters() {
-    if (companiesTableManager) {
-        companiesTableManager.filters = {};
-        companiesTableManager.globalSearch = '';
-        companiesTableManager.apply();
-
+    if (companiesTableManagerV2) {
+        companiesTableManagerV2.clearFilters();
         const searchInput = document.getElementById('search-empresa');
         if (searchInput) searchInput.value = '';
-
+        const clearBtn = document.getElementById('clear-search');
+        if (clearBtn) clearBtn.style.display = 'none';
         document.querySelectorAll('#view-company-list .btn-filter-column').forEach(btn => btn.classList.remove('active'));
     }
 }
 
 export function handleCompaniesFilter(key, value) {
-    if (companiesTableManager) {
-        companiesTableManager.setFilter(key, value);
+    if (companiesTableManagerV2) {
+        companiesTableManagerV2.setFilter(key, value);
+        updateActiveFiltersUI();
     }
 }
 

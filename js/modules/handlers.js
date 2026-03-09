@@ -100,7 +100,19 @@ export async function handleCompanySubmit(e) {
             Expectativa_da_DATI: document.getElementById('qual-expectativa').value || null,
             Qual_ERP: document.getElementById('qual-qual-erp').value.trim() || null,
 
-            Produtos: [],
+            Produtos: (state.tempProdutos || []).map(p => ({
+                nome:          p.nome,
+                tipoCobranca:  p.tipoCobranca,
+                valorUnitario: p.valorUnitario,
+                valorMinimo:   p.valorMinimo,
+                cobrancaSetup: p.cobrancaSetup,
+                valorSetup:    p.valorSetup,
+                qtdUsuarios:   p.qtdUsuarios,
+                valorUserAdic: p.valorUserAdic,
+                totalHorasHd:  p.totalHorasHd ? parseInt(p.totalHorasHd) : null,
+                valorAdicHd:   p.valorAdicHd,
+            })),
+
             Contatos: state.tempContatos.map(c => ({
                 Nome_do_contato: c.nome,
                 Cargo_do_contato: c.cargo,
@@ -159,6 +171,103 @@ export async function handleCompanySubmit(e) {
             }))
         };
 
+        // =====================================================================
+        // MODO BULK EDIT — aplica apenas os campos preenchidos em N empresas
+        // =====================================================================
+        if (state.bulkEditIds && state.bulkEditIds.length > 0) {
+            const bulkIds = [...state.bulkEditIds];
+            const count   = bulkIds.length;
+
+            // Coleta só os campos com valor (não nulo, não vazio)
+            const partialPayload = {};
+            const fieldMap = {
+                Status:               document.getElementById('emp-status')?.value,
+                Nome_da_empresa:      document.getElementById('emp-nome')?.value?.trim(),
+                Estado:               document.getElementById('emp-estado')?.value?.trim(),
+                Cidade:               document.getElementById('emp-cidade')?.value?.trim(),
+                Tipo_de_empresa:      document.getElementById('emp-tipo')?.value?.trim(),
+                Segmento_da_empresa:  document.getElementById('emp-segmento')?.value?.trim(),
+                Modo_da_empresa:      document.getElementById('emp-canal')?.value?.trim(),
+                Site:                 document.getElementById('emp-site')?.value?.trim(),
+                Health_Score:         document.getElementById('emp-health-score')?.value,
+                NPS:                  document.getElementById('emp-nps')?.value,
+                Tem_algum_comex:      document.getElementById('qual-tem-comex')?.value,
+                ERP:                  document.getElementById('qual-tem-erp')?.value,
+                Dores_Gargalos:       document.getElementById('qual-dores')?.value?.trim(),
+                Principal_Objetivo:   document.getElementById('qual-objetivo')?.value?.trim(),
+                Expectativa_da_DATI:  document.getElementById('qual-expectativa')?.value?.trim(),
+            };
+
+            // Inclui somente campos com valor preenchido
+            Object.entries(fieldMap).forEach(([key, val]) => {
+                if (val !== undefined && val !== null && val !== '') {
+                    partialPayload[key] = val;
+                }
+            });
+
+            if (Object.keys(partialPayload).length === 0) {
+                utils.showToast('Preencha pelo menos um campo para aplicar.', 'error');
+                return;
+            }
+
+            utils.showToast(`Aplicando em ${count} empresa${count !== 1 ? 's' : ''}...`, 'info');
+
+            let successCount = 0, errorCount = 0;
+            for (const id of bulkIds) {
+                try {
+                    // Para o PUT, precisamos preservar os dados existentes + sobrescrever apenas os novos
+                    const existing = state.companies.find(c => String(c.id) === String(id));
+                    if (!existing) { errorCount++; continue; }
+
+                    // Usa o payload existente mapeado e mescla com as alterações
+                    const fullPayload = {
+                        Nome_da_empresa:     existing.nome,
+                        Status:              existing.status,
+                        Estado:              existing.estado,
+                        Cidade:              existing.cidade,
+                        Tipo_de_empresa:     existing.tipo,
+                        Segmento_da_empresa: existing.segmento,
+                        Modo_da_empresa:     existing.canal,
+                        Site:                existing.site,
+                        Health_Score:        existing.healthScore,
+                        NPS:                 existing.nps,
+                        Contatos:            [],
+                        Reunioes:            [],
+                        Dashboards:          [],
+                        NPS_History:         [],
+                        Tickets:             [],
+                        Notas:               [],
+                        Follow_Ups:          [],
+                        Produtos:            [],   // bulk edit não altera produtos individuais
+                        ...partialPayload          // sobrescreve apenas os campos preenchidos
+                    };
+
+                    await api.updateCompany(id, fullPayload);
+                    successCount++;
+                } catch (err) {
+                    console.error(`[Bulk Edit] Erro ao atualizar ${id}:`, err);
+                    errorCount++;
+                }
+            }
+
+            const updatedCompanies = await api.getCompanies();
+            state.companies = updatedCompanies;
+            state.bulkEditIds = [];
+            ui.renderCompanyList();
+            ui.clearBulkSelection?.();
+            switchView('company-list');
+
+            if (errorCount === 0) {
+                utils.showToast(`${successCount} empresa${successCount !== 1 ? 's' : ''} atualizada${successCount !== 1 ? 's' : ''} com sucesso!`, 'success');
+            } else {
+                utils.showToast(`${successCount} ok. ${errorCount} com erro.`, 'error');
+            }
+            return;
+        }
+
+        // =====================================================================
+        // MODO INDIVIDUAL — criar ou atualizar uma única empresa
+        // =====================================================================
         let result;
         if (state.currentEditingId) {
             console.log(`📝 Atualizando empresa ${state.currentEditingId}...`);
@@ -170,16 +279,31 @@ export async function handleCompanySubmit(e) {
 
         if (result) {
             const isUpdate = !!state.currentEditingId;
-            // Atualizar state e UI 10/10
-            await ui.renderDashboard(); 
-            // Recarregar lista completa da API para garantir sincronia
-            const updatedCompanies = await api.getCompanies();
-            state.companies = updatedCompanies;
-            
-            ui.renderCompanyList();
-            switchView('company-list');
+
+            // Para empresa NOVA: atualiza o ID para que edições futuras sejam PUT (não POST)
+            if (!isUpdate && result.id) {
+                state.currentEditingId = result.id;
+                document.getElementById('company-id').value = result.id;
+                // Atualiza título da tela com o nome da empresa criada
+                const formTitle = document.getElementById('form-title');
+                if (formTitle) formTitle.innerText = result.nome || dbPayload.Nome_da_empresa || 'Empresa';
+            }
+
+            // Atualiza o botão de salvar - sempre mostra "Salvar" depois do primeiro save
+            const saveBtn = document.getElementById('btn-save-company');
+            if (saveBtn) saveBtn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+
+            // NÃO redireciona — usuário fica na tela da empresa
+            // Atualiza lista de empresas em background para sincronia
+            await ui.renderDashboard();
+            api.getCompanies().then(updated => {
+                state.companies = updated;
+                ui.renderCompanyList();
+            }).catch(err => console.warn('[Save] Falha refresh background:', err));
+
             utils.showToast(isUpdate ? 'Empresa atualizada com sucesso!' : 'Empresa criada com sucesso!', 'success');
         }
+
 
     } catch (error) {
         console.error('❌ Erro fatal ao salvar:', error);

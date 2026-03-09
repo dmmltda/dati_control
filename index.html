@@ -154,10 +154,40 @@
                             <i class="ph ph-trash"></i> Limpar Tudo
                         </button>
                     </div>
+
+                    <!-- Bulk Action Toolbar — sempre visível, desabilitada até ter seleção -->
+                    <div class="bulk-toolbar" id="bulk-toolbar">
+                        <div class="bulk-toolbar-left">
+                            <div class="bulk-selection-info">
+                                <i class="ph ph-checks"></i>
+                                <span id="bulk-count">Nenhuma empresa selecionada</span>
+                            </div>
+                        </div>
+                        <div class="bulk-toolbar-actions">
+                            <button type="button" id="bulk-edit-btn" class="bulk-action-btn bulk-action-edit" disabled title="Editar campos em todas as empresas selecionadas">
+                                <i class="ph ph-pencil-simple"></i>
+                                <span>Editar em massa</span>
+                            </button>
+                            <div class="bulk-toolbar-divider"></div>
+                            <button type="button" id="bulk-delete-btn" class="bulk-action-btn bulk-action-danger" disabled title="Selecione empresas para excluir em massa">
+                                <i class="ph ph-trash"></i>
+                                <span>Excluir selecionadas</span>
+                            </button>
+                            <div class="bulk-toolbar-divider"></div>
+                            <button type="button" id="bulk-clear-btn" class="bulk-action-btn" disabled onclick="ui.clearBulkSelection()" title="Limpar seleção">
+                                <i class="ph ph-x-circle"></i>
+                                <span>Limpar</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <div class="company-table-container">
                         <table class="company-table">
                             <thead>
                                 <tr>
+                                    <th class="checkbox-column" style="width:40px; text-align:center;">
+                                        <input type="checkbox" id="select-all-companies" title="Selecionar todos da página" style="cursor:pointer;">
+                                    </th>
                                     <th class="sortable-header" data-key="nome">
                                         <span onclick="ui.handleCompaniesSort('nome', event)">Empresa</span>
                                         <button type="button" class="btn-filter-column"
@@ -305,6 +335,7 @@
                                 <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
                             </button>
                         </div>
+
 
                         <div class="company-table-container">
                             <table class="company-table">
@@ -619,106 +650,278 @@
                                 </div>
                                 <div class="input-group">
                                     <label>Site</label>
-                                    <input type="url" id="emp-site" class="input-control" placeholder="https://...">
+                                    <input type="text" id="emp-site" class="input-control" placeholder="www.empresa.com.br">
                                 </div>
                             </div>
 
-                            <!-- Tab: Produtos (Mocked for fresh implementation) -->
+                            <!-- Tab: Produtos DATI (TableManager 2.0 — Standard 10/10) -->
                             <div id="tab-produtos" class="tab-content glass-panel form-section" style="margin-top: 0;">
                                 <div class="form-header">
-                                    <h2><i class="ph ph-package" style="color: var(--primary); margin-right: 0.5rem;"></i> Produtos DATI</h2>
+                                    <h2>
+                                        <i class="ph ph-package" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                                        Produtos DATI
+                                    </h2>
+                                    <button type="button" id="btn-add-produto" class="btn btn-primary">
+                                        <i class="ph ph-plus"></i> Adicionar Produto
+                                    </button>
                                 </div>
-                                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 5rem; border: 2px dashed rgba(255,255,255,0.1); border-radius: 12px; margin-top: 1.5rem; background: rgba(255,255,255,0.02);">
-                                    <i class="ph ph-package" style="font-size: 3rem; color: var(--primary); margin-bottom: 1rem; opacity: 0.5;"></i>
-                                    <p style="color: var(--text-muted); font-size: 0.9rem;">Pronto para a nova implementação de Produtos DATI.</p>
+
+                                <!-- Barra de busca -->
+                                <div class="search-container" style="margin-top: 1.25rem; flex: 1;">
+                                    <div class="search-wrapper">
+                                        <i class="ph ph-magnifying-glass search-icon"></i>
+                                        <input type="text" id="search-produto"
+                                            class="search-input"
+                                            placeholder="Buscar produto, tipo de cobrança, usuários...">
+                                        <button type="button" id="clear-search-produto"
+                                            class="btn-clear-search" style="display:none;"
+                                            title="Limpar busca">
+                                            <i class="ph ph-x"></i>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                                
-                                <div id="pagination-produtos" class="pagination-container"></div>
+
+                                <!-- Chips de filtros ativos -->
+                                <div id="produtos-active-filters" class="active-filters-bar" style="display:none;"></div>
+
+                                <!-- Bulk Toolbar -->
+                                <div id="produtos-bulk-toolbar" class="bulk-toolbar">
+                                    <div class="bulk-toolbar-left">
+                                        <div class="bulk-selection-info">
+                                            <i class="ph ph-selection"></i>
+                                            <span id="produtos-bulk-count">Nenhum produto selecionado</span>
+                                        </div>
+                                    </div>
+                                    <div class="bulk-toolbar-actions">
+                                        <button type="button" id="bulk-edit-produtos-btn"
+                                            class="bulk-action-btn bulk-action-edit" disabled
+                                            title="Editar campos nos produtos selecionados">
+                                            <i class="ph ph-pencil-simple"></i>
+                                            <span>Editar selecionados</span>
+                                        </button>
+                                        <div class="bulk-toolbar-divider"></div>
+                                        <button type="button" id="bulk-delete-produtos-btn"
+                                            class="bulk-action-btn bulk-action-danger" disabled
+                                            title="Excluir produtos selecionados">
+                                            <i class="ph ph-trash"></i>
+                                            <span>Excluir selecionados</span>
+                                        </button>
+                                        <div class="bulk-toolbar-divider"></div>
+                                        <button type="button" id="bulk-clear-produtos-btn"
+                                            class="bulk-action-btn" disabled
+                                            title="Limpar seleção">
+                                            <i class="ph ph-x-circle"></i>
+                                            <span>Limpar</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Tabela de produtos (TableManager 2.0) -->
+                                <div class="table-wrapper" style="margin-top: 0.5rem;">
+                                    <table class="company-table" id="produtos-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:44px;">
+                                                    <input type="checkbox" id="select-all-produtos"
+                                                        title="Selecionar todos desta página"
+                                                        style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+                                                </th>
+                                                <!-- Produto: string filter -->
+                                                <th class="sortable-header" data-key="nome">
+                                                    <span onclick="ui.handleProdutosSort('nome', event)">Produto</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_nome', event)"
+                                                        title="Filtrar por Produto">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_nome"></div>
+                                                </th>
+                                                <!-- Tipo de Cobrança: string filter -->
+                                                <th class="sortable-header" data-key="tipoCobranca">
+                                                    <span onclick="ui.handleProdutosSort('tipoCobranca', event)">Tipo de Cobrança</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_tipoCobranca', event)"
+                                                        title="Filtrar por Tipo de Cobrança">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_tipoCobranca"></div>
+                                                </th>
+                                                <!-- Valor Unitário: number/range filter -->
+                                                <th class="sortable-header" data-key="valorUnitario">
+                                                    <span onclick="ui.handleProdutosSort('valorUnitario', event)">Valor Unitário</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_valorUnitario', event)"
+                                                        title="Filtrar por Valor Unitário">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_valorUnitario"></div>
+                                                </th>
+                                                <!-- Valor Setup: number/range filter -->
+                                                <th data-key="valorSetup">
+                                                    <span>Valor Setup</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_valorSetup', event)"
+                                                        title="Filtrar por Valor Setup">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_valorSetup"></div>
+                                                </th>
+                                                <!-- Usuários: string filter -->
+                                                <th data-key="qtdUsuarios">
+                                                    <span>Usuários</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_qtdUsuarios', event)"
+                                                        title="Filtrar por Quantidade de Usuários">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_qtdUsuarios"></div>
+                                                </th>
+                                                <!-- Help Desk: number/range filter -->
+                                                <th class="sortable-header" data-key="totalHorasHd">
+                                                    <span onclick="ui.handleProdutosSort('totalHorasHd', event)">Help Desk</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_totalHorasHd', event)"
+                                                        title="Filtrar por Horas de Help Desk">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_totalHorasHd"></div>
+                                                </th>
+                                                <!-- Proposta: boolean-date filter -->
+                                                <th data-key="propostaData">
+                                                    <span>Proposta</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_propostaData', event)"
+                                                        title="Filtrar por Proposta">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_propostaData"></div>
+                                                </th>
+                                                <!-- Contrato: boolean-date filter -->
+                                                <th data-key="contratoData">
+                                                    <span>Contrato</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('prod_contratoData', event)"
+                                                        title="Filtrar por Contrato">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-prod_contratoData"></div>
+                                                </th>
+                                                <th style="width:90px;">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="produtos-table-body">
+                                            <!-- TableManager 2.0 renderiza aqui -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div id="pagination-produtos" class="pagination-container" style="display:none;"></div>
                             </div>
 
-                            <!-- Tab: Contatos -->
+                            <!-- Tab: Contatos (TableManager 2.0) -->
                             <div id="tab-contatos" class="tab-content glass-panel form-section" style="margin-top: 0;">
-                                <div class="form-header">
-                                    <h2>Contatos</h2>
-                                    <button type="button" id="btn-toggle-contact-form" class="btn btn-secondary">
+
+                                <!-- Cabeçalho -->
+                                <div class="form-header" style="margin-bottom: 1.5rem;">
+                                    <div>
+                                        <h2><i class="ph ph-users" style="margin-right:0.5rem;"></i>Contatos</h2>
+                                    </div>
+                                    <button type="button" id="btn-add-contato" class="btn btn-primary">
                                         <i class="ph ph-plus"></i> Novo Contato
                                     </button>
                                 </div>
-                                <div id="contact-form-container"
-                                    style="display: none; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: var(--radius-sm); border: 1px dashed var(--dark-border); margin-bottom: 2rem;">
-                                    <div class="grid-3">
-                                        <input type="text" id="new-cont-nome" class="input-control"
-                                            placeholder="Nome *">
-                                        <input type="email" id="new-cont-email1" class="input-control"
-                                            placeholder="E-mail principal">
-                                        <input type="tel" id="new-cont-tel" class="input-control"
-                                            placeholder="Telefone">
-                                    </div>
-                                    <div class="grid-3" style="margin-top: 1rem;">
-                                        <input type="text" id="new-cont-cargo" class="input-control"
-                                            placeholder="Cargo">
-                                        <input type="text" id="new-cont-dep" class="input-control"
-                                            placeholder="Departamento">
-                                        <input type="text" id="new-cont-linkedin" class="input-control"
-                                            placeholder="LinkedIn URL">
-                                    </div>
-                                    <div
-                                        style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
-                                        <button type="button"
-                                            class="btn btn-secondary btn-cancel-contact">Cancelar</button>
-                                        <button type="button" id="btn-save-contact"
-                                            class="btn btn-primary btn-save-contact">Salvar Contato</button>
+
+                                <!-- Barra de busca -->
+                                <div class="search-bar-wrapper" style="margin-bottom: 1rem;">
+                                    <div class="search-bar-inner">
+                                        <i class="ph ph-magnifying-glass search-icon"></i>
+                                        <input type="text" id="search-contato" class="search-input"
+                                            placeholder="Buscar por nome, e-mail...">
+                                        <button type="button" id="clear-search-contato" class="clear-search-btn"
+                                            style="display:none;" title="Limpar busca">
+                                            <i class="ph ph-x"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                <div style="display:flex; justify-content: flex-end; margin-bottom: 1rem;">
-                                    <button type="button" id="btn-clear-contatos-filters" class="btn btn-secondary"
-                                        style="font-size: 0.8rem; padding: 0.4rem 0.8rem; display:none;"
-                                        onclick="ui.clearContatosFilters()">
-                                        <i class="ph ph-funnel-simple-x"></i> Limpar Filtros
-                                    </button>
+
+                                <!-- Bulk toolbar -->
+                                <div id="contatos-bulk-toolbar" class="bulk-toolbar">
+                                    <span id="contatos-bulk-count" class="bulk-count">Nenhum contato selecionado</span>
+                                    <div class="bulk-actions">
+                                        <button type="button" id="bulk-delete-contatos-btn"
+                                                class="btn btn-danger btn-sm" disabled>
+                                            <i class="ph ph-trash"></i> Excluir selecionados
+                                        </button>
+                                        <button type="button" id="bulk-clear-contatos-btn"
+                                                class="btn btn-secondary btn-sm" disabled>
+                                            <i class="ph ph-x"></i> Limpar
+                                        </button>
+                                    </div>
                                 </div>
-                                <table class="company-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="sortable-header" data-key="nome">
-                                                <div class="header-content">
-                                                    <span onclick="ui.handleContatosSort('nome', event)">Nome</span>
+
+                                <!-- Chips de filtros ativos -->
+                                <div id="contatos-active-filters" class="active-filters-bar" style="display:none;"></div>
+
+                                <!-- Tabela (TableManager 2.0) -->
+                                <div class="table-wrapper" style="margin-top: 0.5rem;">
+                                    <table class="company-table" id="contatos-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:44px;">
+                                                    <input type="checkbox" id="select-all-contatos"
+                                                        title="Selecionar todos desta página"
+                                                        style="width:16px;height:16px;accent-color:var(--primary);cursor:pointer;">
+                                                </th>
+                                                <!-- Nome: string filter -->
+                                                <th class="sortable-header" data-key="nome">
+                                                    <span onclick="ui.handleContatosSort('nome', event)">Nome do Contato</span>
                                                     <button type="button" class="btn-filter-column"
-                                                        onclick="ui.toggleFilterPopover('contatos_nome', event)"><i
-                                                            class="ph ph-funnel"></i></button>
-                                                </div>
-                                                <div id="filter-popover-contatos_nome" class="filter-popover"></div>
-                                            </th>
-                                            <th>E-mail</th>
-                                            <th class="sortable-header" data-key="cargo">
-                                                <div class="header-content">
+                                                        onclick="ui.toggleFilterPopover('contatos_nome', event)">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-contatos_nome"></div>
+                                                </th>
+                                                <!-- Cargo: string filter -->
+                                                <th class="sortable-header" data-key="cargo">
                                                     <span onclick="ui.handleContatosSort('cargo', event)">Cargo</span>
                                                     <button type="button" class="btn-filter-column"
-                                                        onclick="ui.toggleFilterPopover('contatos_cargo', event)"><i
-                                                            class="ph ph-funnel"></i></button>
-                                                </div>
-                                                <div id="filter-popover-contatos_cargo" class="filter-popover"></div>
-                                            </th>
-                                            <th class="sortable-header" data-key="departamento">
-                                                <div class="header-content">
-                                                    <span
-                                                        onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
+                                                        onclick="ui.toggleFilterPopover('contatos_cargo', event)">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-contatos_cargo"></div>
+                                                </th>
+                                                <!-- Departamento: string filter -->
+                                                <th class="sortable-header" data-key="departamento">
+                                                    <span onclick="ui.handleContatosSort('departamento', event)">Departamento</span>
                                                     <button type="button" class="btn-filter-column"
-                                                        onclick="ui.toggleFilterPopover('contatos_departamento', event)"><i
-                                                            class="ph ph-funnel"></i></button>
-                                                </div>
-                                                <div id="filter-popover-contatos_departamento" class="filter-popover">
-                                                </div>
-                                            </th>
-                                            <th>Telefone</th>
-                                            <th>Redes</th>
-                                            <th style="text-align: right;">Ações</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="contatos-table-body"></tbody>
-                                </table>
-                                <div id="pagination-contatos" class="pagination-container"></div>
+                                                        onclick="ui.toggleFilterPopover('contatos_departamento', event)">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-contatos_departamento"></div>
+                                                </th>
+                                                <!-- E-mail: string filter -->
+                                                <th data-key="email1">
+                                                    <span>E-mail</span>
+                                                    <button type="button" class="btn-filter-column"
+                                                        onclick="ui.toggleFilterPopover('contatos_email1', event)">
+                                                        <i class="ph ph-funnel"></i>
+                                                    </button>
+                                                    <div class="filter-popover" id="filter-popover-contatos_email1"></div>
+                                                </th>
+                                                <!-- WhatsApp: sem filtro -->
+                                                <th>WhatsApp</th>
+                                                <!-- LinkedIn: sem filtro -->
+                                                <th style="text-align:center;">LinkedIn</th>
+                                                <th style="width:90px;">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="contatos-table-body">
+                                            <!-- TableManager 2.0 renderiza aqui -->
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div id="pagination-contatos" class="pagination-container" style="display:none;"></div>
                             </div>
 
                             <!-- Tab: CS (Customer Success) -->
@@ -1190,6 +1393,37 @@
 
     <!-- UI Logic Entry Point -->
     <script type="module" src="js/app.js"></script>
+
+    <!-- Modal: Contato Editor (Add / Edit) -->
+    <div id="contato-editor-overlay" class="produto-modal-overlay">
+        <div id="contato-editor-modal" class="produto-modal" role="dialog" aria-modal="true"
+             aria-labelledby="contato-modal-title" style="max-width:580px;">
+            <div class="produto-modal-header">
+                <h2 id="contato-modal-title" class="produto-modal-title">
+                    <i class="ph ph-user-circle-plus"></i>
+                    <span class="contato-editor-title">Novo Contato</span>
+                </h2>
+                <button type="button" id="btn-cancel-contato-editor"
+                        class="btn-modal-close" title="Fechar">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="produto-modal-body contato-editor-body">
+                <!-- Preenchido dinamicamente pelo JS -->
+            </div>
+            <div class="produto-modal-footer">
+                <button type="button" class="btn btn-secondary"
+                        onclick="ui.closeContatoEditor()">
+                    Cancelar
+                </button>
+                <div class="produto-modal-footer-right">
+                    <button type="button" id="btn-save-contato-editor" class="btn btn-primary">
+                        <i class="ph ph-floppy-disk"></i> Salvar Contato
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 </body>
 
