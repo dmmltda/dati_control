@@ -63,88 +63,6 @@ export function removeTempContato(index) {
     });
 }
 
-// --- Product Handlers ---
-export async function saveNewProduto() {
-    const nome = document.getElementById('new-prod-nome').value;
-    if (!nome) { utils.showToast('Selecione um produto!', 'error'); return; }
-
-    try {
-        const propFile = document.getElementById('new-prod-proposta').files[0];
-        const contFile = document.getElementById('new-prod-contrato').files[0];
-        
-        const proposta = propFile ? await utils.getBase64(propFile) : null;
-        const contrato = contFile ? await utils.getBase64(contFile) : null;
-
-        state.tempProdutos.push({
-            nome,
-            dataContratacao: document.getElementById('new-prod-data').value,
-            mensalidade: document.getElementById('new-prod-mensalidade').value.trim(),
-            faturamentoMinimo: document.getElementById('new-prod-minimo').value.trim(),
-            valorPorUsuario: document.getElementById('new-prod-val-user').value.trim(),
-            horasHd: document.getElementById('new-prod-horas-hd').value,
-            propostaName: proposta?.name || '',
-            propostaData: proposta?.data || '',
-            contratoName: contrato?.name || '',
-            contratoData: contrato?.data || ''
-        });
-
-        // Reset
-        document.getElementById('produto-form-container').style.display = 'none';
-        document.getElementById('btn-toggle-produto-form').style.display = 'inline-flex';
-        ['new-prod-nome', 'new-prod-data', 'new-prod-proposta', 'new-prod-contrato', 'new-prod-mensalidade', 'new-prod-minimo', 'new-prod-val-user', 'new-prod-horas-hd'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el.type === 'file') el.value = '';
-            else el.value = el.tagName === 'SELECT' ? '' : '0';
-        });
-
-        ui.renderProdutosTable();
-        utils.showToast('Produto adicionado!', 'success');
-    } catch (err) {
-        utils.showToast(err, 'error');
-    }
-}
-
-export async function saveEditProduto(index) {
-    const nomeInput = document.getElementById(`edit-prod-nome-${index}`);
-    const dataInput = document.getElementById(`edit-prod-data-${index}`);
-    
-    try {
-        const prod = state.tempProdutos[index];
-        prod.nome = nomeInput.value;
-        prod.dataContratacao = dataInput.value;
-        prod.mensalidade = document.getElementById(`edit-prod-mensalidade-${index}`).value.trim();
-
-        // Check for new files
-        const propFile = document.getElementById(`edit-prod-proposta-${index}`).files[0];
-        const contFile = document.getElementById(`edit-prod-contrato-${index}`).files[0];
-        
-        if (propFile) {
-            const propuesta = await utils.getBase64(propFile);
-            prod.propostaName = propuesta.name;
-            prod.propostaData = propuesta.data;
-        }
-        
-        if (contFile) {
-            const contrato = await utils.getBase64(contFile);
-            prod.contratoName = contrato.name;
-            prod.contratoData = contrato.data;
-        }
-        
-        state.editingProdutoIndex = -1;
-        ui.renderProdutosTable();
-        utils.showToast('Produto atualizado!', 'success');
-    } catch (err) {
-        utils.showToast('Erro ao processar', 'error');
-    }
-}
-
-export function removeTempProduto(index) {
-    confirmar('Remover este produto?', () => {
-        state.tempProdutos.splice(index, 1);
-        ui.renderProdutosTable();
-    });
-}
-
 // --- Company Form Submit ---
 export async function handleCompanySubmit(e) {
     if (e) e.preventDefault();
@@ -176,17 +94,7 @@ export async function handleCompanySubmit(e) {
             Expectativa_da_DATI: document.getElementById('qual-expectativa').value || null,
             Qual_ERP: document.getElementById('qual-qual-erp').value.trim() || null,
 
-            // Relacionamentos temporários do state
-            Produtos: state.tempProdutos.map(p => ({
-                Produto_DATI: p.nome,
-                Valor_Total: parseFloat(p.mensalidade || 0),
-                Valor_mensalidade: parseFloat(p.mensalidade || 0),
-                Data_do_contrato: p.dataContratacao ? new Date(p.dataContratacao) : null,
-                Proposta_comercial: p.propostaData || null,
-                Proposta_nome: p.propostaName || null,
-                Contrato: p.contratoData || null,
-                Contrato_nome: p.contratoName || null
-            })),
+            Produtos: [],
             Contatos: state.tempContatos.map(c => ({
                 Nome_do_contato: c.nome,
                 Cargo_do_contato: c.cargo,
@@ -414,3 +322,4 @@ export function removeTempFollowUp(index) {
         ui.renderFollowUpsTable();
     });
 }
+

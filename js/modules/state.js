@@ -8,9 +8,6 @@ export let state = {
     tempContatos: [],
     editingContatoIndex: -1,
     
-    tempProdutos: [],
-    editingProdutoIndex: -1,
-    
     tempDashboards: [],
     tempNPSHistory: [],
     tempReunioesCS: [],
@@ -25,8 +22,6 @@ export function resetTempState() {
     state.currentEditingId = null;
     state.tempContatos = [];
     state.editingContatoIndex = -1;
-    state.tempProdutos = [];
-    state.editingProdutoIndex = -1;
     state.tempDashboards = [];
     state.tempNPSHistory = [];
     state.tempReunioesCS = [];

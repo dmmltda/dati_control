@@ -33,13 +33,24 @@ export function saveCompanies(renderCallback) {
     }
 }
 
-export function maskCurrency(input) {
+export function maskMoney(input) {
     let value = input.value;
     value = value.replace(/\D/g, "");
+    if (!value) {
+        input.value = "";
+        return;
+    }
     value = (value / 100).toFixed(2) + "";
     value = value.replace(".", ",");
     value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
     input.value = value;
+}
+
+export function unmaskMoney(value) {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    const cleanValue = value.replace(/[R$\s.]/g, '').replace(',', '.');
+    return parseFloat(cleanValue) || 0;
 }
 
 export function maskCNPJ(input) {

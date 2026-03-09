@@ -93,20 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
             handlers.removeTempContato(parseInt(target.closest('.btn-remove-contato').dataset.index));
         }
 
-        if (target.closest('.btn-edit-produto')) {
-            state.editingProdutoIndex = parseInt(target.closest('.btn-edit-produto').dataset.index);
-            ui.renderProdutosTable();
-        }
-        if (target.closest('.btn-remove-produto')) {
-            handlers.removeTempProduto(parseInt(target.closest('.btn-remove-produto').dataset.index));
-        }
-        if (target.closest('.btn-save-edit-produto')) {
-            handlers.saveEditProduto(parseInt(target.closest('.btn-save-edit-produto').dataset.index));
-        }
-        if (target.closest('.btn-cancel-edit-produto')) {
-            state.editingProdutoIndex = -1;
-            ui.renderProdutosTable();
-        }
+
 
         // 5. Temporary Data Handlers (CS Tabs)
         const tempRemovers = [
@@ -163,14 +150,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- View Toggle Utility ---
-    const setupToggle = (toggleBtnId, containerId, cancelBtnId, resetFields = []) => {
+    const setupToggle = (toggleBtnId, containerId, cancelBtnId, resetFields = [], displayMode = 'block') => {
         document.getElementById(toggleBtnId)?.addEventListener('click', () => {
             const container = document.getElementById(containerId);
             const toggleBtn = document.getElementById(toggleBtnId);
-            if (container) container.style.display = 'block';
+            if (container) container.style.display = displayMode;
             if (toggleBtn) toggleBtn.style.display = 'none';
         });
-        document.getElementById(cancelBtnId)?.addEventListener('click', () => {
+        const closeBtn = document.getElementById(cancelBtnId);
+        closeBtn?.addEventListener('click', () => {
             const container = document.getElementById(containerId);
             const toggleBtn = document.getElementById(toggleBtnId);
             if (container) container.style.display = 'none';
@@ -183,14 +171,14 @@ document.addEventListener('DOMContentLoaded', () => {
     setupToggle('btn-toggle-nps-form', 'nps-form-container', 'btn-cancel-nps', ['new-nps-data', 'new-nps-dest', 'new-nps-forms', 'new-nps-score']);
     setupToggle('btn-toggle-cs-meet-form', 'cs-meet-form-container', 'btn-cancel-cs-meet', ['new-cs-meet-data', 'new-cs-meet-parts', 'new-cs-meet-obs', 'new-cs-meet-link']);
     setupToggle('btn-toggle-ticket-form', 'ticket-form-container', 'btn-cancel-ticket', ['new-tk-data', 'new-tk-autor', 'new-tk-num', 'new-tk-link', 'new-tk-resumo']);
-    setupToggle('btn-toggle-produto-form', 'produto-form-container', 'btn-cancel-produto');
+
     setupToggle('btn-toggle-contact-form', 'contact-form-container', 'btn-cancel-contact');
     setupToggle('btn-toggle-meeting-form', 'meeting-form-container', 'btn-cancel-meeting');
     setupToggle('btn-toggle-followup-form', 'followup-form-container', 'btn-cancel-followup', ['new-fw-usuario', 'new-fw-content', 'new-fw-next', 'new-fw-area']);
 
     // --- Save Button Actions ---
     document.getElementById('btn-save-contact')?.addEventListener('click', handlers.saveNewContato);
-    document.getElementById('btn-save-produto')?.addEventListener('click', handlers.saveNewProduto);
+
     document.getElementById('btn-save-dashboard')?.addEventListener('click', handlers.saveTempDashboard);
     document.getElementById('btn-save-nps')?.addEventListener('click', handlers.saveTempNPS);
     document.getElementById('btn-save-cs-meet')?.addEventListener('click', handlers.saveTempCSMeet);

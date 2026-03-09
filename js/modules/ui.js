@@ -2,7 +2,6 @@ import { state } from './state.js';
 import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { TableManager } from './table-manager.js';
 
-let productsTableManager = null;
 let contactsTableManager = null;
 let logTableManager = null;
 let dashboardTableManager = null;
@@ -14,7 +13,6 @@ let companiesTableManager = null;
 
 // ✅ CORREÇÃO: resetar managers de formulário ao abrir nova empresa
 export function resetFormTableManagers() {
-    productsTableManager = null;
     contactsTableManager = null;
     dashboardTableManager = null;
     npsTableManager = null;
@@ -64,18 +62,7 @@ export async function downloadFile(base64Data, fileName = 'arquivo_dati.pdf') {
     }
 }
 
-export async function downloadProductFile(index, type) {
-    const prod = state.tempProdutos[index];
-    if (!prod) return;
-    const data = type === 'proposta' ? prod.propostaData : prod.contratoData;
-    const name = type === 'proposta' ? prod.propostaName : prod.contratoName;
-    
-    if (data) {
-        await downloadFile(data, name);
-    } else {
-        console.error('Dados do arquivo ausentes', { type, index });
-    }
-}
+
 
 export function renderDashboard() {
     const statsContainer = document.getElementById('dashboard-stats');
@@ -390,109 +377,9 @@ function renderContatosTableRows(data) {
     }
 }
 
-export function renderProdutosTable() {
-    const produtosTableBody = document.getElementById('produtos-table-body');
-    if (!produtosTableBody) return;
 
-    if (!productsTableManager) {
-        productsTableManager = new TableManager(
-            state.tempProdutos,
-            [
-                { key: 'nome', type: 'string' },
-                { key: 'mensalidade', type: 'number' },
-                { key: 'horasHd', type: 'number' }
-            ],
-            (data) => renderProdutosTableRows(data),
-            'tab-produtos'
-        );
-        productsTableManager.paginationContainerId = 'pagination-produtos';
-        productsTableManager.apply();
-    } else {
-        productsTableManager.setData(state.tempProdutos);
-    }
-}
 
-function renderProdutosTableRows(data) {
-    const body = document.getElementById('produtos-table-body');
-    if (!body) return;
-    body.innerHTML = '';
 
-    if (data.length === 0) {
-        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">Nenhum produto encontrado.</td></tr>`;
-        return;
-    }
-
-    data.forEach(prod => {
-        const index = state.tempProdutos.indexOf(prod);
-        const tr = document.createElement('tr');
-
-        if (state.editingProdutoIndex === index) {
-            tr.className = 'editing-row';
-            tr.innerHTML = `
-                <td colspan="4">
-                    <div style="padding: 1rem; display: flex; flex-direction: column; gap: 1rem;">
-                        <div class="grid-3">
-                            <select id="edit-prod-nome-${index}" class="input-control">
-                                <option value="DATI Import" ${prod.nome === 'DATI Import' ? 'selected' : ''}>DATI Import</option>
-                                <option value="DATI Export" ${prod.nome === 'DATI Export' ? 'selected' : ''}>DATI Export</option>
-                                <option value="Smart Read" ${prod.nome === 'Smart Read' ? 'selected' : ''}>Smart Read</option>
-                                <option value="Orkestra" ${prod.nome === 'Orkestra' ? 'selected' : ''}>Orkestra</option>
-                            </select>
-                            <input type="date" id="edit-prod-data-${index}" class="input-control" value="${prod.dataContratacao || ''}">
-                            <input type="text" id="edit-prod-mensalidade-${index}" class="input-control" value="${prod.mensalidade || ''}" placeholder="Valor (R$)">
-                        </div>
-                        <div class="grid-2">
-                            <div class="input-group">
-                                <label style="font-size: 0.7rem;">Nova Proposta</label>
-                                <input type="file" id="edit-prod-proposta-${index}" class="input-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
-                            </div>
-                            <div class="input-group">
-                                <label style="font-size: 0.7rem;">Novo Contrato</label>
-                                <input type="file" id="edit-prod-contrato-${index}" class="input-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
-                            </div>
-                        </div>
-                    </div>
-                </td>
-                <td style="text-align: right;">
-                    <div class="actions">
-                        <button type="button" class="btn btn-primary btn-icon btn-save-edit-produto" data-index="${index}"><i class="ph ph-check"></i></button>
-                        <button type="button" class="btn btn-secondary btn-icon btn-cancel-edit-produto"><i class="ph ph-x"></i></button>
-                    </div>
-                </td>
-            `;
-        } else {
-            const propLink = prod.propostaData ? `<button class="badge" style="background: rgba(79,70,229,0.2); color: #fff; border:none; cursor:pointer;" onclick="ui.downloadProductFile(${index}, 'proposta')"><i class="ph ph-download-simple"></i> Proposta</button>` : '';
-            const contLink = prod.contratoData ? `<button class="badge" style="background: rgba(16,185,129,0.2); color: #fff; border:none; cursor:pointer;" onclick="ui.downloadProductFile(${index}, 'contrato')"><i class="ph ph-download-simple"></i> Contrato</button>` : '';
-
-            tr.innerHTML = `
-                <td>
-                    <div style="font-weight: 500;">${prod.nome}</div>
-                    <div style="color: var(--text-muted); font-size: 0.8rem;">${prod.dataContratacao || 'S/ Data'}</div>
-                </td>
-                <td>R$ ${prod.mensalidade || '0,00'}</td>
-                <td>${prod.horasHd || '0'}h</td>
-                <td>
-                    <div style="display: flex; gap: 0.3rem;">
-                        ${propLink} ${contLink}
-                    </div>
-                </td>
-                <td style="text-align: right;">
-                    <div class="actions" style="justify-content: flex-end;">
-                        <button type="button" class="btn btn-secondary btn-icon btn-edit-produto" data-index="${index}"><i class="ph ph-pencil-simple"></i></button>
-                        <button type="button" class="btn btn-danger btn-icon btn-remove-produto" data-index="${index}"><i class="ph ph-trash"></i></button>
-                    </div>
-                </td>
-            `;
-        }
-        body.appendChild(tr);
-    });
-
-    const clearBtn = document.getElementById('btn-clear-produtos-filters');
-    if (clearBtn && productsTableManager) {
-        const hasFilters = Object.keys(productsTableManager.filters).length > 0;
-        clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
-    }
-}
 
 export function renderDashboardsTable() {
     const body = document.getElementById('dashboards-table-body');
@@ -807,7 +694,6 @@ export function renderLogTestes() {
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'currentEditingId é null por padrão', status: PASSOU },
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'Arrays temp vazios na inicialização', status: PASSOU },
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'editingContatoIndex é -1 por padrão', status: PASSOU },
-        { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'editingProdutoIndex é -1 por padrão', status: PASSOU },
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() limpa todos os arrays temporários', status: PASSOU },
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() reseta índices de edição para -1', status: PASSOU },
         { data: dataExecucao, hora: horaExecucao, tipo: 'UNITÁRIO', modulo: 'state.js', descricao: 'resetTempState() reseta currentEditingId para null', status: PASSOU },
@@ -872,7 +758,6 @@ function renderLogTableRows(data) {
 }
 
 function getManagerForKey(key) {
-    if (key.startsWith('produtos_')) return productsTableManager;
     if (key.startsWith('contatos_')) return contactsTableManager;
     if (key.startsWith('db_')) return dashboardTableManager;
     if (key.startsWith('nps_')) return npsTableManager;
@@ -893,7 +778,6 @@ window.getManagerForKeyPagination = function (containerId) {
     if (containerId === 'pagination-cs-meetings') return csMeetingTableManager;
     if (containerId === 'pagination-meetings-geral') return meetingGeralTableManager;
     if (containerId === 'pagination-log') return logTableManager;
-    if (containerId === 'pagination-produtos') return productsTableManager;
     if (containerId === 'pagination-contatos') return contactsTableManager;
     return null;
 };
@@ -1227,3 +1111,24 @@ export function initGlobalPickers() {
         locale: "pt"
     });
 }
+export function switchProdTab(event, tabId) {
+    const parent = event.target.closest('#produto-form-container');
+    if (!parent) return;
+    
+    const tabs = parent.querySelectorAll('.prod-tab-content');
+    const btns = parent.querySelectorAll('.prod-tab-btn');
+    
+    tabs.forEach(t => t.style.display = 'none');
+    btns.forEach(b => {
+        b.classList.remove('active');
+        b.style.color = 'var(--text-muted)';
+    });
+    
+    const target = document.getElementById(tabId);
+    if (target) target.style.display = 'block';
+    
+    event.target.classList.add('active');
+    event.target.style.color = 'var(--text-main)';
+}
+
+

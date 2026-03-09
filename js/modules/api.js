@@ -20,21 +20,11 @@ function mapFromDB(comp) {
         healthScore: comp.Health_Score,
         proximoPasso: comp.Data_de_follow_up ? new Date(comp.Data_de_follow_up).toLocaleDateString('pt-BR') : '-',
 
-        // Relacionamentos
-        produtos: (comp.Produtos || []).map(p => ({
-            id: p.id,
-            nome: p.Produto_DATI,
-            valor: p.Valor_Total,
-            mensalidade: p.Valor_mensalidade,
-            dataContratacao: p.Data_do_contrato ? new Date(p.Data_do_contrato).toISOString().split('T')[0] : null,
-            propostaData: p.Proposta_comercial || null,
-            propostaName: p.Proposta_nome || 'proposta_comercial.pdf',
-            contratoData: p.Contrato || null,
-            contratoName: p.Contrato_nome || 'contrato.pdf'
-        })),
-        produtosNames: (comp.Produtos || []).map(p => p.Produto_DATI).join(', '),
+        // Relacionamentos (Nomes exatos do schema.prisma 10/10)
+        produtos: [],
+        produtosNames: '',
 
-        contatos: (comp.Contatos || []).map(c => ({
+        contatos: (comp.contacts || []).map(c => ({
             id: c.id,
             nome: c.Nome_do_contato,
             cargo: c.Cargo_do_contato,
@@ -44,7 +34,7 @@ function mapFromDB(comp) {
             linkedin: c.LinkedIn
         })),
 
-        reunioes: (comp.Reunioes || []).filter(r => r.Tipo_reuniao === 'Geral').map(r => ({
+        reunioes: (comp.company_meetings || []).filter(r => r.Tipo_reuniao === 'Geral').map(r => ({
             id: r.id,
             data: r.Data_reuniao ? new Date(r.Data_reuniao).toISOString().split('T')[0] : null,
             participantes: r.Participantes,
@@ -53,7 +43,7 @@ function mapFromDB(comp) {
             observacoes: r.Observacoes
         })),
 
-        reunioesCSHistory: (comp.Reunioes || []).filter(r => r.Tipo_reuniao === 'CS').map(r => ({
+        reunioesCSHistory: (comp.company_meetings || []).filter(r => r.Tipo_reuniao === 'CS').map(r => ({
             id: r.id,
             data: r.Data_reuniao ? new Date(r.Data_reuniao).toISOString().split('T')[0] : null,
             participantes: r.Participantes,
@@ -62,14 +52,14 @@ function mapFromDB(comp) {
             obs: r.Observacoes
         })),
 
-        dashboardsHistory: (comp.Dashboards || []).map(d => ({
+        dashboardsHistory: (comp.company_dashboards || []).map(d => ({
             id: d.id,
             data: d.Data ? new Date(d.Data).toISOString().split('T')[0] : null,
             destinatario: d.Destinatario,
             link: d.Link
         })),
 
-        npsHistory: (comp.NPS_History || []).map(n => ({
+        npsHistory: (comp.company_nps || []).map(n => ({
             id: n.id,
             data: n.Data ? new Date(n.Data).toISOString().split('T')[0] : null,
             destinatario: n.Destinatario,
@@ -77,7 +67,7 @@ function mapFromDB(comp) {
             score: n.Score
         })),
 
-        chamadosHistory: (comp.Tickets || []).map(t => ({
+        chamadosHistory: (comp.company_tickets || []).map(t => ({
             id: t.id,
             data: t.Data ? new Date(t.Data).toISOString().split('T')[0] : null,
             numero: t.Numero,
@@ -86,7 +76,7 @@ function mapFromDB(comp) {
             link: t.Link
         })),
 
-        csNotes: (comp.Notas || []).map(n => ({
+        csNotes: (comp.company_notes || []).map(n => ({
             id: n.id,
             text: n.Conteudo,
             author: n.Autor,
@@ -94,7 +84,7 @@ function mapFromDB(comp) {
             timestamp: n.Data ? new Date(n.Data).getTime() : Date.now()
         })),
 
-        followUps: (comp.Follow_Ups || []).map(f => ({
+        followUps: (comp.company_followups || []).map(f => ({
             id: f.id,
             data: f.Data_inclusao ? new Date(f.Data_inclusao).toISOString().split('T')[0] : null,
             conteudo: f.Conteudo,
