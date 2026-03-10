@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express';
+import cron from 'node-cron';
+import { Resend } from 'resend';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,14 +18,40 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient({
-    log: ['query', 'info', 'warn', 'error'],
+    log: process.env.NODE_ENV === 'production' ? ['warn', 'error'] : ['query', 'info', 'warn', 'error'],
+    datasources: {
+        db: {
+            url: process.env.DATABASE_URL,
+        },
+    },
 });
 const PORT = process.env.PORT || 8000;
+const IS_PROD = process.env.NODE_ENV === 'production';
 
-app.use(cors());
+// ─── Resend (email) ──────────────────────────────────────────────────────────
+const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
+
+// ─── Supabase Storage ────────────────────────────────────────────────────────
+const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+    : null;
+
+// ─── CORS — restrito em produção, aberto em dev ──────────────────────────────
+app.use(cors({
+    origin: IS_PROD
+        ? (process.env.ALLOWED_ORIGIN || '*')
+        : ['http://localhost:3000', 'http://localhost:8000', 'http://127.0.0.1:8000'],
+    credentials: true,
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-// Servir arquivos estáticos do frontend (10/10 logic)
+
+// ─── Servir arquivos estáticos do frontend ───────────────────────────────────
+// Em desenvolvimento: serve tudo da raiz do projeto
+// Em produção (Railway): serve a partir da raiz também (index.html + css/ + js/)
 app.use(express.static(path.join(__dirname, '..')));
 
 // ─── Clerk Middleware ────────────────────────────────────────────────────────
@@ -33,6 +62,66 @@ app.use(clerkMiddleware({ secretKey: process.env.CLERK_SECRET_KEY }));
 // Health Check — rota pública, sem autenticação
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Servidor Journey 10/10 operando!' });
+});
+
+// ─── Scheduler de Lembretes (node-cron) ────────────────────────────────────
+// Roda a cada minuto e envia alertas de atividades com lembrete vencido
+cron.schedule('* * * * *', async () => {
+    try {
+        const agora = new Date();
+        const lembretes = await prisma.activities.findMany({
+            where: {
+                reminder_at: { lte: agora },
+                reminder_sent: false,
+                OR: [{ reminder_email: true }, { reminder_whatsapp: true }],
+            },
+            include: {
+                activity_assignees: true,
+                companies: { select: { id: true, Nome_da_empresa: true } },
+            },
+        });
+
+        for (const act of lembretes) {
+            const userIds = [...new Set([
+                act.created_by_user_id,
+                ...act.activity_assignees.map(a => a.user_id),
+            ].filter(Boolean))];
+
+            const usuarios = userIds.length > 0 ? await prisma.users.findMany({
+                where: { id: { in: userIds }, ativo: true },
+            }) : [];
+
+            if (act.reminder_email && process.env.RESEND_API_KEY) {
+                for (const u of usuarios) {
+                    await resend.emails.send({
+                        from: 'DATI Journey <noreply@dati.com.br>',
+                        to: u.email,
+                        subject: `🔔 Lembrete: ${act.title}`,
+                        html: `
+                            <h2>Lembrete de Atividade</h2>
+                            <p><strong>${act.title}</strong></p>
+                            <p>${act.description || ''}</p>
+                            <p>Empresa: ${act.companies?.Nome_da_empresa || 'Nenhuma'}</p>
+                            <p>Tipo: ${act.activity_type} | Status: ${act.status || '—'}</p>
+                        `,
+                    }).catch(e => console.error('[Resend]', e.message));
+                }
+            }
+
+            if (act.reminder_whatsapp) {
+                // Fase 2: integração Z-API
+                console.log(`[WhatsApp PENDENTE] Lembrete para atividade ${act.id}: ${act.title}`);
+            }
+
+            await prisma.activities.update({
+                where: { id: act.id },
+                data: { reminder_sent: true },
+            });
+            console.log(`[Scheduler] ✅ Lembrete disparado: ${act.title}`);
+        }
+    } catch (e) {
+        console.error('[Scheduler] Erro no cron de lembretes:', e.message);
+    }
 });
 
 // ─── Middleware: Extração e sincronização de usuário Clerk ──────────────────
@@ -1533,6 +1622,49 @@ app.delete('/api/import/:id', extractUsuario, async (req, res) => {
 // ENUM de tipos de atividade permitidos
 const ACTIVITY_TYPES = ['Comentário', 'Reunião', 'Chamados HD', 'Chamados CS', 'Ação necessária'];
 
+// Include padrão para todas as queries de atividades
+const ACTIVITY_INCLUDE = {
+    activity_assignees: true,
+    activity_next_step_responsibles: true,
+    activity_attachments: true,
+    activity_mentions: true,
+    companies: { select: { id: true, Nome_da_empresa: true } },
+};
+
+// ── GET /api/activities (GLOBAL — para "Minhas Tarefas") ─────────────────────
+app.get('/api/activities', extractUsuario, async (req, res) => {
+    try {
+        const { nature, assignee, status, priority, company_id, page = 1, pageSize = 50 } = req.query;
+        const where = {};
+        if (nature) where.nature = nature;
+        if (status) where.status = status;
+        if (priority) where.priority = priority;
+        if (company_id) where.company_id = company_id;
+
+        if (assignee === 'me') {
+            where.OR = [
+                { created_by_user_id: req.usuarioAtual.id },
+                { activity_assignees: { some: { user_id: req.usuarioAtual.id } } },
+            ];
+        } else if (assignee) {
+            where.activity_assignees = { some: { user_id: assignee } };
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(pageSize);
+        const activities = await prisma.activities.findMany({
+            where,
+            include: ACTIVITY_INCLUDE,
+            orderBy: { activity_datetime: 'asc' },
+            skip,
+            take: parseInt(pageSize),
+        });
+        res.json(activities);
+    } catch (error) {
+        console.error('[GET /api/activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ── GET /api/companies/:id/activities ─────────────────────────────────────────
 app.get('/api/companies/:id/activities', extractUsuario, async (req, res) => {
     try {
@@ -1555,10 +1687,7 @@ app.get('/api/companies/:id/activities', extractUsuario, async (req, res) => {
         const skip = (parseInt(page) - 1) * parseInt(pageSize);
         const activities = await prisma.activities.findMany({
             where,
-            include: {
-                activity_assignees: true,
-                activity_next_step_responsibles: true,
-            },
+            include: ACTIVITY_INCLUDE,
             orderBy: { activity_datetime: 'desc' },
             skip,
             take: parseInt(pageSize),
@@ -1580,29 +1709,32 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
             title,
             description,
             department,
-            created_by_user_id,
             activity_datetime,
             status,
             time_spent_minutes,
             next_step_title,
             next_step_date,
-            assignees = [],             // string[]
-            next_step_responsibles = [], // string[]
+            nature = 'registro',
+            priority,
+            reminder_at,
+            reminder_email = false,
+            reminder_whatsapp = false,
+            google_meet_link,
+            assignees = [],
+            next_step_responsibles = [],
+            mentions = [],
         } = req.body;
 
-        // Validações obrigatórias
         if (!activity_type || !ACTIVITY_TYPES.includes(activity_type)) {
             return res.status(400).json({ error: `activity_type inválido. Valores aceitos: ${ACTIVITY_TYPES.join(', ')}` });
         }
         if (!title?.trim()) return res.status(400).json({ error: 'title é obrigatório' });
 
-        // Verifica se a empresa existe
         const company = await prisma.companies.findUnique({ where: { id: companyId }, select: { id: true } });
         if (!company) return res.status(404).json({ error: 'Empresa não encontrada' });
 
         const activityId = randomUUID();
 
-        // Criar activity
         await prisma.activities.create({
             data: {
                 id: activityId,
@@ -1611,46 +1743,50 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
                 title: title.trim(),
                 description: description?.trim() || null,
                 department: department || null,
-                created_by_user_id: created_by_user_id || null,
+                created_by_user_id: req.usuarioAtual.id, // sempre do usuário autenticado
                 activity_datetime: activity_datetime ? new Date(activity_datetime) : null,
                 status: status || null,
                 time_spent_minutes: time_spent_minutes ? parseInt(time_spent_minutes) : null,
                 next_step_title: next_step_title?.trim() || null,
                 next_step_date: next_step_date ? new Date(next_step_date) : null,
+                nature,
+                priority: priority || null,
+                reminder_at: reminder_at ? new Date(reminder_at) : null,
+                reminder_email: !!reminder_email,
+                reminder_whatsapp: !!reminder_whatsapp,
+                google_meet_link: google_meet_link || null,
             }
         });
 
-        // Criar activity_assignees
         if (assignees.length > 0) {
             await prisma.activity_assignees.createMany({
-                data: assignees.map(uid => ({
-                    id: randomUUID(),
-                    activity_id: activityId,
-                    user_id: String(uid),
-                }))
+                data: assignees.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
             });
         }
-
-        // Criar activity_next_step_responsibles
         if (next_step_responsibles.length > 0) {
             await prisma.activity_next_step_responsibles.createMany({
-                data: next_step_responsibles.map(uid => ({
-                    id: randomUUID(),
-                    activity_id: activityId,
-                    user_id: String(uid),
-                }))
+                data: next_step_responsibles.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
             });
         }
-
-        // Retornar atividade completa
-        const full = await prisma.activities.findUnique({
-            where: { id: activityId },
-            include: {
-                activity_assignees: true,
-                activity_next_step_responsibles: true,
+        if (mentions.length > 0) {
+            await prisma.activity_mentions.createMany({
+                data: mentions.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+            // Enviar email imediato a cada mencionado
+            if (process.env.RESEND_API_KEY) {
+                const mencionados = await prisma.users.findMany({ where: { id: { in: mentions }, ativo: true } });
+                for (const u of mencionados) {
+                    await resend.emails.send({
+                        from: 'DATI Journey <noreply@dati.com.br>',
+                        to: u.email,
+                        subject: `📣 Você foi mencionado: ${title.trim()}`,
+                        html: `<h2>Você foi mencionado em uma atividade</h2><p><strong>${title.trim()}</strong></p><p>${description || ''}</p>`,
+                    }).catch(e => console.error('[Resend mention]', e.message));
+                }
             }
-        });
+        }
 
+        const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
         console.log(`[POST /activities] ✅ Atividade criada: ${activityId}`);
         res.status(201).json(full);
     } catch (error) {
@@ -1668,17 +1804,22 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
             title,
             description,
             department,
-            created_by_user_id,
             activity_datetime,
             status,
             time_spent_minutes,
             next_step_title,
             next_step_date,
-            assignees = [],
-            next_step_responsibles = [],
+            nature,
+            priority,
+            reminder_at,
+            reminder_email,
+            reminder_whatsapp,
+            google_meet_link,
+            assignees,
+            next_step_responsibles,
+            mentions,
         } = req.body;
 
-        // Verifica existência
         const existing = await prisma.activities.findUnique({ where: { id: activityId } });
         if (!existing) return res.status(404).json({ error: 'Atividade não encontrada' });
 
@@ -1686,7 +1827,10 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
             return res.status(400).json({ error: `activity_type inválido` });
         }
 
-        // Atualizar escalares
+        // Se reminder_at mudou e já foi enviado, resetar reminder_sent
+        const newReminderAt = reminder_at !== undefined ? (reminder_at ? new Date(reminder_at) : null) : existing.reminder_at;
+        const reminderChanged = newReminderAt?.toISOString() !== existing.reminder_at?.toISOString();
+
         await prisma.activities.update({
             where: { id: activityId },
             data: {
@@ -1694,36 +1838,47 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
                 title: title?.trim() || existing.title,
                 description: description !== undefined ? description?.trim() || null : existing.description,
                 department: department !== undefined ? department || null : existing.department,
-                created_by_user_id: created_by_user_id !== undefined ? created_by_user_id || null : existing.created_by_user_id,
                 activity_datetime: activity_datetime ? new Date(activity_datetime) : existing.activity_datetime,
                 status: status !== undefined ? status || null : existing.status,
                 time_spent_minutes: time_spent_minutes !== undefined ? (time_spent_minutes ? parseInt(time_spent_minutes) : null) : existing.time_spent_minutes,
                 next_step_title: next_step_title !== undefined ? next_step_title?.trim() || null : existing.next_step_title,
                 next_step_date: next_step_date !== undefined ? (next_step_date ? new Date(next_step_date) : null) : existing.next_step_date,
+                nature: nature !== undefined ? nature : existing.nature,
+                priority: priority !== undefined ? priority || null : existing.priority,
+                reminder_at: newReminderAt,
+                reminder_email: reminder_email !== undefined ? !!reminder_email : existing.reminder_email,
+                reminder_whatsapp: reminder_whatsapp !== undefined ? !!reminder_whatsapp : existing.reminder_whatsapp,
+                reminder_sent: reminderChanged ? false : existing.reminder_sent,
+                google_meet_link: google_meet_link !== undefined ? google_meet_link || null : existing.google_meet_link,
             }
         });
 
-        // Sincronizar assignees
-        await prisma.activity_assignees.deleteMany({ where: { activity_id: activityId } });
-        if (assignees.length > 0) {
-            await prisma.activity_assignees.createMany({
-                data: assignees.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
-            });
+        if (assignees !== undefined) {
+            await prisma.activity_assignees.deleteMany({ where: { activity_id: activityId } });
+            if (assignees.length > 0) {
+                await prisma.activity_assignees.createMany({
+                    data: assignees.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+                });
+            }
+        }
+        if (next_step_responsibles !== undefined) {
+            await prisma.activity_next_step_responsibles.deleteMany({ where: { activity_id: activityId } });
+            if (next_step_responsibles.length > 0) {
+                await prisma.activity_next_step_responsibles.createMany({
+                    data: next_step_responsibles.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+                });
+            }
+        }
+        if (mentions !== undefined) {
+            await prisma.activity_mentions.deleteMany({ where: { activity_id: activityId } });
+            if (mentions.length > 0) {
+                await prisma.activity_mentions.createMany({
+                    data: mentions.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+                });
+            }
         }
 
-        // Sincronizar next_step_responsibles
-        await prisma.activity_next_step_responsibles.deleteMany({ where: { activity_id: activityId } });
-        if (next_step_responsibles.length > 0) {
-            await prisma.activity_next_step_responsibles.createMany({
-                data: next_step_responsibles.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
-            });
-        }
-
-        const full = await prisma.activities.findUnique({
-            where: { id: activityId },
-            include: { activity_assignees: true, activity_next_step_responsibles: true }
-        });
-
+        const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
         console.log(`[PUT /activities/${activityId}] ✅ Atividade atualizada`);
         res.json(full);
     } catch (error) {
@@ -1745,10 +1900,99 @@ app.delete('/api/activities/:activityId', extractUsuario, async (req, res) => {
     }
 });
 
+// ── POST /api/activities/:id/attachments (upload de arquivo) ─────────────────
+const multerActivity = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+app.post('/api/activities/:id/attachments', extractUsuario, multerActivity.single('file'), async (req, res) => {
+    try {
+        const { id: activityId } = req.params;
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
 
+        const activity = await prisma.activities.findUnique({ where: { id: activityId }, select: { id: true } });
+        if (!activity) return res.status(404).json({ error: 'Atividade não encontrada' });
+
+        let fileUrl = '';
+        const fileName = req.file.originalname;
+        const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+        const fileType = req.file.mimetype.startsWith('video') ? 'video'
+            : req.file.mimetype.startsWith('image') ? 'image'
+            : 'document';
+
+        if (supabase) {
+            const storagePath = `activities/${activityId}/${randomUUID()}-${fileName}`;
+            const { data, error: upError } = await supabase.storage
+                .from('activity-attachments')
+                .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype, upsert: false });
+
+            if (upError) throw new Error(`Supabase upload error: ${upError.message}`);
+            const { data: urlData } = supabase.storage.from('activity-attachments').getPublicUrl(storagePath);
+            fileUrl = urlData.publicUrl;
+        } else {
+            // Fallback sem Supabase: retorne aviso
+            return res.status(503).json({ error: 'Supabase não configurado. Configure SUPABASE_URL e SUPABASE_SERVICE_KEY.' });
+        }
+
+        const attachment = await prisma.activity_attachments.create({
+            data: {
+                id: randomUUID(),
+                activity_id: activityId,
+                file_url: fileUrl,
+                file_name: fileName,
+                file_type: fileType,
+                file_size: req.file.size,
+                uploaded_by: req.usuarioAtual.id,
+            }
+        });
+
+        console.log(`[POST /activities/${activityId}/attachments] ✅ Arquivo: ${fileName}`);
+        res.status(201).json(attachment);
+    } catch (error) {
+        console.error('[POST /attachments]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── DELETE /api/activities/attachments/:attachmentId ─────────────────────────
+app.delete('/api/activities/attachments/:attachmentId', extractUsuario, async (req, res) => {
+    try {
+        const { attachmentId } = req.params;
+        const att = await prisma.activity_attachments.findUnique({ where: { id: attachmentId } });
+        if (!att) return res.status(404).json({ error: 'Anexo não encontrado' });
+
+        // Deletar do Supabase Storage
+        if (supabase && att.file_url) {
+            const urlParts = att.file_url.split('/activity-attachments/');
+            if (urlParts[1]) {
+                await supabase.storage.from('activity-attachments').remove([urlParts[1]]);
+            }
+        }
+
+        await prisma.activity_attachments.delete({ where: { id: attachmentId } });
+        console.log(`[DELETE /attachments/${attachmentId}] ✅ Anexo removido`);
+        res.status(204).send();
+    } catch (error) {
+        console.error('[DELETE /attachments]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ─── SPA Fallback (produção) — qualquer rota não-API retorna o index.html ────
+// DEVE vir DEPOIS de todas as rotas /api e dos statics.
+if (IS_PROD) {
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api')) {
+            res.sendFile(path.join(__dirname, '..', 'index.html'));
+        }
+    });
+}
 
 app.listen(PORT, () => {
-    console.log(`\n🚀 Servidor Journey rodando em http://localhost:${PORT}`);
-    console.log(`📌 Banco de Dados: PostgreSQL (Ativo)\n`);
+    const env = process.env.NODE_ENV || 'development';
+    console.log(`\n🚀 Journey rodando na porta ${PORT} — ${env}`);
+    if (IS_PROD) {
+        console.log(`🌐 URL de produção: ${process.env.ALLOWED_ORIGIN || 'https://journey-dati.railway.app'}`);
+    } else {
+        console.log(`📍 Local: http://localhost:${PORT}`);
+    }
+    console.log(`📌 Banco de Dados: ${IS_PROD ? 'PostgreSQL Railway' : 'PostgreSQL Local'}\n`);
 });

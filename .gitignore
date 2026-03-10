@@ -1,6 +1,10 @@
 # Dependências
 node_modules/
 
+# Build output (Vite / CRA)
+dist/
+build/
+
 # Relatórios de testes
 playwright-report/
 test-results/
@@ -26,7 +30,8 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Variáveis de ambiente
+# Variáveis de ambiente — NUNCA commitar segredos reais
 .env
 .env.local
 .env.*.local
+server/.env
