@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -811,45 +812,40 @@ function sanitizeRow(row) {
     const n = (v) => { const p = parseFloat(String(v || '').replace(',', '.')); return isNaN(p) ? null : p; };
     return {
         // ── Empresa ─────────────────────────────────────────────────────────
-        empresa:        s(row['Nome da Empresa'] || row.empresa || row['nome_empresa'] || ''),
+        empresa: s(row['Nome da Empresa'] || row.empresa || row['nome_empresa'] || ''),
         status_empresa: s(row['Status da Empresa'] || row['Status Empresa'] || row.status_empresa || ''),
-        cnpj:           s(row['CNPJ'] || row.cnpj || ''),
-        tipo_empresa:   s(row['Tipo de Empresa'] || row['Tipo Empresa'] || row.tipo_empresa || ''),
-        estado:         s(row['Estado'] || row.estado || ''),
-        cidade:         s(row['Cidade'] || row.cidade || ''),
-        segmento:       s(row['Segmento'] || row.segmento || ''),
-        site:           s(row['Site'] || row.site || ''),
+        cnpj: s(row['CNPJ'] || row.cnpj || ''),
+        tipo_empresa: s(row['Tipo de Empresa'] || row['Tipo Empresa'] || row.tipo_empresa || ''),
+        estado: s(row['Estado'] || row.estado || ''),
+        cidade: s(row['Cidade'] || row.cidade || ''),
+        segmento: s(row['Segmento'] || row.segmento || ''),
+        site: s(row['Site'] || row.site || ''),
         // ── Contato ─────────────────────────────────────────────────────────
-        contato_nome:        s(row['Nome do Contato'] || row.contato_nome || ''),
-        cargo:               s(row['Cargo'] || row.cargo || ''),
-        departamento:        s(row['Departamento'] || row.departamento || ''),
-        contato_email:       s(row['E-mail'] || row['Email'] || row.contato_email || '').toLowerCase(),
-        contato_telefone:    s(row['Whatsapp'] || row['WhatsApp'] || row.contato_telefone || ''),
-        linkedin:            s(row['Linkedin'] || row['LinkedIn'] || row.linkedin || ''),
+        contato_nome: s(row['Nome do Contato'] || row.contato_nome || ''),
+        cargo: s(row['Cargo'] || row.cargo || ''),
+        departamento: s(row['Departamento'] || row.departamento || ''),
+        contato_email: s(row['E-mail'] || row['Email'] || row.contato_email || '').toLowerCase(),
+        contato_telefone: s(row['Whatsapp'] || row['WhatsApp'] || row.contato_telefone || ''),
+        linkedin: s(row['Linkedin'] || row['LinkedIn'] || row.linkedin || ''),
         // ── Produto DATI ─────────────────────────────────────────────────────
-        produto_dati:        s(row['Produto DATI'] || row.produto_dati || ''),
-        tipo_cobranca:       s(row['Tipo de Cobrança'] || row['Tipo de Cobranca'] || row.tipo_cobranca || ''),
-        valor_unitario:      n(row['Valor Unitário'] || row['Valor Unitario'] || row.valor_unitario),
-        valor_minimo:        n(row['Valor Mínimo'] || row['Valor Minimo'] || row.valor_minimo),
-        cobranca_setup:      s(row['Cobrança de Setup'] || row['Cobranca de Setup'] || row.cobranca_setup || ''),
-        valor_setup:         n(row['Valor de Setup'] || row.valor_setup),
-        qtd_usuarios:        s(row['Quantidade de Usuários'] || row['Quantidade de Usuarios'] || row.qtd_usuarios || ''),
-        valor_usuario_adic:  n(row['Valor por Usuário Adicional'] || row['Valor por Usuario Adicional'] || row.valor_usuario_adic),
-        total_horas_hd:      n(row['Total Horas Mensais - Help Desk'] || row.total_horas_hd),
-        valor_adic_hd:       n(row['Valor Adicional por Hora - Help Desk'] || row.valor_adic_hd),
+        produto_dati: s(row['Produto DATI'] || row.produto_dati || ''),
+        tipo_cobranca: s(row['Tipo de Cobrança'] || row['Tipo de Cobranca'] || row.tipo_cobranca || ''),
+        valor_unitario: n(row['Valor Unitário'] || row['Valor Unitario'] || row.valor_unitario),
+        valor_minimo: n(row['Valor Mínimo'] || row['Valor Minimo'] || row.valor_minimo),
+        cobranca_setup: s(row['Cobrança de Setup'] || row['Cobranca de Setup'] || row.cobranca_setup || ''),
+        valor_setup: n(row['Valor de Setup'] || row.valor_setup),
+        qtd_usuarios: s(row['Quantidade de Usuários'] || row['Quantidade de Usuarios'] || row.qtd_usuarios || ''),
+        valor_usuario_adic: n(row['Valor por Usuário Adicional'] || row['Valor por Usuario Adicional'] || row.valor_usuario_adic),
+        total_horas_hd: n(row['Total Horas Mensais - Help Desk'] || row.total_horas_hd),
+        valor_adic_hd: n(row['Valor Adicional por Hora - Help Desk'] || row.valor_adic_hd),
     };
 }
 
 // ── GET /api/import/template ─────────────────────────────────────────────────
-// Serve o arquivo modelo real (template_importacao_dati.xlsx) com todas as
-// abas, cores e dropdowns configurados pelo usuário no modelo Journey.
-app.get('/api/import/template', async (req, res) => {
+// Serve o arquivo modelo real (template_importacao_dati.xlsx)
+app.get('/api/import/template', (req, res) => {
     try {
-        const { readFileSync } = await import('fs');
-        const { dirname, join } = await import('path');
-        const { fileURLToPath } = await import('url');
-        const __dirname = dirname(fileURLToPath(import.meta.url));
-        const filePath = join(__dirname, 'template_importacao_dati.xlsx');
+        const filePath = path.join(__dirname, 'template_importacao_dati.xlsx');
         const buffer = readFileSync(filePath);
         console.log('[IMPORT TEMPLATE] Servindo arquivo real | Size:', buffer.length);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -1136,12 +1132,12 @@ app.post('/api/import/:id/execute', async (req, res) => {
                                 data: {
                                     id: randomUUID(),
                                     companyId,
-                                    Nome_do_contato:        row.contato_nome        || null,
-                                    Email_1:                row.contato_email        || null,
-                                    WhatsApp:               row.contato_telefone     || null,
-                                    Cargo_do_contato:       row.cargo               || null,
-                                    Departamento_do_contato:row.departamento         || null,
-                                    LinkedIn:               row.linkedin             || null,
+                                    Nome_do_contato: row.contato_nome || null,
+                                    Email_1: row.contato_email || null,
+                                    WhatsApp: row.contato_telefone || null,
+                                    Cargo_do_contato: row.cargo || null,
+                                    Departamento_do_contato: row.departamento || null,
+                                    LinkedIn: row.linkedin || null,
                                     updatedAt: new Date(),
                                 },
                             });
@@ -1167,7 +1163,7 @@ app.post('/api/import/:id/execute', async (req, res) => {
                                         updatedAt: new Date(),
                                     },
                                 });
-                            } catch(prodErr) {
+                            } catch (prodErr) {
                                 console.warn('[import/execute] produto ignorado:', prodErr.message);
                             }
                         }
@@ -1214,8 +1210,230 @@ app.delete('/api/import/:id', async (req, res) => {
     }
 });
 
+// =============================================================================
+// MÓDULO DE ATIVIDADES
+// Timeline operacional da empresa — registra interações de todos os departamentos
+// =============================================================================
+
+// ENUM de tipos de atividade permitidos
+const ACTIVITY_TYPES = ['Comentário', 'Reunião', 'Chamados HD', 'Chamados CS', 'Ação necessária'];
+
+// ── GET /api/companies/:id/activities ─────────────────────────────────────────
+app.get('/api/companies/:id/activities', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { type, department, status, assignee, dateFrom, dateTo, page = 1, pageSize = 50 } = req.query;
+
+        const where = { company_id: id };
+        if (type) where.activity_type = type;
+        if (department) where.department = department;
+        if (status) where.status = status;
+        if (dateFrom || dateTo) {
+            where.activity_datetime = {};
+            if (dateFrom) where.activity_datetime.gte = new Date(dateFrom);
+            if (dateTo) where.activity_datetime.lte = new Date(dateTo + 'T23:59:59');
+        }
+        if (assignee) {
+            where.activity_assignees = { some: { user_id: { contains: assignee, mode: 'insensitive' } } };
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(pageSize);
+        const activities = await prisma.activities.findMany({
+            where,
+            include: {
+                activity_assignees: true,
+                activity_next_step_responsibles: true,
+            },
+            orderBy: { activity_datetime: 'desc' },
+            skip,
+            take: parseInt(pageSize),
+        });
+
+        res.json(activities);
+    } catch (error) {
+        console.error('[GET /activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── POST /api/companies/:id/activities ────────────────────────────────────────
+app.post('/api/companies/:id/activities', async (req, res) => {
+    try {
+        const { id: companyId } = req.params;
+        const {
+            activity_type,
+            title,
+            description,
+            department,
+            created_by_user_id,
+            activity_datetime,
+            status,
+            time_spent_minutes,
+            next_step_title,
+            next_step_date,
+            assignees = [],             // string[]
+            next_step_responsibles = [], // string[]
+        } = req.body;
+
+        // Validações obrigatórias
+        if (!activity_type || !ACTIVITY_TYPES.includes(activity_type)) {
+            return res.status(400).json({ error: `activity_type inválido. Valores aceitos: ${ACTIVITY_TYPES.join(', ')}` });
+        }
+        if (!title?.trim()) return res.status(400).json({ error: 'title é obrigatório' });
+
+        // Verifica se a empresa existe
+        const company = await prisma.companies.findUnique({ where: { id: companyId }, select: { id: true } });
+        if (!company) return res.status(404).json({ error: 'Empresa não encontrada' });
+
+        const activityId = randomUUID();
+
+        // Criar activity
+        await prisma.activities.create({
+            data: {
+                id: activityId,
+                company_id: companyId,
+                activity_type,
+                title: title.trim(),
+                description: description?.trim() || null,
+                department: department || null,
+                created_by_user_id: created_by_user_id || null,
+                activity_datetime: activity_datetime ? new Date(activity_datetime) : null,
+                status: status || null,
+                time_spent_minutes: time_spent_minutes ? parseInt(time_spent_minutes) : null,
+                next_step_title: next_step_title?.trim() || null,
+                next_step_date: next_step_date ? new Date(next_step_date) : null,
+            }
+        });
+
+        // Criar activity_assignees
+        if (assignees.length > 0) {
+            await prisma.activity_assignees.createMany({
+                data: assignees.map(uid => ({
+                    id: randomUUID(),
+                    activity_id: activityId,
+                    user_id: String(uid),
+                }))
+            });
+        }
+
+        // Criar activity_next_step_responsibles
+        if (next_step_responsibles.length > 0) {
+            await prisma.activity_next_step_responsibles.createMany({
+                data: next_step_responsibles.map(uid => ({
+                    id: randomUUID(),
+                    activity_id: activityId,
+                    user_id: String(uid),
+                }))
+            });
+        }
+
+        // Retornar atividade completa
+        const full = await prisma.activities.findUnique({
+            where: { id: activityId },
+            include: {
+                activity_assignees: true,
+                activity_next_step_responsibles: true,
+            }
+        });
+
+        console.log(`[POST /activities] ✅ Atividade criada: ${activityId}`);
+        res.status(201).json(full);
+    } catch (error) {
+        console.error('[POST /activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── PUT /api/activities/:activityId ──────────────────────────────────────────
+app.put('/api/activities/:activityId', async (req, res) => {
+    try {
+        const { activityId } = req.params;
+        const {
+            activity_type,
+            title,
+            description,
+            department,
+            created_by_user_id,
+            activity_datetime,
+            status,
+            time_spent_minutes,
+            next_step_title,
+            next_step_date,
+            assignees = [],
+            next_step_responsibles = [],
+        } = req.body;
+
+        // Verifica existência
+        const existing = await prisma.activities.findUnique({ where: { id: activityId } });
+        if (!existing) return res.status(404).json({ error: 'Atividade não encontrada' });
+
+        if (activity_type && !ACTIVITY_TYPES.includes(activity_type)) {
+            return res.status(400).json({ error: `activity_type inválido` });
+        }
+
+        // Atualizar escalares
+        await prisma.activities.update({
+            where: { id: activityId },
+            data: {
+                activity_type: activity_type || existing.activity_type,
+                title: title?.trim() || existing.title,
+                description: description !== undefined ? description?.trim() || null : existing.description,
+                department: department !== undefined ? department || null : existing.department,
+                created_by_user_id: created_by_user_id !== undefined ? created_by_user_id || null : existing.created_by_user_id,
+                activity_datetime: activity_datetime ? new Date(activity_datetime) : existing.activity_datetime,
+                status: status !== undefined ? status || null : existing.status,
+                time_spent_minutes: time_spent_minutes !== undefined ? (time_spent_minutes ? parseInt(time_spent_minutes) : null) : existing.time_spent_minutes,
+                next_step_title: next_step_title !== undefined ? next_step_title?.trim() || null : existing.next_step_title,
+                next_step_date: next_step_date !== undefined ? (next_step_date ? new Date(next_step_date) : null) : existing.next_step_date,
+            }
+        });
+
+        // Sincronizar assignees
+        await prisma.activity_assignees.deleteMany({ where: { activity_id: activityId } });
+        if (assignees.length > 0) {
+            await prisma.activity_assignees.createMany({
+                data: assignees.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+        }
+
+        // Sincronizar next_step_responsibles
+        await prisma.activity_next_step_responsibles.deleteMany({ where: { activity_id: activityId } });
+        if (next_step_responsibles.length > 0) {
+            await prisma.activity_next_step_responsibles.createMany({
+                data: next_step_responsibles.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+        }
+
+        const full = await prisma.activities.findUnique({
+            where: { id: activityId },
+            include: { activity_assignees: true, activity_next_step_responsibles: true }
+        });
+
+        console.log(`[PUT /activities/${activityId}] ✅ Atividade atualizada`);
+        res.json(full);
+    } catch (error) {
+        console.error('[PUT /activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── DELETE /api/activities/:activityId ───────────────────────────────────────
+app.delete('/api/activities/:activityId', async (req, res) => {
+    try {
+        const { activityId } = req.params;
+        await prisma.activities.delete({ where: { id: activityId } });
+        console.log(`[DELETE /activities/${activityId}] ✅ Atividade excluída`);
+        res.status(204).send();
+    } catch (error) {
+        console.error('[DELETE /activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
+
 app.listen(PORT, () => {
     console.log(`\n🚀 Servidor DATI Control rodando em http://localhost:${PORT}`);
     console.log(`📌 Banco de Dados: PostgreSQL (Ativo)\n`);
 });
-

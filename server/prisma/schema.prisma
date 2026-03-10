@@ -54,6 +54,7 @@ model companies {
   company_tickets                 company_tickets[]
   contacts                        contacts[]
   test_logs                       test_logs[]
+  activities                      activities[]
 }
 
 model company_dashboards {
@@ -250,3 +251,41 @@ model import_logs {
   import_jobs       import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO DE ATIVIDADES
+// Timeline operacional da empresa — registra todas as interações
+// ══════════════════════════════════════════════════════════════════════════════
+
+model activities {
+  id                              String                           @id @default(uuid())
+  company_id                      String
+  activity_type                   String                           // ENUM: Comentário | Reunião | Chamados HD | Chamados CS | Ação necessária
+  title                           String
+  description                     String?
+  department                      String?
+  created_by_user_id              String?
+  created_at                      DateTime                         @default(now())
+  updated_at                      DateTime                         @updatedAt
+  activity_datetime               DateTime?
+  status                          String?
+  time_spent_minutes              Int?
+  next_step_title                 String?
+  next_step_date                  DateTime?
+  companies                       companies                        @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  activity_assignees              activity_assignees[]
+  activity_next_step_responsibles activity_next_step_responsibles[]
+}
+
+model activity_assignees {
+  id          String     @id @default(uuid())
+  activity_id String
+  user_id     String
+  activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}
+
+model activity_next_step_responsibles {
+  id          String     @id @default(uuid())
+  activity_id String
+  user_id     String
+  activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}

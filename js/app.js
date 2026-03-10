@@ -20,6 +20,7 @@ import {
 } from './modules/company-contacts/company-contacts-editor.js';
 import { refreshCompanyContactsTable } from './modules/company-contacts/company-contacts-table.js';
 import { initImportModule } from './modules/importer/import-manager.js';
+import * as activities from './modules/activities.js';
 
 
 // Globalize for inline onclicks
@@ -28,6 +29,7 @@ window.nav = nav;
 window.handlers = handlers;
 window.utils = utils;
 window.state = state;
+window.activities = activities;
 
 // =============================================================================
 // SECTION 1: Click Event Handler Functions (Delegation pattern)
@@ -138,7 +140,17 @@ function handleTabActions(target) {
     if (target.closest('.tab-menu-btn')) {
         const btn = target.closest('.tab-menu-btn');
         const tabId = btn.getAttribute('data-tab');
-        if (tabId) nav.switchFormTab(tabId, btn);
+        if (tabId) {
+            nav.switchFormTab(tabId, btn);
+
+            // Inicializa a aba Atividades ao navegar para ela
+            if (tabId === 'tab-atividades') {
+                const companyId = document.getElementById('company-id')?.value;
+                if (companyId) {
+                    activities.initActivitiesTab(companyId);
+                }
+            }
+        }
         return true;
     }
     return false;
