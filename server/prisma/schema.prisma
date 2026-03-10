@@ -199,3 +199,54 @@ model test_logs {
   updatedAt         DateTime
   companies         companies @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO DE IMPORTAÇÃO EM MASSA
+// ══════════════════════════════════════════════════════════════════════════════
+
+model import_jobs {
+  id               String           @id @default(uuid())
+  user_id          String?
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  status           String           @default("pending")
+  total_rows       Int              @default(0)
+  valid_rows       Int              @default(0)
+  error_rows       Int              @default(0)
+  duplicate_rows   Int              @default(0)
+  duplicate_action String           @default("ignore")
+  filename         String?
+  staging          import_staging[]
+  logs             import_logs[]
+}
+
+model import_staging {
+  id               String      @id @default(uuid())
+  import_id        String
+  row_number       Int
+  empresa          String?
+  cnpj             String?
+  segmento         String?
+  cidade           String?
+  estado           String?
+  site             String?
+  contato_nome     String?
+  contato_email    String?
+  contato_telefone String?
+  cargo            String?
+  status           String      @default("pending")
+  error_message    String?
+  import_jobs      import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
+}
+
+model import_logs {
+  id                String      @id @default(uuid())
+  import_id         String
+  executed_at       DateTime    @default(now())
+  executed_by       String?
+  companies_created Int         @default(0)
+  contacts_created  Int         @default(0)
+  errors            Int         @default(0)
+  import_jobs       import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
+}
+

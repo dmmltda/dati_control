@@ -743,7 +743,458 @@ app.delete('/api/companies/:id', async (req, res) => {
     }
 });
 
+// =============================================================================
+// MÓDULO DE IMPORTAÇÃO EM MASSA
+// =============================================================================
+
+import multer from 'multer';
+import XLSX from 'xlsx';
+
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    fileFilter: (req, file, cb) => {
+        const allowed = [
+            'text/csv',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel',
+        ];
+        if (allowed.includes(file.mimetype) ||
+            file.originalname.endsWith('.csv') ||
+            file.originalname.endsWith('.xlsx') ||
+            file.originalname.endsWith('.xls')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Formato inválido. Use CSV ou XLSX.'));
+        }
+    },
+});
+
+// Validações por linha
+function validateRow(row, existingNames, existingEmails) {
+    const errors = [];
+
+    // 1. Empresa obrigatória
+    if (!row.empresa || !row.empresa.trim()) {
+        errors.push('Nome da empresa obrigatório');
+    }
+
+    // 2. Email — validar se presente
+    if (row.contato_email && row.contato_email.trim()) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(row.contato_email.trim())) {
+            errors.push('E-mail inválido');
+        }
+    }
+
+    // 3. Duplicidade — empresa
+    const isDuplicateCompany = row.empresa &&
+        existingNames.has(row.empresa.trim().toLowerCase());
+
+    // 4. Duplicidade — email
+    const isDuplicateEmail = row.contato_email &&
+        existingEmails.has(row.contato_email.trim().toLowerCase());
+
+    if (errors.length > 0) {
+        return { status: 'invalid', error_message: errors.join(' | ') };
+    }
+    if (isDuplicateCompany || isDuplicateEmail) {
+        return { status: 'duplicate', error_message: isDuplicateCompany ? 'Empresa já existe' : 'E-mail já cadastrado' };
+    }
+    return { status: 'valid', error_message: null };
+}
+
+// Sanitizar dados de uma linha
+function sanitizeRow(row) {
+    const s = (v) => (typeof v === 'string' ? v.trim() : v != null ? String(v).trim() : '');
+    return {
+        empresa: s(row.empresa || row['empresa'] || row['Nome da Empresa'] || row['nome_empresa'] || ''),
+        cnpj: s(row.cnpj || row['CNPJ'] || ''),
+        segmento: s(row.segmento || row['Segmento'] || ''),
+        cidade: s(row.cidade || row['Cidade'] || ''),
+        estado: s(row.estado || row['Estado'] || ''),
+        site: s(row.site || row['Site'] || ''),
+        contato_nome: s(row.contato_nome || row['contato_nome'] || row['Nome do Contato'] || ''),
+        contato_email: s(row.contato_email || row['contato_email'] || row['Email'] || '').toLowerCase(),
+        contato_telefone: s(row.contato_telefone || row['contato_telefone'] || row['Telefone'] || ''),
+        cargo: s(row.cargo || row['Cargo'] || ''),
+    };
+}
+
+// ── GET /api/import/template ─────────────────────────────────────────────────
+app.get('/api/import/template', (req, res) => {
+    const wb = XLSX.utils.book_new();
+
+    // Aba EMPRESAS_CONTATOS
+    const dataWs = XLSX.utils.aoa_to_sheet([
+        ['empresa', 'cnpj', 'segmento', 'cidade', 'estado', 'site', 'contato_nome', 'contato_email', 'contato_telefone', 'cargo'],
+        ['Empresa Exemplo Ltda', '00.000.000/0001-00', 'Logística', 'São Paulo', 'SP', 'https://exemplo.com.br', 'João Silva', 'joao@exemplo.com.br', '(11) 99999-9999', 'Gerente'],
+    ]);
+    dataWs['!cols'] = Array(10).fill({ wch: 22 });
+    XLSX.utils.book_append_sheet(wb, dataWs, 'EMPRESAS_CONTATOS');
+
+    // Aba INSTRUÇÕES
+    const instrucoes = [
+        ['INSTRUÇÕES DE PREENCHIMENTO'],
+        [''],
+        ['1. NÃO altere os nomes das colunas na aba EMPRESAS_CONTATOS'],
+        ['2. Preencha uma empresa por linha'],
+        ['3. O campo "empresa" é obrigatório'],
+        ['4. Se houver contato, "contato_email" é recomendado'],
+        ['5. NÃO remova colunas da planilha'],
+        ['6. Limite: 10.000 linhas por importação'],
+        ['7. Formatos aceitos: XLSX e CSV'],
+        [''],
+        ['COLUNAS DISPONÍVEIS'],
+        ['empresa         → Nome da empresa (obrigatório)'],
+        ['cnpj            → CNPJ (opcional)'],
+        ['segmento        → Segmento da empresa (opcional)'],
+        ['cidade          → Cidade (opcional)'],
+        ['estado          → UF, ex: SP, RJ (opcional)'],
+        ['site            → URL do site (opcional)'],
+        ['contato_nome    → Nome do contato (opcional)'],
+        ['contato_email   → E-mail do contato (opcional)'],
+        ['contato_telefone→ Telefone/WhatsApp (opcional)'],
+        ['cargo           → Cargo do contato (opcional)'],
+    ];
+    const instrWs = XLSX.utils.aoa_to_sheet(instrucoes);
+    instrWs['!cols'] = [{ wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, instrWs, 'INSTRUCOES');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', 'attachment; filename="modelo_importacao_dati.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buffer);
+});
+
+// ── POST /api/import/upload ───────────────────────────────────────────────────
+app.post('/api/import/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+
+        // Parse do arquivo
+        const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
+        const sheetName = wb.SheetNames.find(n =>
+            n.toLowerCase().includes('empresa') || n === wb.SheetNames[0]
+        ) || wb.SheetNames[0];
+        const ws = wb.Sheets[sheetName];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (rawRows.length === 0) {
+            return res.status(400).json({ error: 'Planilha vazia ou sem dados reconhecíveis.' });
+        }
+        if (rawRows.length > 10000) {
+            return res.status(400).json({ error: `Limite de 10.000 linhas excedido. Arquivo contém ${rawRows.length} linhas.` });
+        }
+
+        // Sanitizar todas as linhas
+        const sanitized = rawRows.map((r, i) => ({ rowNum: i + 2, ...sanitizeRow(r) }));
+
+        // Criar import_job
+        const job = await prisma.import_jobs.create({
+            data: {
+                status: 'pending',
+                total_rows: sanitized.length,
+                filename: req.file.originalname,
+            },
+        });
+
+        // Inserir staging em batches de 500
+        const BATCH = 500;
+        for (let i = 0; i < sanitized.length; i += BATCH) {
+            await prisma.import_staging.createMany({
+                data: sanitized.slice(i, i + BATCH).map(r => ({
+                    import_id: job.id,
+                    row_number: r.rowNum,
+                    empresa: r.empresa,
+                    cnpj: r.cnpj,
+                    segmento: r.segmento,
+                    cidade: r.cidade,
+                    estado: r.estado,
+                    site: r.site,
+                    contato_nome: r.contato_nome,
+                    contato_email: r.contato_email,
+                    contato_telefone: r.contato_telefone,
+                    cargo: r.cargo,
+                    status: 'pending',
+                })),
+            });
+        }
+
+        res.json({ import_id: job.id, total_rows: sanitized.length, filename: req.file.originalname });
+    } catch (err) {
+        console.error('[import/upload]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── POST /api/import/:id/validate ────────────────────────────────────────────
+app.post('/api/import/:id/validate', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const job = await prisma.import_jobs.findUnique({ where: { id } });
+        if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+
+        // Carregar nomes e emails existentes no banco (para duplicidade)
+        const [existingCompanies, existingContacts] = await Promise.all([
+            prisma.companies.findMany({ select: { Nome_da_empresa: true } }),
+            prisma.contacts.findMany({ select: { Email_1: true } }),
+        ]);
+        const existingNames = new Set(existingCompanies.map(c => c.Nome_da_empresa?.toLowerCase()).filter(Boolean));
+        const existingEmails = new Set(existingContacts.map(c => c.Email_1?.toLowerCase()).filter(Boolean));
+
+        // Carregar staging
+        const rows = await prisma.import_staging.findMany({ where: { import_id: id } });
+
+        let valid = 0, invalid = 0, duplicate = 0;
+
+        // Validar e atualizar cada linha
+        await Promise.all(rows.map(async (row) => {
+            const result = validateRow(row, existingNames, existingEmails);
+            await prisma.import_staging.update({
+                where: { id: row.id },
+                data: { status: result.status, error_message: result.error_message },
+            });
+            if (result.status === 'valid') valid++;
+            else if (result.status === 'duplicate') duplicate++;
+            else invalid++;
+        }));
+
+        const score = Math.round((valid / rows.length) * 100);
+        const blocked = (invalid / rows.length) > 0.20; // bloqueia se >20% inválido
+
+        await prisma.import_jobs.update({
+            where: { id },
+            data: {
+                status: blocked ? 'blocked' : 'ready',
+                valid_rows: valid,
+                error_rows: invalid,
+                duplicate_rows: duplicate,
+            },
+        });
+
+        res.json({ import_id: id, total: rows.length, valid, invalid, duplicate, score, blocked });
+    } catch (err) {
+        console.error('[import/validate]', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── GET /api/import/:id/preview ──────────────────────────────────────────────
+app.get('/api/import/:id/preview', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, page = 1, pageSize = 50 } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(pageSize);
+
+        const where = { import_id: id };
+        if (status && status !== 'all') where.status = status;
+
+        const [rows, total, job] = await Promise.all([
+            prisma.import_staging.findMany({ where, skip, take: parseInt(pageSize), orderBy: { row_number: 'asc' } }),
+            prisma.import_staging.count({ where }),
+            prisma.import_jobs.findUnique({ where: { id } }),
+        ]);
+
+        res.json({ rows, total, job, page: parseInt(page), pageSize: parseInt(pageSize) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── POST /api/import/:id/simulate ────────────────────────────────────────────
+app.post('/api/import/:id/simulate', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const job = await prisma.import_jobs.findUnique({ where: { id } });
+        if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+
+        const { duplicate_action = 'ignore' } = req.body;
+
+        const [validRows, duplicateRows] = await Promise.all([
+            prisma.import_staging.count({ where: { import_id: id, status: 'valid' } }),
+            prisma.import_staging.count({ where: { import_id: id, status: 'duplicate' } }),
+        ]);
+
+        const invalidRows = job.error_rows;
+
+        let companies_would_create = validRows;
+        let contacts_would_create = 0;
+        let ignored = invalidRows;
+
+        // Contar contatos potenciais (linhas com contato_nome ou contato_email)
+        const withContact = await prisma.import_staging.count({
+            where: {
+                import_id: id,
+                status: 'valid',
+                OR: [
+                    { contato_nome: { not: '' } },
+                    { contato_email: { not: '' } },
+                ],
+            },
+        });
+        contacts_would_create = withContact;
+
+        if (duplicate_action === 'ignore') {
+            ignored += duplicateRows;
+        } else if (duplicate_action === 'update') {
+            companies_would_create += duplicateRows; // atualiza existentes
+        } else if (duplicate_action === 'create') {
+            companies_would_create += duplicateRows; // cria mesmo duplicado
+        }
+
+        await prisma.import_jobs.update({
+            where: { id },
+            data: { duplicate_action },
+        });
+
+        res.json({
+            import_id: id,
+            companies_would_create,
+            contacts_would_create,
+            duplicate_rows: duplicateRows,
+            invalid_rows: invalidRows,
+            ignored,
+            duplicate_action,
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── POST /api/import/:id/execute ─────────────────────────────────────────────
+app.post('/api/import/:id/execute', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const job = await prisma.import_jobs.findUnique({ where: { id } });
+        if (!job) return res.status(404).json({ error: 'Job não encontrado' });
+        if (job.status === 'blocked') return res.status(400).json({ error: 'Importação bloqueada por baixa qualidade dos dados.' });
+
+        await prisma.import_jobs.update({ where: { id }, data: { status: 'executing' } });
+
+        const duplicate_action = job.duplicate_action || 'ignore';
+
+        // Linhas a processar
+        const statusFilter = ['valid'];
+        if (duplicate_action !== 'ignore') statusFilter.push('duplicate');
+
+        const rows = await prisma.import_staging.findMany({
+            where: { import_id: id, status: { in: statusFilter } },
+            orderBy: { row_number: 'asc' },
+        });
+
+        const BATCH_SIZE = 100;
+        let companies_created = 0;
+        let contacts_created = 0;
+        let errors = 0;
+
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+            const batch = rows.slice(i, i + BATCH_SIZE);
+            try {
+                await prisma.$transaction(async (tx) => {
+                    for (const row of batch) {
+                        let companyId;
+
+                        if (row.status === 'duplicate' && duplicate_action === 'update') {
+                            // Atualiza empresa existente
+                            const existing = await tx.companies.findFirst({
+                                where: { Nome_da_empresa: { equals: row.empresa, mode: 'insensitive' } },
+                            });
+                            if (existing) {
+                                await tx.companies.update({
+                                    where: { id: existing.id },
+                                    data: {
+                                        ...(row.segmento && { Segmento_da_empresa: row.segmento }),
+                                        ...(row.cidade && { Cidade: row.cidade }),
+                                        ...(row.estado && { Estado: row.estado }),
+                                        ...(row.site && { Site: row.site }),
+                                        ...(row.cnpj && { CNPJ_da_empresa: row.cnpj }),
+                                        updatedAt: new Date(),
+                                    },
+                                });
+                                companyId = existing.id;
+                                companies_created++;
+                            }
+                        } else {
+                            // Cria nova empresa
+                            const now = new Date();
+                            const company = await tx.companies.create({
+                                data: {
+                                    id: randomUUID(),
+                                    Nome_da_empresa: row.empresa || 'Sem nome',
+                                    CNPJ_da_empresa: row.cnpj || null,
+                                    Segmento_da_empresa: row.segmento || null,
+                                    Cidade: row.cidade || null,
+                                    Estado: row.estado || null,
+                                    Site: row.site || null,
+                                    Status: 'Inativo',
+                                    updatedAt: now,
+                                },
+                            });
+                            companyId = company.id;
+                            companies_created++;
+                        }
+
+                        // Cria contato se houver dados
+                        if (companyId && (row.contato_nome || row.contato_email)) {
+                            await tx.contacts.create({
+                                data: {
+                                    id: randomUUID(),
+                                    companyId,
+                                    Nome_do_contato: row.contato_nome || null,
+                                    Email_1: row.contato_email || null,
+                                    WhatsApp: row.contato_telefone || null,
+                                    Cargo_do_contato: row.cargo || null,
+                                    updatedAt: new Date(),
+                                },
+                            });
+                            contacts_created++;
+                        }
+                    }
+                });
+            } catch (batchErr) {
+                console.error(`[import/execute] Batch ${i}-${i + BATCH_SIZE} falhou:`, batchErr);
+                errors += batch.length;
+            }
+        }
+
+        // Registrar log
+        await prisma.import_logs.create({
+            data: {
+                import_id: id,
+                executed_by: req.body.user || 'sistema',
+                companies_created,
+                contacts_created,
+                errors,
+            },
+        });
+
+        await prisma.import_jobs.update({
+            where: { id },
+            data: { status: 'done' },
+        });
+
+        res.json({ import_id: id, companies_created, contacts_created, errors, status: 'done' });
+    } catch (err) {
+        console.error('[import/execute]', err);
+        await prisma.import_jobs.update({ where: { id: req.params.id }, data: { status: 'error' } }).catch(() => { });
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── DELETE /api/import/:id ────────────────────────────────────────────────────
+app.delete('/api/import/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.import_jobs.delete({ where: { id } });
+        res.status(204).send();
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.listen(PORT, () => {
     console.log(`\n🚀 Servidor DATI Control rodando em http://localhost:${PORT}`);
     console.log(`📌 Banco de Dados: PostgreSQL (Ativo)\n`);
 });
+

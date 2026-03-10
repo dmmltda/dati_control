@@ -19,6 +19,7 @@ import {
     openBulkContatoEditor,
 } from './modules/company-contacts/company-contacts-editor.js';
 import { refreshCompanyContactsTable } from './modules/company-contacts/company-contacts-table.js';
+import { initImportModule } from './modules/importer/import-manager.js';
 
 
 // Globalize for inline onclicks
@@ -36,7 +37,10 @@ window.state = state;
 function handleNavigation(target) {
     if (target.closest('.nav-item') && !target.closest('.nav-group-toggle') && !target.closest('.nav-sub-item')) {
         const view = target.closest('.nav-item').getAttribute('data-view');
-        if (view) nav.switchView(view);
+        if (view) {
+            nav.switchView(view);
+            if (view === 'import') initImportModule();
+        }
         return true;
     }
 

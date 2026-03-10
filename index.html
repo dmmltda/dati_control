@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/views.css">
+    <link rel="stylesheet" href="css/import.css">
 
     <!-- Flatpickr (Calendário 10/10) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -67,6 +68,9 @@
                 </a>
                 <a class="nav-item" data-view="company-list">
                     <i class="ph ph-users-three"></i> Empresas
+                </a>
+                <a class="nav-item" data-view="import" id="nav-import">
+                    <i class="ph ph-upload-simple"></i> Importar
                 </a>
                 <!-- Log — menu expansível -->
                 <div class="nav-group" id="nav-group-log">
@@ -1471,6 +1475,263 @@
             </div>
         </div>
     </div>
+    <!-- ════════════════════════════════════════════════════════════
+                 VIEW: IMPORTAÇÃO EM MASSA
+            ════════════════════════════════════════════════════════════ -->
+    <div id="view-import" class="view-section" style="display: none;">
+        <div class="top-bar">
+            <div>
+                <h1><i class="ph ph-upload-simple" style="color: var(--primary); margin-right: 0.5rem;"></i>Importar
+                    Dados</h1>
+                <p>Importe empresas e contatos em massa com validação automática.</p>
+            </div>
+        </div>
+
+        <div class="import-container">
+
+            <!-- ── Step Indicator ──────────────────────────────────────── -->
+            <div class="import-steps-bar">
+                <div class="import-step upcoming" id="import-step-1">
+                    <div class="step-circle">1</div>
+                    <span>Upload</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="import-step upcoming" id="import-step-2">
+                    <div class="step-circle">2</div>
+                    <span>Validar</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="import-step upcoming" id="import-step-3">
+                    <div class="step-circle">3</div>
+                    <span>Preview</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="import-step upcoming" id="import-step-4">
+                    <div class="step-circle">4</div>
+                    <span>Simular</span>
+                </div>
+                <div class="step-connector"></div>
+                <div class="import-step upcoming" id="import-step-5">
+                    <div class="step-circle">5</div>
+                    <span>Confirmar</span>
+                </div>
+            </div>
+
+            <!-- ── PANEL 1: Upload ─────────────────────────────────────── -->
+            <div id="import-panel-upload" class="import-panel glass-panel">
+                <div class="import-panel-header">
+                    <h3><i class="ph ph-file-arrow-up"></i> Selecione o Arquivo</h3>
+                    <button id="btn-import-template" class="btn btn-secondary">
+                        <i class="ph ph-download-simple"></i> Baixar Planilha Modelo
+                    </button>
+                </div>
+
+                <div id="import-drop-zone" class="import-drop-zone">
+                    <i class="ph ph-cloud-arrow-up import-drop-icon"></i>
+                    <p class="import-drop-title">Arraste e solte o arquivo aqui</p>
+                    <p class="import-drop-sub">ou clique para selecionar</p>
+                    <p class="import-drop-hint">CSV ou XLSX · máximo 10.000 linhas</p>
+                    <span id="import-file-label" class="import-file-label"></span>
+                </div>
+                <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="display:none;">
+
+                <div class="import-help-cards">
+                    <div class="import-help-card">
+                        <i class="ph ph-check-circle" style="color:#10b981;"></i>
+                        <span>Dados vão para staging antes do banco</span>
+                    </div>
+                    <div class="import-help-card">
+                        <i class="ph ph-shield-check" style="color:#6366f1;"></i>
+                        <span>Validação automática linha por linha</span>
+                    </div>
+                    <div class="import-help-card">
+                        <i class="ph ph-arrows-counter-clockwise" style="color:#f59e0b;"></i>
+                        <span>Preview completo antes de confirmar</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── PANEL 2: Validando ──────────────────────────────────── -->
+            <div id="import-panel-validating" class="import-panel glass-panel" style="display:none;">
+                <div class="import-loader">
+                    <div class="import-spinner"></div>
+                    <p class="import-loader-msg">Processando arquivo...</p>
+                </div>
+            </div>
+
+            <!-- ── PANEL 3: Preview ────────────────────────────────────── -->
+            <div id="import-panel-preview" class="import-panel glass-panel" style="display:none;">
+
+                <!-- Score Card -->
+                <div class="import-quality-card">
+                    <div class="quality-score-wrapper">
+                        <div class="quality-score-label">Score da Importação</div>
+                        <div id="import-score-value" class="quality-score-value">—</div>
+                        <div class="quality-score-bar-bg">
+                            <div id="import-score-bar" class="quality-score-bar-fill" style="width:0%;"></div>
+                        </div>
+                    </div>
+                    <div class="quality-counts">
+                        <div id="import-count-valid" class="quality-count">✅ 0 válidos</div>
+                        <div id="import-count-dup" class="quality-count">⚠️ 0 duplicados</div>
+                        <div id="import-count-invalid" class="quality-count">❌ 0 inválidos</div>
+                    </div>
+                </div>
+
+                <!-- Alerta de bloqueio -->
+                <div id="import-blocked-alert" class="import-blocked-alert" style="display:none;">
+                    <i class="ph ph-prohibit"></i>
+                    <span>Importação <strong>bloqueada</strong>: mais de 20% dos registros são inválidos. Corrija a
+                        planilha e tente novamente.</span>
+                </div>
+
+                <!-- Filtros -->
+                <div class="preview-filters">
+                    <button class="preview-filter-btn active" data-filter="all">Todos</button>
+                    <button class="preview-filter-btn" data-filter="valid">✅ Válidos</button>
+                    <button class="preview-filter-btn" data-filter="invalid">❌ Inválidos</button>
+                    <button class="preview-filter-btn" data-filter="duplicate">⚠️ Duplicados</button>
+                </div>
+
+                <!-- Tabela Preview -->
+                <div class="table-wrapper" style="margin-top: 0.5rem;">
+                    <table class="company-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px">#</th>
+                                <th>Empresa</th>
+                                <th>CNPJ</th>
+                                <th>Contato</th>
+                                <th>E-mail</th>
+                                <th>Status</th>
+                                <th>Observação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="import-preview-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Paginação preview -->
+                <div class="import-preview-pagination">
+                    <span id="import-preview-info" class="pagination-info"></span>
+                    <div style="display:flex; gap: 0.5rem;">
+                        <button id="btn-preview-prev" class="pagination-btn" disabled><i
+                                class="ph ph-caret-left"></i></button>
+                        <button id="btn-preview-next" class="pagination-btn" disabled><i
+                                class="ph ph-caret-right"></i></button>
+                    </div>
+                </div>
+
+                <!-- Ações -->
+                <div class="import-panel-footer">
+                    <button id="btn-import-cancel-preview" class="btn btn-secondary">
+                        <i class="ph ph-x"></i> Cancelar
+                    </button>
+                    <button id="btn-go-simulation" class="btn btn-primary">
+                        Avançar para Simulação <i class="ph ph-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ── PANEL 4: Simulação ──────────────────────────────────── -->
+            <div id="import-panel-simulation" class="import-panel glass-panel" style="display:none;">
+
+                <div class="import-loader" style="display:none;">
+                    <div class="import-spinner"></div>
+                    <p class="import-loader-msg">Simulando importação...</p>
+                </div>
+
+                <div class="import-content">
+                    <h3 style="margin-bottom: 1.5rem;"><i class="ph ph-play"></i> Simular Importação</h3>
+
+                    <!-- Opção de duplicados -->
+                    <div class="duplicate-options-section">
+                        <p class="duplicate-section-label">O que fazer com registros duplicados?</p>
+                        <div class="duplicate-options-grid">
+                            <button class="duplicate-option selected" data-action="ignore">
+                                <i class="ph ph-skip-forward"></i>
+                                <strong>Ignorar</strong>
+                                <span>Não importa duplicados</span>
+                            </button>
+                            <button class="duplicate-option" data-action="update">
+                                <i class="ph ph-pencil-simple"></i>
+                                <strong>Atualizar</strong>
+                                <span>Atualiza empresa existente</span>
+                            </button>
+                            <button class="duplicate-option" data-action="create">
+                                <i class="ph ph-plus-circle"></i>
+                                <strong>Criar novo</strong>
+                                <span>Cria mesmo com duplicata</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button id="btn-run-simulation" class="btn btn-primary" style="margin-bottom: 2rem;">
+                        <i class="ph ph-play"></i> Executar Simulação
+                    </button>
+
+                    <!-- Resultado da simulação -->
+                    <div id="simulation-result-area" style="display:none;">
+                        <div class="simulation-result-card">
+                            <h4><i class="ph ph-check-circle" style="color:#10b981;"></i> Resultado da Simulação</h4>
+                            <div class="sim-stats">
+                                <div class="sim-stat">
+                                    <i class="ph ph-buildings"></i>
+                                    <strong id="sim-companies">0</strong>
+                                    <span>empresas seriam criadas</span>
+                                </div>
+                                <div class="sim-stat">
+                                    <i class="ph ph-user"></i>
+                                    <strong id="sim-contacts">0</strong>
+                                    <span>contatos seriam criados</span>
+                                </div>
+                                <div class="sim-stat sim-stat-warn">
+                                    <i class="ph ph-skip-forward"></i>
+                                    <strong id="sim-ignored">0</strong>
+                                    <span>registros seriam ignorados</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="import-panel-footer">
+                        <button id="btn-import-cancel-sim" class="btn btn-secondary">
+                            <i class="ph ph-x"></i> Cancelar
+                        </button>
+                        <button id="btn-go-confirm" class="btn btn-primary" disabled>
+                            Confirmar Importação <i class="ph ph-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── PANEL 5: Confirmação ────────────────────────────────── -->
+            <div id="import-panel-confirm" class="import-panel glass-panel" style="display:none;">
+                <h3><i class="ph ph-shield-check" style="color:#10b981;"></i> Confirmar Importação</h3>
+                <p style="color: var(--text-muted); margin: 0.5rem 0 1.5rem;">Esta ação irá inserir os dados no banco de
+                    dados. Não pode ser desfeita.</p>
+
+                <div id="confirm-summary" class="confirm-summary"></div>
+
+                <!-- Barra de progresso -->
+                <div id="import-progress-bar" class="import-progress-bar" style="display:none;">
+                    <div id="import-progress-fill" class="import-progress-fill" style="width:0%;"></div>
+                </div>
+
+                <div class="import-panel-footer">
+                    <button id="btn-import-cancel-confirm" class="btn btn-secondary">
+                        <i class="ph ph-x"></i> Cancelar
+                    </button>
+                    <button id="btn-confirm-import" class="btn btn-primary btn-confirm-import">
+                        <i class="ph ph-check"></i> Confirmar Importação
+                    </button>
+                </div>
+            </div>
+
+        </div><!-- /import-container -->
+    </div><!-- /#view-import -->
+
+    </main>
 
 </body>
 
