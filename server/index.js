@@ -841,173 +841,24 @@ function sanitizeRow(row) {
 }
 
 // ── GET /api/import/template ─────────────────────────────────────────────────
-app.get('/api/import/template', (req, res) => {
+// Serve o arquivo modelo real (template_importacao_dati.xlsx) com todas as
+// abas, cores e dropdowns configurados pelo usuário no modelo Journey.
+app.get('/api/import/template', async (req, res) => {
     try {
-        const wb = XLSX.utils.book_new();
-
-        // ── Listas de validação (aba Base) ───────────────────────────────────
-        const STATUS_EMPRESA   = ['Prospect','Lead','Reunião','Proposta | Andamento','Proposta | Recusada','Em Contrato','Ativo','Suspenso','Inativo'];
-        const TIPO_EMPRESA     = ['Agente de Carga','Agente e Despachante','Armazém Alfandegado','Despachante Aduaneiro','Despachante e Agente','Exportador','Importador','Importador | Exportador','Trading','Transportadora Rodoviária'];
-        const ESTADOS          = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RS','SC','SP','TO'];
-        const SEGMENTOS        = ['Agronegócio','Alimentos e Bebidas','Armazenagem','Automotivo','Calçados','Cosméticos','Despacho Aduaneiro','Eletrodomésticos','Eletrônicos','Embalagens','Energia e Gás','Farmacêutico','Ferramentas','Ferroviário','Financeiro','Higiene','Hospitalar','Logística','Maquinário','Metalurgia','Mineração','Papel','Químico','Seguro','Têxtil','Trading','Transporte'];
-        const CARGOS           = ['Estagiário','Auxiliar','Assistente','Analista','Supervisor','Gerente','Diretor','Proprietário'];
-        const DEPARTAMENTOS    = ['Administrativo','Comercial','Compras','Comércio Exterior','Exportação','Financeiro','Geral','Importação','Jurídico','Logística','Operacional','Supply','Tecnologia'];
-        const PRODUTOS_DATI    = ['DATI Import','DATI Export','Smart Read','Catálogo de Produtos','Orkestra','DUIMP'];
-        const TIPO_COBRANCA    = ['Mensalidade','Por processo','Por documento','Por DI/DUIMP'];
-        const SIM_NAO          = ['Sim','Não'];
-
-        // ── Cor do cabeçalho: azul escuro (mesmo do modelo Journey) ─────────
-        const HEADER_STYLE = {
-            fill: { fgColor: { rgb: '1B2A4A' } },
-            font: { bold: true, color: { rgb: 'FFFFFF' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: {
-                bottom: { style: 'thin', color: { rgb: '3B5998' } },
-            },
-        };
-
-        // Helper: aplicar estilo no cabeçalho de um worksheet
-        function applyHeaderStyle(ws, headers) {
-            headers.forEach((_, i) => {
-                const addr = XLSX.utils.encode_cell({ r: 0, c: i });
-                if (ws[addr]) ws[addr].s = HEADER_STYLE;
-            });
-        }
-
-        // Helper: adicionar Data Validation (dropdown) numa coluna
-        function addDropdown(ws, col, list, startRow, endRow) {
-            if (!ws['!dataValidation']) ws['!dataValidation'] = [];
-            ws['!dataValidation'].push({
-                sqref: `${col}${startRow}:${col}${endRow}`,
-                type: 'list',
-                formula1: `"${list.join(',')}"`,
-                showDropDown: false,
-                showErrorMessage: true,
-                errorTitle: 'Valor inválido',
-                error: `Selecione uma opção válida da lista.`,
-            });
-        }
-
-        // ── ABA: Empresas - Preencher ─────────────────────────────────────────
-        const empHeaders = ['Nome da Empresa','Status da Empresa','CNPJ','Tipo de Empresa','Estado','Cidade','Segmento','Site'];
-        const wsEmp = XLSX.utils.aoa_to_sheet([empHeaders]);
-        wsEmp['!cols'] = [{ wch: 30 },{ wch: 22 },{ wch: 20 },{ wch: 26 },{ wch: 10 },{ wch: 20 },{ wch: 22 },{ wch: 28 }];
-        wsEmp['!rows'] = [{ hpt: 24 }];
-        wsEmp['!freeze'] = { xSplit: 0, ySplit: 1 };
-        applyHeaderStyle(wsEmp, empHeaders);
-        addDropdown(wsEmp, 'B', STATUS_EMPRESA,  2, 10001);
-        addDropdown(wsEmp, 'D', TIPO_EMPRESA,    2, 10001);
-        addDropdown(wsEmp, 'E', ESTADOS,          2, 10001);
-        addDropdown(wsEmp, 'G', SEGMENTOS,        2, 10001);
-        XLSX.utils.book_append_sheet(wb, wsEmp, 'Empresas - Preencher');
-
-        // ── ABA: Contatos - Preencher ─────────────────────────────────────────
-        const cttHeaders = ['Nome do Contato','Cargo','Departamento','E-mail','Whatsapp','Linkedin'];
-        const wsCtt = XLSX.utils.aoa_to_sheet([cttHeaders]);
-        wsCtt['!cols'] = [{ wch: 28 },{ wch: 16 },{ wch: 20 },{ wch: 30 },{ wch: 18 },{ wch: 30 }];
-        wsCtt['!rows'] = [{ hpt: 24 }];
-        wsCtt['!freeze'] = { xSplit: 0, ySplit: 1 };
-        applyHeaderStyle(wsCtt, cttHeaders);
-        addDropdown(wsCtt, 'B', CARGOS,       2, 10001);
-        addDropdown(wsCtt, 'C', DEPARTAMENTOS, 2, 10001);
-        XLSX.utils.book_append_sheet(wb, wsCtt, 'Contatos - Preencher');
-
-        // ── ABA: Produtos DATI - Preencher ────────────────────────────────────
-        const prdHeaders = [
-            'Produto DATI','Tipo de Cobrança','Valor Unitário','Valor Mínimo',
-            'Cobrança de Setup','Valor de Setup','Quantidade de Usuários',
-            'Valor por Usuário Adicional','Total Horas Mensais - Help Desk',
-            'Valor Adicional por Hora - Help Desk',
-        ];
-        const wsPrd = XLSX.utils.aoa_to_sheet([prdHeaders]);
-        wsPrd['!cols'] = Array(10).fill({ wch: 26 });
-        wsPrd['!rows'] = [{ hpt: 24 }];
-        wsPrd['!freeze'] = { xSplit: 0, ySplit: 1 };
-        applyHeaderStyle(wsPrd, prdHeaders);
-        addDropdown(wsPrd, 'A', PRODUTOS_DATI,  2, 10001);
-        addDropdown(wsPrd, 'B', TIPO_COBRANCA,  2, 10001);
-        addDropdown(wsPrd, 'E', SIM_NAO,        2, 10001);
-        XLSX.utils.book_append_sheet(wb, wsPrd, 'Produtos DATI - Preencher');
-
-        // ── ABA: Base - Não preencher (listas para referência) ────────────────
-        const maxLen = Math.max(STATUS_EMPRESA.length, TIPO_EMPRESA.length, ESTADOS.length, SEGMENTOS.length, CARGOS.length, DEPARTAMENTOS.length, PRODUTOS_DATI.length, TIPO_COBRANCA.length, SIM_NAO.length);
-        const baseRows = [
-            ['Status Empresa','Tipo Empresa','Estado','Segmento','Cargo','Departamento','Produtos DATI','Tipo de Cobrança','Valor de Setup'],
-        ];
-        for (let i = 0; i < maxLen; i++) {
-            baseRows.push([
-                STATUS_EMPRESA[i]  || '',
-                TIPO_EMPRESA[i]    || '',
-                ESTADOS[i]         || '',
-                SEGMENTOS[i]       || '',
-                CARGOS[i]          || '',
-                DEPARTAMENTOS[i]   || '',
-                PRODUTOS_DATI[i]   || '',
-                TIPO_COBRANCA[i]   || '',
-                SIM_NAO[i]         || '',
-            ]);
-        }
-        const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
-        wsBase['!cols'] = Array(9).fill({ wch: 26 });
-        applyHeaderStyle(wsBase, baseRows[0]);
-        XLSX.utils.book_append_sheet(wb, wsBase, 'Base- Não preencher');
-
-        // ── ABA: INSTRUCOES ───────────────────────────────────────────────────
-        const instrRows = [
-            ['INSTRUCOES DE PREENCHIMENTO — JOURNEY · Importação em Massa'],
-            [''],
-            ['EMPRESAS (aba: Empresas - Preencher)'],
-            ['  A - Nome da Empresa     → obrigatório'],
-            ['  B - Status da Empresa   → selecione da lista'],
-            ['  C - CNPJ                → formato 00.000.000/0001-00'],
-            ['  D - Tipo de Empresa     → selecione da lista'],
-            ['  E - Estado              → UF (ex: SP, RJ)'],
-            ['  F - Cidade'],
-            ['  G - Segmento            → selecione da lista'],
-            ['  H - Site                → ex: https://empresa.com.br'],
-            [''],
-            ['CONTATOS (aba: Contatos - Preencher)'],
-            ['  A - Nome do Contato     → obrigatório'],
-            ['  B - Cargo               → selecione da lista'],
-            ['  C - Departamento        → selecione da lista'],
-            ['  D - E-mail'],
-            ['  E - Whatsapp'],
-            ['  F - Linkedin'],
-            [''],
-            ['PRODUTOS DATI (aba: Produtos DATI - Preencher)'],
-            ['  A - Produto DATI        → selecione da lista'],
-            ['  B - Tipo de Cobrança    → selecione da lista'],
-            ['  C - Valor Unitário      → R$'],
-            ['  D - Valor Mínimo        → R$'],
-            ['  E - Cobrança de Setup   → Sim/Não'],
-            ['  F - Valor de Setup      → R$'],
-            ['  G - Quantidade de Usuários'],
-            ['  H - Valor por Usuário Adicional  → R$'],
-            ['  I - Total Horas Mensais Help Desk'],
-            ['  J - Valor Adicional por Hora HD  → R$'],
-            [''],
-            ['REGRAS IMPORTANTES'],
-            ['  1. NAO altere os nomes das colunas'],
-            ['  2. Nome da Empresa é OBRIGATORIO'],
-            ['  3. Limite: 10.000 linhas por importação'],
-            ['  4. Formatos aceitos: XLSX'],
-        ];
-        const wsInstr = XLSX.utils.aoa_to_sheet(instrRows);
-        wsInstr['!cols'] = [{ wch: 70 }];
-        XLSX.utils.book_append_sheet(wb, wsInstr, 'INSTRUCOES');
-
-        // ── Gerar e validar ───────────────────────────────────────────────────
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx', cellStyles: true });
-        const test = XLSX.read(buffer, { type: 'buffer' });
-        console.log('[IMPORT TEMPLATE] Sheets:', test.SheetNames, '| Size:', buffer.length);
-
+        const { readFileSync } = await import('fs');
+        const { dirname, join } = await import('path');
+        const { fileURLToPath } = await import('url');
+        const __dirname = dirname(fileURLToPath(import.meta.url));
+        const filePath = join(__dirname, 'template_importacao_dati.xlsx');
+        const buffer = readFileSync(filePath);
+        console.log('[IMPORT TEMPLATE] Servindo arquivo real | Size:', buffer.length);
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', 'attachment; filename="modelo_importacao_dati.xlsx"');
         res.setHeader('Content-Length', buffer.length);
         return res.end(buffer);
     } catch (err) {
-        console.error('[IMPORT TEMPLATE] ERRO:', err.message);
-        return res.status(500).json({ error: 'Erro ao gerar template: ' + err.message });
+        console.error('[IMPORT TEMPLATE] ERRO ao ler arquivo:', err.message);
+        return res.status(500).json({ error: 'Template não encontrado: ' + err.message });
     }
 });
 // ── POST /api/import/upload ───────────────────────────────────────────────────
