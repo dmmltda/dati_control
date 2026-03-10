@@ -775,7 +775,8 @@ function validateRow(row, existingNames, existingEmails) {
     const errors = [];
 
     // 1. Empresa obrigatória
-    if (!row.empresa || !row.empresa.trim()) {
+    const nomeEmpresa = (row.empresa || '').trim();
+    if (!nomeEmpresa) {
         errors.push('Nome da empresa obrigatório');
     }
 
@@ -804,20 +805,38 @@ function validateRow(row, existingNames, existingEmails) {
     return { status: 'valid', error_message: null };
 }
 
-// Sanitizar dados de uma linha
+// Sanitizar dados de uma linha — suporta modelo Journey (Empresas + Contatos + Produtos DATI)
 function sanitizeRow(row) {
     const s = (v) => (typeof v === 'string' ? v.trim() : v != null ? String(v).trim() : '');
+    const n = (v) => { const p = parseFloat(String(v || '').replace(',', '.')); return isNaN(p) ? null : p; };
     return {
-        empresa:          s(row.empresa          || row['Nome da Empresa'] || row['nome_empresa'] || ''),
-        cnpj:             s(row.cnpj             || row['CNPJ']            || ''),
-        segmento:         s(row.segmento         || row['Segmento']        || ''),
-        cidade:           s(row.cidade           || row['Cidade']          || ''),
-        estado:           s(row.estado           || row['Estado']          || ''),
-        site:             s(row.site             || row['Site']            || ''),
-        contato_nome:     s(row.contato_nome     || row['Nome do Contato'] || ''),
-        contato_email:    s(row.contato_email    || row['Email']           || '').toLowerCase(),
-        contato_telefone: s(row.contato_telefone || row['Telefone']        || ''),
-        cargo:            s(row.cargo            || row['Cargo']           || ''),
+        // ── Empresa ─────────────────────────────────────────────────────────
+        empresa:        s(row['Nome da Empresa'] || row.empresa || row['nome_empresa'] || ''),
+        status_empresa: s(row['Status da Empresa'] || row['Status Empresa'] || row.status_empresa || ''),
+        cnpj:           s(row['CNPJ'] || row.cnpj || ''),
+        tipo_empresa:   s(row['Tipo de Empresa'] || row['Tipo Empresa'] || row.tipo_empresa || ''),
+        estado:         s(row['Estado'] || row.estado || ''),
+        cidade:         s(row['Cidade'] || row.cidade || ''),
+        segmento:       s(row['Segmento'] || row.segmento || ''),
+        site:           s(row['Site'] || row.site || ''),
+        // ── Contato ─────────────────────────────────────────────────────────
+        contato_nome:        s(row['Nome do Contato'] || row.contato_nome || ''),
+        cargo:               s(row['Cargo'] || row.cargo || ''),
+        departamento:        s(row['Departamento'] || row.departamento || ''),
+        contato_email:       s(row['E-mail'] || row['Email'] || row.contato_email || '').toLowerCase(),
+        contato_telefone:    s(row['Whatsapp'] || row['WhatsApp'] || row.contato_telefone || ''),
+        linkedin:            s(row['Linkedin'] || row['LinkedIn'] || row.linkedin || ''),
+        // ── Produto DATI ─────────────────────────────────────────────────────
+        produto_dati:        s(row['Produto DATI'] || row.produto_dati || ''),
+        tipo_cobranca:       s(row['Tipo de Cobrança'] || row['Tipo de Cobranca'] || row.tipo_cobranca || ''),
+        valor_unitario:      n(row['Valor Unitário'] || row['Valor Unitario'] || row.valor_unitario),
+        valor_minimo:        n(row['Valor Mínimo'] || row['Valor Minimo'] || row.valor_minimo),
+        cobranca_setup:      s(row['Cobrança de Setup'] || row['Cobranca de Setup'] || row.cobranca_setup || ''),
+        valor_setup:         n(row['Valor de Setup'] || row.valor_setup),
+        qtd_usuarios:        s(row['Quantidade de Usuários'] || row['Quantidade de Usuarios'] || row.qtd_usuarios || ''),
+        valor_usuario_adic:  n(row['Valor por Usuário Adicional'] || row['Valor por Usuario Adicional'] || row.valor_usuario_adic),
+        total_horas_hd:      n(row['Total Horas Mensais - Help Desk'] || row.total_horas_hd),
+        valor_adic_hd:       n(row['Valor Adicional por Hora - Help Desk'] || row.valor_adic_hd),
     };
 }
 
@@ -826,41 +845,164 @@ app.get('/api/import/template', (req, res) => {
     try {
         const wb = XLSX.utils.book_new();
 
-        const ws = XLSX.utils.aoa_to_sheet([
-            ['empresa', 'cnpj', 'segmento', 'cidade', 'estado', 'site', 'contato_nome', 'contato_email', 'contato_telefone', 'cargo'],
-            ['Empresa Exemplo Ltda', '00.000.000/0001-00', 'Logistica', 'Sao Paulo', 'SP', 'https://exemplo.com.br', 'Joao Silva', 'joao@exemplo.com.br', '(11) 99999-9999', 'Gerente'],
-            ['Contoso Tecnologia SA', '11.111.111/0001-11', 'Tecnologia', 'Rio de Janeiro', 'RJ', 'https://contoso.com', 'Maria Souza', 'maria@contoso.com', '(21) 88888-8888', 'Diretora'],
-        ]);
-        ws['!cols'] = Array(10).fill({ wch: 24 });
-        XLSX.utils.book_append_sheet(wb, ws, 'EMPRESAS_CONTATOS');
+        // ── Listas de validação (aba Base) ───────────────────────────────────
+        const STATUS_EMPRESA   = ['Prospect','Lead','Reunião','Proposta | Andamento','Proposta | Recusada','Em Contrato','Ativo','Suspenso','Inativo'];
+        const TIPO_EMPRESA     = ['Agente de Carga','Agente e Despachante','Armazém Alfandegado','Despachante Aduaneiro','Despachante e Agente','Exportador','Importador','Importador | Exportador','Trading','Transportadora Rodoviária'];
+        const ESTADOS          = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RS','SC','SP','TO'];
+        const SEGMENTOS        = ['Agronegócio','Alimentos e Bebidas','Armazenagem','Automotivo','Calçados','Cosméticos','Despacho Aduaneiro','Eletrodomésticos','Eletrônicos','Embalagens','Energia e Gás','Farmacêutico','Ferramentas','Ferroviário','Financeiro','Higiene','Hospitalar','Logística','Maquinário','Metalurgia','Mineração','Papel','Químico','Seguro','Têxtil','Trading','Transporte'];
+        const CARGOS           = ['Estagiário','Auxiliar','Assistente','Analista','Supervisor','Gerente','Diretor','Proprietário'];
+        const DEPARTAMENTOS    = ['Administrativo','Comercial','Compras','Comércio Exterior','Exportação','Financeiro','Geral','Importação','Jurídico','Logística','Operacional','Supply','Tecnologia'];
+        const PRODUTOS_DATI    = ['DATI Import','DATI Export','Smart Read','Catálogo de Produtos','Orkestra','DUIMP'];
+        const TIPO_COBRANCA    = ['Mensalidade','Por processo','Por documento','Por DI/DUIMP'];
+        const SIM_NAO          = ['Sim','Não'];
 
-        const wsInstr = XLSX.utils.aoa_to_sheet([
-            ['INSTRUCOES DE PREENCHIMENTO'],
+        // ── Cor do cabeçalho: azul escuro (mesmo do modelo Journey) ─────────
+        const HEADER_STYLE = {
+            fill: { fgColor: { rgb: '1B2A4A' } },
+            font: { bold: true, color: { rgb: 'FFFFFF' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+                bottom: { style: 'thin', color: { rgb: '3B5998' } },
+            },
+        };
+
+        // Helper: aplicar estilo no cabeçalho de um worksheet
+        function applyHeaderStyle(ws, headers) {
+            headers.forEach((_, i) => {
+                const addr = XLSX.utils.encode_cell({ r: 0, c: i });
+                if (ws[addr]) ws[addr].s = HEADER_STYLE;
+            });
+        }
+
+        // Helper: adicionar Data Validation (dropdown) numa coluna
+        function addDropdown(ws, col, list, startRow, endRow) {
+            if (!ws['!dataValidation']) ws['!dataValidation'] = [];
+            ws['!dataValidation'].push({
+                sqref: `${col}${startRow}:${col}${endRow}`,
+                type: 'list',
+                formula1: `"${list.join(',')}"`,
+                showDropDown: false,
+                showErrorMessage: true,
+                errorTitle: 'Valor inválido',
+                error: `Selecione uma opção válida da lista.`,
+            });
+        }
+
+        // ── ABA: Empresas - Preencher ─────────────────────────────────────────
+        const empHeaders = ['Nome da Empresa','Status da Empresa','CNPJ','Tipo de Empresa','Estado','Cidade','Segmento','Site'];
+        const wsEmp = XLSX.utils.aoa_to_sheet([empHeaders]);
+        wsEmp['!cols'] = [{ wch: 30 },{ wch: 22 },{ wch: 20 },{ wch: 26 },{ wch: 10 },{ wch: 20 },{ wch: 22 },{ wch: 28 }];
+        wsEmp['!rows'] = [{ hpt: 24 }];
+        wsEmp['!freeze'] = { xSplit: 0, ySplit: 1 };
+        applyHeaderStyle(wsEmp, empHeaders);
+        addDropdown(wsEmp, 'B', STATUS_EMPRESA,  2, 10001);
+        addDropdown(wsEmp, 'D', TIPO_EMPRESA,    2, 10001);
+        addDropdown(wsEmp, 'E', ESTADOS,          2, 10001);
+        addDropdown(wsEmp, 'G', SEGMENTOS,        2, 10001);
+        XLSX.utils.book_append_sheet(wb, wsEmp, 'Empresas - Preencher');
+
+        // ── ABA: Contatos - Preencher ─────────────────────────────────────────
+        const cttHeaders = ['Nome do Contato','Cargo','Departamento','E-mail','Whatsapp','Linkedin'];
+        const wsCtt = XLSX.utils.aoa_to_sheet([cttHeaders]);
+        wsCtt['!cols'] = [{ wch: 28 },{ wch: 16 },{ wch: 20 },{ wch: 30 },{ wch: 18 },{ wch: 30 }];
+        wsCtt['!rows'] = [{ hpt: 24 }];
+        wsCtt['!freeze'] = { xSplit: 0, ySplit: 1 };
+        applyHeaderStyle(wsCtt, cttHeaders);
+        addDropdown(wsCtt, 'B', CARGOS,       2, 10001);
+        addDropdown(wsCtt, 'C', DEPARTAMENTOS, 2, 10001);
+        XLSX.utils.book_append_sheet(wb, wsCtt, 'Contatos - Preencher');
+
+        // ── ABA: Produtos DATI - Preencher ────────────────────────────────────
+        const prdHeaders = [
+            'Produto DATI','Tipo de Cobrança','Valor Unitário','Valor Mínimo',
+            'Cobrança de Setup','Valor de Setup','Quantidade de Usuários',
+            'Valor por Usuário Adicional','Total Horas Mensais - Help Desk',
+            'Valor Adicional por Hora - Help Desk',
+        ];
+        const wsPrd = XLSX.utils.aoa_to_sheet([prdHeaders]);
+        wsPrd['!cols'] = Array(10).fill({ wch: 26 });
+        wsPrd['!rows'] = [{ hpt: 24 }];
+        wsPrd['!freeze'] = { xSplit: 0, ySplit: 1 };
+        applyHeaderStyle(wsPrd, prdHeaders);
+        addDropdown(wsPrd, 'A', PRODUTOS_DATI,  2, 10001);
+        addDropdown(wsPrd, 'B', TIPO_COBRANCA,  2, 10001);
+        addDropdown(wsPrd, 'E', SIM_NAO,        2, 10001);
+        XLSX.utils.book_append_sheet(wb, wsPrd, 'Produtos DATI - Preencher');
+
+        // ── ABA: Base - Não preencher (listas para referência) ────────────────
+        const maxLen = Math.max(STATUS_EMPRESA.length, TIPO_EMPRESA.length, ESTADOS.length, SEGMENTOS.length, CARGOS.length, DEPARTAMENTOS.length, PRODUTOS_DATI.length, TIPO_COBRANCA.length, SIM_NAO.length);
+        const baseRows = [
+            ['Status Empresa','Tipo Empresa','Estado','Segmento','Cargo','Departamento','Produtos DATI','Tipo de Cobrança','Valor de Setup'],
+        ];
+        for (let i = 0; i < maxLen; i++) {
+            baseRows.push([
+                STATUS_EMPRESA[i]  || '',
+                TIPO_EMPRESA[i]    || '',
+                ESTADOS[i]         || '',
+                SEGMENTOS[i]       || '',
+                CARGOS[i]          || '',
+                DEPARTAMENTOS[i]   || '',
+                PRODUTOS_DATI[i]   || '',
+                TIPO_COBRANCA[i]   || '',
+                SIM_NAO[i]         || '',
+            ]);
+        }
+        const wsBase = XLSX.utils.aoa_to_sheet(baseRows);
+        wsBase['!cols'] = Array(9).fill({ wch: 26 });
+        applyHeaderStyle(wsBase, baseRows[0]);
+        XLSX.utils.book_append_sheet(wb, wsBase, 'Base- Não preencher');
+
+        // ── ABA: INSTRUCOES ───────────────────────────────────────────────────
+        const instrRows = [
+            ['INSTRUCOES DE PREENCHIMENTO — JOURNEY · Importação em Massa'],
             [''],
-            ['1. NAO altere os nomes das colunas na aba EMPRESAS_CONTATOS'],
-            ['2. Preencha uma empresa por linha'],
-            ['3. O campo empresa e obrigatorio'],
-            ['4. contato_email e recomendado se houver contato'],
-            ['5. NAO remova colunas da planilha'],
-            ['6. Limite: 10.000 linhas por importacao'],
-            ['7. Formatos aceitos: XLSX e CSV'],
+            ['EMPRESAS (aba: Empresas - Preencher)'],
+            ['  A - Nome da Empresa     → obrigatório'],
+            ['  B - Status da Empresa   → selecione da lista'],
+            ['  C - CNPJ                → formato 00.000.000/0001-00'],
+            ['  D - Tipo de Empresa     → selecione da lista'],
+            ['  E - Estado              → UF (ex: SP, RJ)'],
+            ['  F - Cidade'],
+            ['  G - Segmento            → selecione da lista'],
+            ['  H - Site                → ex: https://empresa.com.br'],
             [''],
-            ['COLUNAS: empresa, cnpj, segmento, cidade, estado, site, contato_nome, contato_email, contato_telefone, cargo'],
-        ]);
-        wsInstr['!cols'] = [{ wch: 60 }];
+            ['CONTATOS (aba: Contatos - Preencher)'],
+            ['  A - Nome do Contato     → obrigatório'],
+            ['  B - Cargo               → selecione da lista'],
+            ['  C - Departamento        → selecione da lista'],
+            ['  D - E-mail'],
+            ['  E - Whatsapp'],
+            ['  F - Linkedin'],
+            [''],
+            ['PRODUTOS DATI (aba: Produtos DATI - Preencher)'],
+            ['  A - Produto DATI        → selecione da lista'],
+            ['  B - Tipo de Cobrança    → selecione da lista'],
+            ['  C - Valor Unitário      → R$'],
+            ['  D - Valor Mínimo        → R$'],
+            ['  E - Cobrança de Setup   → Sim/Não'],
+            ['  F - Valor de Setup      → R$'],
+            ['  G - Quantidade de Usuários'],
+            ['  H - Valor por Usuário Adicional  → R$'],
+            ['  I - Total Horas Mensais Help Desk'],
+            ['  J - Valor Adicional por Hora HD  → R$'],
+            [''],
+            ['REGRAS IMPORTANTES'],
+            ['  1. NAO altere os nomes das colunas'],
+            ['  2. Nome da Empresa é OBRIGATORIO'],
+            ['  3. Limite: 10.000 linhas por importação'],
+            ['  4. Formatos aceitos: XLSX'],
+        ];
+        const wsInstr = XLSX.utils.aoa_to_sheet(instrRows);
+        wsInstr['!cols'] = [{ wch: 70 }];
         XLSX.utils.book_append_sheet(wb, wsInstr, 'INSTRUCOES');
 
-        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-
-        console.log('[IMPORT TEMPLATE] XLSX gerado com sucesso');
-        console.log('[IMPORT TEMPLATE] Buffer size:', buffer.length);
-        console.log('[IMPORT TEMPLATE] Sheets:', wb.SheetNames);
-
+        // ── Gerar e validar ───────────────────────────────────────────────────
+        const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx', cellStyles: true });
         const test = XLSX.read(buffer, { type: 'buffer' });
-        console.log('[IMPORT TEMPLATE] Validacao OK. Sheets:', test.SheetNames);
+        console.log('[IMPORT TEMPLATE] Sheets:', test.SheetNames, '| Size:', buffer.length);
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="template_importacao_dati.xlsx"');
+        res.setHeader('Content-Disposition', 'attachment; filename="modelo_importacao_dati.xlsx"');
         res.setHeader('Content-Length', buffer.length);
         return res.end(buffer);
     } catch (err) {
@@ -876,7 +1018,7 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
         // Parse do arquivo
         const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
         const sheetName = wb.SheetNames.find(n =>
-            n.toLowerCase().includes('empresa') || n === wb.SheetNames[0]
+            n.toLowerCase().includes('empresa') && !n.toLowerCase().includes('base')
         ) || wb.SheetNames[0];
         const ws = wb.Sheets[sheetName];
         const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '' });
@@ -1124,11 +1266,12 @@ app.post('/api/import/:id/execute', async (req, res) => {
                                     id: randomUUID(),
                                     Nome_da_empresa: row.empresa || 'Sem nome',
                                     CNPJ_da_empresa: row.cnpj || null,
+                                    Tipo_de_empresa: row.tipo_empresa || null,
                                     Segmento_da_empresa: row.segmento || null,
                                     Cidade: row.cidade || null,
                                     Estado: row.estado || null,
                                     Site: row.site || null,
-                                    Status: 'Inativo',
+                                    Status: row.status_empresa || 'Prospect',
                                     updatedAt: now,
                                 },
                             });
@@ -1142,14 +1285,40 @@ app.post('/api/import/:id/execute', async (req, res) => {
                                 data: {
                                     id: randomUUID(),
                                     companyId,
-                                    Nome_do_contato: row.contato_nome || null,
-                                    Email_1: row.contato_email || null,
-                                    WhatsApp: row.contato_telefone || null,
-                                    Cargo_do_contato: row.cargo || null,
+                                    Nome_do_contato:        row.contato_nome        || null,
+                                    Email_1:                row.contato_email        || null,
+                                    WhatsApp:               row.contato_telefone     || null,
+                                    Cargo_do_contato:       row.cargo               || null,
+                                    Departamento_do_contato:row.departamento         || null,
+                                    LinkedIn:               row.linkedin             || null,
                                     updatedAt: new Date(),
                                 },
                             });
                             contacts_created++;
+                        }
+                        // Cria produto DATI se houver dados
+                        if (companyId && row.produto_dati) {
+                            try {
+                                await tx.company_products.create({
+                                    data: {
+                                        id: randomUUID(),
+                                        companyId,
+                                        Produto_DATI: row.produto_dati,
+                                        Tipo_cobranca: row.tipo_cobranca || null,
+                                        Valor_unitario: row.valor_unitario != null ? row.valor_unitario : null,
+                                        Valor_minimo: row.valor_minimo != null ? row.valor_minimo : null,
+                                        Cobranca_setup: row.cobranca_setup || null,
+                                        Valor_setup: row.valor_setup != null ? row.valor_setup : null,
+                                        Qtd_usuarios: row.qtd_usuarios || null,
+                                        Valor_usuario_adicional: row.valor_usuario_adic != null ? row.valor_usuario_adic : null,
+                                        Total_horas_hd: row.total_horas_hd != null ? Math.round(row.total_horas_hd) : null,
+                                        Valor_adic_hd: row.valor_adic_hd != null ? row.valor_adic_hd : null,
+                                        updatedAt: new Date(),
+                                    },
+                                });
+                            } catch(prodErr) {
+                                console.warn('[import/execute] produto ignorado:', prodErr.message);
+                            }
                         }
                     }
                 });
