@@ -222,22 +222,37 @@ model import_jobs {
 }
 
 model import_staging {
-  id               String      @id @default(uuid())
-  import_id        String
-  row_number       Int
-  empresa          String?
-  cnpj             String?
-  segmento         String?
-  cidade           String?
-  estado           String?
-  site             String?
-  contato_nome     String?
-  contato_email    String?
-  contato_telefone String?
-  cargo            String?
-  status           String      @default("pending")
-  error_message    String?
-  import_jobs      import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
+  id                String      @id @default(uuid())
+  import_id         String
+  row_number        Int
+  empresa           String?
+  cnpj              String?
+  status_empresa    String?
+  tipo_empresa      String?
+  segmento          String?
+  cidade            String?
+  estado            String?
+  site              String?
+  contato_nome      String?
+  contato_email     String?
+  contato_telefone  String?
+  cargo             String?
+  departamento      String?
+  linkedin          String?
+  // Produto DATI
+  produto_dati      String?
+  tipo_cobranca     String?
+  valor_unitario    Decimal?    @db.Decimal(15, 2)
+  valor_minimo      Decimal?    @db.Decimal(15, 2)
+  cobranca_setup    String?
+  valor_setup       Decimal?    @db.Decimal(15, 2)
+  qtd_usuarios      String?
+  valor_usuario_adic Decimal?   @db.Decimal(15, 2)
+  total_horas_hd    Int?
+  valor_adic_hd     Decimal?    @db.Decimal(15, 2)
+  status            String      @default("pending")
+  error_message     String?
+  import_jobs       import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
 }
 
 model import_logs {

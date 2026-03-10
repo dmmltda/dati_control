@@ -22,6 +22,135 @@ import { refreshCompanyContactsTable } from './modules/company-contacts/company-
 import { initImportModule } from './modules/importer/import-manager.js';
 import * as activities from './modules/activities.js';
 
+// ─── Journey Dashboard (novo módulo) ────────────────────────────────────────
+import { initDashboard } from '../src/pages/Dashboard.js';
+import { mockUsuarios } from '../src/data/mockData.js';
+
+// Controla se o dashboard já foi inicializado
+let _dashboardIniciado = false;
+
+/**
+ * Inicializa o Journey Dashboard (chamado no primeiro acesso e no nav click)
+ */
+function mostrarJourneyDashboard() {
+    if (!_dashboardIniciado) {
+        initDashboard('journey-dashboard-root');
+        _dashboardIniciado = true;
+
+        // Exibe a data atual no header do dashboard
+        const elData = document.getElementById('dashboard-data-hoje');
+        if (elData) {
+            const hoje = new Date();
+            elData.textContent = hoje.toLocaleDateString('pt-BR', {
+                weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+            });
+        }
+
+        // Inicializa o menu dropdown de usuário
+        _dbInicializarMenu();
+    }
+}
+
+// ─── Lógica do Dropdown de Usuário (menu geral do dashboard) ─────────────────
+// Todas as funções window._ são expostas globalmente para os onclick do HTML.
+
+/**
+ * Popula o #db-user-list com os usuários do mock
+ */
+function _dbInicializarMenu() {
+    const lista = document.getElementById('db-user-list');
+    if (!lista) return;
+
+    const avatarColors = ['#0F3460', '#1A5276', '#E8832A', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899'];
+
+    lista.innerHTML = mockUsuarios.map((u, i) => {
+        const cor = avatarColors[i % avatarColors.length];
+        return `
+            <button class="db-dropdown-item" id="db-dd-${u.id}"
+                onclick="window._dbSelecionarUsuario('${u.nome}', '${u.nome}', '${u.avatar}', event)"
+                style="--avatar-cor:${cor};">
+                <span style="width:26px;height:26px;border-radius:50%;background:${cor};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;">${u.avatar}</span>
+                <div style="display:flex;flex-direction:column;min-width:0;flex:1;">
+                    <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.nome}</span>
+                    <span style="font-size:11px;color:#64748B;font-weight:400;">${u.role}</span>
+                </div>
+                <i class="ph ph-check" id="check-${u.id}" style="margin-left:auto;font-size:12px;color:#0F3460;display:none;"></i>
+            </button>
+        `;
+    }).join('');
+}
+
+/**
+ * Abre/fecha o dropdown de usuário
+ */
+window._dbToggleUserMenu = function (event) {
+    event.stopPropagation();
+    const menu = document.getElementById('db-user-dropdown-menu');
+    const btn = document.getElementById('db-user-btn');
+    if (!menu) return;
+    const aberto = menu.classList.toggle('open');
+    if (btn) btn.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+};
+
+/**
+ * Seleciona um usuário e propaga para o filtro do painel Próximos Passos
+ * @param {string} nome       - nome do usuário (ou 'Todos')
+ * @param {string} label      - texto a mostrar no botão
+ * @param {string} avatar     - iniciais para o avatar
+ * @param {Event}  event
+ */
+window._dbSelecionarUsuario = function (nome, label, avatar, event) {
+    event?.stopPropagation();
+
+    // Atualiza visual do botão
+    const btnNome = document.getElementById('db-user-name-btn');
+    const btnAvatar = document.getElementById('db-avatar-btn');
+    if (btnNome) btnNome.textContent = label;
+    if (btnAvatar) {
+        btnAvatar.textContent = avatar;
+        btnAvatar.style.background = nome === 'Todos' ? '#64748B' : '#0F3460';
+    }
+
+    // Remove .active de todos os itens e esconde todos os checks
+    document.querySelectorAll('.db-dropdown-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('[id^="check-"]').forEach(el => el.style.display = 'none');
+
+    // Marca o item selecionado
+    const idTarget = nome === 'Todos' ? 'db-dd-todos' : null;
+    if (idTarget) {
+        document.getElementById(idTarget)?.classList.add('active');
+        document.getElementById('check-Todos').style.display = 'inline';
+    } else {
+        // Acha o botão pelo nome do usuário
+        const usuario = mockUsuarios.find(u => u.nome === nome);
+        if (usuario) {
+            document.getElementById(`db-dd-${usuario.id}`)?.classList.add('active');
+            const chk = document.getElementById(`check-${usuario.id}`);
+            if (chk) chk.style.display = 'inline';
+        }
+    }
+
+    // Fecha o menu
+    document.getElementById('db-user-dropdown-menu')?.classList.remove('open');
+    document.getElementById('db-user-btn')?.setAttribute('aria-expanded', 'false');
+
+    // ─── Propaga o filtro para o painel Próximos Passos ───────────────
+    // O painel expõe window._proximosPassos.setResponsavel()
+    if (window._proximosPassos?.setResponsavel) {
+        window._proximosPassos.setResponsavel(nome === 'Todos' ? 'Todos' : nome);
+    }
+};
+
+// Fecha o dropdown ao clicar fora
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('db-user-dropdown-wrap');
+    if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('db-user-dropdown-menu')?.classList.remove('open');
+        document.getElementById('db-user-btn')?.setAttribute('aria-expanded', 'false');
+    }
+});
+
+
 
 // Globalize for inline onclicks
 window.ui = ui;
@@ -42,6 +171,8 @@ function handleNavigation(target) {
         if (view) {
             nav.switchView(view);
             if (view === 'import') initImportModule();
+            // Inicializa o dashboard quando o usuário nav. para ele
+            if (view === 'dashboard') mostrarJourneyDashboard();
         }
         return true;
     }
@@ -304,6 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check Auth
     if (sessionStorage.getItem('dati_auth') === 'true') {
         auth.showApp();
+        // Inicializa o dashboard na primeira carga (view padrão)
+        mostrarJourneyDashboard();
     }
     ui.initGlobalPickers();
 

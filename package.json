@@ -1,7 +1,7 @@
 {
-  "name": "dati-control",
+  "name": "journey-crm",
   "version": "1.0.0",
-  "description": "DATI Control - CRM Inteligente",
+  "description": "Journey - CRM Inteligente",
   "type": "module",
   "scripts": {
     "dev": "python3 -m http.server 8000",

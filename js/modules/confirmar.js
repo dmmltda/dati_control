@@ -1,11 +1,11 @@
 /**
- * DATI Control - Sistema de Confirmacao 10/10
+ * Journey - Sistema de Confirmacao 10/10
  * Bypasses native confirm() bugs while maintaining project aesthetics.
  */
 export function confirmar(mensagem, callback) {
     const modal = document.createElement('div');
     modal.id = 'dati-custom-confirm';
-    
+
     // Glassmorphism Overlay
     Object.assign(modal.style, {
         position: 'fixed',
@@ -99,7 +99,7 @@ export function confirmar(mensagem, callback) {
 
     modal.querySelector('#btn-confirmar-sim').onclick = () => close(true);
     modal.querySelector('#btn-confirmar-nao').onclick = () => close(false);
-    
+
     // Hover effects JS-style for strict isolation
     const buttons = modal.querySelectorAll('button');
     buttons.forEach(btn => {

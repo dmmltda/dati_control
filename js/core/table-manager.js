@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * TableManager 2.0 — Motor Universal de Tabelas (DATI Control)
+ * TableManager 2.0 — Motor Universal de Tabelas (Journey)
  * ============================================================================
  *
  * Classe reutilizável e sem dependências externas para gerenciar o estado
@@ -41,7 +41,7 @@ export class TableManager {
      */
     constructor(config) {
         // --- Dados ---
-        this._originalData  = [...(config.data || [])];
+        this._originalData = [...(config.data || [])];
         this._filteredTotal = 0; // total após filtros (antes de paginar)
 
         // --- Definição das colunas ---
@@ -50,19 +50,19 @@ export class TableManager {
         this._columns = config.columns || [];
 
         // --- Configurações ---
-        this._pageSize  = config.pageSize || 15;
-        this._tableId   = config.tableId  || null;
+        this._pageSize = config.pageSize || 15;
+        this._tableId = config.tableId || null;
 
         // --- Callbacks ---
-        this._renderRows       = config.renderRows       || (() => {});
+        this._renderRows = config.renderRows || (() => { });
         this._renderPagination = config.renderPagination || null;
-        this._renderFilters    = config.renderFilters    || null;
+        this._renderFilters = config.renderFilters || null;
 
         // --- Estado interno ---
-        this._search    = '';                  // busca global (string)
-        this._filters   = {};                  // { columnKey: value | value[] }
-        this._sort      = { key: null, dir: 'asc' }; // coluna e direção
-        this._page      = 1;                   // página atual (1-indexed)
+        this._search = '';                  // busca global (string)
+        this._filters = {};                  // { columnKey: value | value[] }
+        this._sort = { key: null, dir: 'asc' }; // coluna e direção
+        this._page = 1;                   // página atual (1-indexed)
         this._totalPages = 1;
 
         // --- Seleção múltipla ---
@@ -101,7 +101,7 @@ export class TableManager {
      */
     setFilter(key, value) {
         const isEmpty = value === null || value === undefined || value === '' ||
-                        (Array.isArray(value) && value.length === 0);
+            (Array.isArray(value) && value.length === 0);
         if (isEmpty) {
             delete this._filters[key];
         } else {
@@ -114,8 +114,8 @@ export class TableManager {
     /** Remove todos os filtros e a busca global. */
     clearFilters() {
         this._filters = {};
-        this._search  = '';
-        this._page    = 1;
+        this._search = '';
+        this._page = 1;
         this.refresh();
     }
 
@@ -125,7 +125,7 @@ export class TableManager {
      */
     setSort(key) {
         if (this._sort.key === key) {
-            if (this._sort.dir === 'asc')  { this._sort.dir = 'desc'; }
+            if (this._sort.dir === 'asc') { this._sort.dir = 'desc'; }
             else if (this._sort.dir === 'desc') { this._sort.key = null; this._sort.dir = 'asc'; }
         } else {
             this._sort.key = key;
@@ -268,12 +268,12 @@ export class TableManager {
     /** Retorna o estado atual da paginação. */
     getPaginationState() {
         return {
-            currentPage : this._page,
-            totalPages  : this._totalPages,
-            pageSize    : this._pageSize,
+            currentPage: this._page,
+            totalPages: this._totalPages,
+            pageSize: this._pageSize,
             totalRecords: this._filteredTotal,
-            hasPrev     : this._page > 1,
-            hasNext     : this._page < this._totalPages,
+            hasPrev: this._page > 1,
+            hasNext: this._page < this._totalPages,
         };
     }
 
@@ -301,8 +301,8 @@ export class TableManager {
     /** Exposição do estado de ordenação com alias 'direction' (compatível com manager.sort.direction) */
     get sort() {
         return {
-            key      : this._sort.key,
-            dir      : this._sort.dir,
+            key: this._sort.key,
+            dir: this._sort.dir,
             direction: this._sort.dir,    // alias legado
         };
     }
@@ -338,7 +338,7 @@ export class TableManager {
 
         this._processedData = data;
         this._filteredTotal = data.length;
-        this._totalPages    = Math.max(1, Math.ceil(this._filteredTotal / this._pageSize));
+        this._totalPages = Math.max(1, Math.ceil(this._filteredTotal / this._pageSize));
 
         // Corrige página atual se necessário
         if (this._page > this._totalPages) this._page = this._totalPages;
@@ -348,7 +348,7 @@ export class TableManager {
 
     /** Executa apenas a saída (chamada após mudança de página sem refiltrar). */
     _renderOutput() {
-        const paginated       = this.getPaginatedData();
+        const paginated = this.getPaginatedData();
         const paginationState = this.getPaginationState();
 
         // 1. Renderizar linhas
@@ -406,9 +406,9 @@ export class TableManager {
 
         return data.filter(item => {
             return Object.entries(this._filters).every(([key, filterValue]) => {
-                const col   = this._columns.find(c => c.key === key);
-                const type  = col?.filterType || col?.type || 'text';
-                const raw   = item[key];
+                const col = this._columns.find(c => c.key === key);
+                const type = col?.filterType || col?.type || 'text';
+                const raw = item[key];
 
                 // ── Range numerico: {min?, max?} ────────────────────────────
                 if (filterValue && typeof filterValue === 'object' && !Array.isArray(filterValue)) {
@@ -437,10 +437,10 @@ export class TableManager {
                 // Date range: "DD/MM/YYYY a DD/MM/YYYY" ou "YYYY-MM-DD a YYYY-MM-DD"
                 if (type === 'date' && String(filterValue).includes(' a ')) {
                     const [startStr, endStr] = String(filterValue).split(' a ');
-                    const itemTime  = this._parseDate(raw);
+                    const itemTime = this._parseDate(raw);
                     const startTime = this._parseDate(startStr.trim());
                     // Inclui o dia inteiro do fim do range
-                    const endTime   = this._parseDate(endStr.trim()) + 86399999;
+                    const endTime = this._parseDate(endStr.trim()) + 86399999;
                     if (!itemTime || !startTime) return false;
                     return itemTime >= startTime && itemTime <= endTime;
                 }
@@ -460,10 +460,10 @@ export class TableManager {
     _applySort(data) {
         if (!this._sort.key) return data;
 
-        const col    = this._columns.find(c => c.key === this._sort.key);
-        const type   = col?.type || 'string';
+        const col = this._columns.find(c => c.key === this._sort.key);
+        const type = col?.type || 'string';
         const factor = this._sort.dir === 'asc' ? 1 : -1;
-        const key    = this._sort.key;
+        const key = this._sort.key;
 
         return [...data].sort((a, b) => {
             const valA = a[key];
@@ -541,7 +541,7 @@ export class TableManager {
             if (!th) return;
 
             // Classes de ordenação
-            th.classList.toggle('sort-asc',  this._sort.key === col.key && this._sort.dir === 'asc');
+            th.classList.toggle('sort-asc', this._sort.key === col.key && this._sort.dir === 'asc');
             th.classList.toggle('sort-desc', this._sort.key === col.key && this._sort.dir === 'desc');
 
             // Indicador de filtro ativo

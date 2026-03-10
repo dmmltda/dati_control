@@ -4,10 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DATI Control - CRM</title>
+    <title>Journey - CRM</title>
 
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Plus Jakarta Sans — Tipografia oficial do Journey Dashboard -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- DM Sans — fallback tipográfico -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Phosphor Icons -->
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -32,7 +36,7 @@
     <!-- Login Screen -->
     <div id="login-screen" class="screen flex-active">
         <form id="login-form" class="glass-panel login-card">
-            <div class="logo">DATI Control</div>
+            <div class="logo">Journey</div>
             <p>CRM Inteligente e Simplificado</p>
 
             <div style="text-align: left; margin-top: 2rem;">
@@ -59,7 +63,7 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <i class="ph ph-buildings"></i> DATI Control
+                <i class="ph ph-path"></i> Journey
             </div>
 
             <nav>
@@ -105,21 +109,64 @@
         <!-- Main Content Area -->
         <main class="main-content">
 
-            <!-- Dashboard View -->
+            <!-- Dashboard View — Journey Dashboard -->
             <div id="view-dashboard" class="view-section">
-                <div class="top-bar">
+                <!-- Header do Dashboard -->
+                <div class="top-bar" style="margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
                     <div>
-                        <h1><i class="ph ph-squares-four" style="color: var(--primary); margin-right: 0.5rem;"></i>
-                            Dashboard</h1>
-                        <p>Bem-vindo ao DATI Control! Aqui está o resumo das suas contas.</p>
+                        <h1
+                            style="font-family:'Plus Jakarta Sans','DM Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#1A202C; margin:0 0 0.2rem; display:flex; align-items:center; gap:0.5rem;">
+                            <i class="ph ph-path" style="color:#0F3460;"></i>
+                            Journey — Dashboard
+                        </h1>
+                        <p
+                            style="color:#64748B; font-size:0.75rem; margin:0; font-family:'Plus Jakarta Sans',sans-serif;">
+                            O que precisa acontecer hoje — e quem é o responsável por fazer acontecer.
+                        </p>
                     </div>
-                    <button class="btn btn-primary btn-new-company">
-                        <i class="ph ph-plus"></i> Nova Empresa
-                    </button>
+                    <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+                        <!-- Data atual -->
+                        <span id="dashboard-data-hoje"
+                            style="font-size:0.75rem; color:#64748B; background:#F4F6F9; padding:0.35rem 0.8rem; border-radius:8px; border:1px solid #E2E8F0; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap;"></span>
+
+                        <!-- Dropdown de Usuário / Visualizar como -->
+                        <div class="db-user-dropdown" id="db-user-dropdown-wrap">
+                            <button class="db-user-btn" id="db-user-btn" onclick="window._dbToggleUserMenu(event)"
+                                aria-haspopup="listbox" aria-expanded="false" title="Filtrar dashboard por responsável">
+                                <span class="db-avatar" id="db-avatar-btn">T</span>
+                                <span id="db-user-name-btn">Todos os usuários</span>
+                                <i class="ph ph-caret-down" style="font-size:11px; opacity:0.6; margin-left:2px;"></i>
+                            </button>
+                            <!-- Menu dropdown -->
+                            <div class="db-user-dropdown-menu" id="db-user-dropdown-menu" role="listbox">
+                                <div class="db-dropdown-header">Visualizar como</div>
+                                <button class="db-dropdown-item active" id="db-dd-todos"
+                                    onclick="window._dbSelecionarUsuario('Todos', 'Todos os usuários', 'T', event)">
+                                    <span
+                                        style="width:26px;height:26px;border-radius:50%;background:#64748B;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;">T</span>
+                                    Todos os usuários
+                                    <i class="ph ph-check" id="check-Todos"
+                                        style="margin-left:auto;font-size:12px;color:#0F3460;"></i>
+                                </button>
+                                <div class="db-dropdown-divider"></div>
+                                <div class="db-dropdown-header">Responsáveis</div>
+                                <div id="db-user-list"><!-- Preenchido por _dbInicializarMenu() --></div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-new-company" aria-label="Adicionar nova empresa">
+                            <i class="ph ph-plus"></i> Nova Empresa
+                        </button>
+                    </div>
                 </div>
 
-                <div class="grid-4" id="dashboard-stats">
-                    <!-- Stats injected via JS -->
+                <!-- Container raiz do Journey Dashboard (gerenciado por src/pages/Dashboard.js) -->
+                <div id="journey-dashboard-root" style="font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;">
+                    <!-- Painéis injetados via initDashboard() -->
+                    <div style="text-align: center; padding: 4rem; color: #64748B;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">⚡</div>
+                        <p>Carregando Dashboard...</p>
+                    </div>
                 </div>
             </div>
 
@@ -204,6 +251,9 @@
                                             onclick="ui.toggleFilterPopover('comp_nome', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Nome da empresa cadastrada no sistema. Clique para ordenar A→Z ou Z→A."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_nome"></div>
                                     </th>
                                     <th class="sortable-header" data-key="status" style="text-align: center;">
@@ -212,6 +262,9 @@
                                             onclick="ui.toggleFilterPopover('comp_status', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Etapa atual da jornada comercial da empresa: Prospect → Lead → Reunião → Proposta → Em Contrato → Ativo."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_status"></div>
                                     </th>
                                     <th class="sortable-header" data-key="healthScore" style="text-align: center;">
@@ -220,6 +273,9 @@
                                             onclick="ui.toggleFilterPopover('comp_healthScore', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="🟢 Saudável — cliente engajado e sem pendências.&#10;🟡 Atenção — sinais de alerta, requer acompanhamento.&#10;🔴 Risco — cliente em risco de churn."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_healthScore"></div>
                                     </th>
                                     <th class="sortable-header" data-key="nps" style="text-align: center;">
@@ -228,6 +284,9 @@
                                             onclick="ui.toggleFilterPopover('comp_nps', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Net Promoter Score — mede a lealdade do cliente.&#10;≥ 9 = Promotor 🟢 | 7-8 = Neutro 🟡 | ≤ 6 = Detrator 🔴"><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_nps"></div>
                                     </th>
                                     <th class="sortable-header" data-key="proximoPasso" style="text-align: center;">
@@ -237,6 +296,9 @@
                                             onclick="ui.toggleFilterPopover('comp_proximoPasso', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Ação ou tarefa definida para avançar o relacionamento com esta empresa. Definido pelo responsável comercial ou de CS."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_proximoPasso"></div>
                                     </th>
                                     <th class="sortable-header" data-key="produtosNames" style="text-align: center;">

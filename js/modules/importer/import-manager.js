@@ -404,10 +404,15 @@ function renderFinalResult(result) {
                     <i class="ph ph-user"></i>
                     <span><strong>${result.contacts_created}</strong> contatos criados</span>
                 </div>
-                ${result.errors > 0 ? `
+                ${result.cnpj_conflicts > 0 ? `
                 <div class="final-stat final-stat-warn">
-                    <i class="ph ph-warning"></i>
-                    <span><strong>${result.errors}</strong> registros com erro</span>
+                    <i class="ph ph-warning-circle"></i>
+                    <span><strong>${result.cnpj_conflicts}</strong> empresa(s) não criada(s) por conflito de CNPJ — contatos foram vinculados às empresas existentes. Verifique os detalhes na aba de preview.</span>
+                </div>` : ''}
+                ${result.errors > 0 ? `
+                <div class="final-stat final-stat-error">
+                    <i class="ph ph-x-circle"></i>
+                    <span><strong>${result.errors}</strong> registro(s) com erro — não importados</span>
                 </div>` : ''}
             </div>
             <button id="btn-import-done" class="btn btn-primary" style="margin-top: 2rem;">

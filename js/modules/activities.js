@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * Módulo Atividades — DATI Control
+ * Módulo Atividades — Journey
  * ============================================================================
  * Timeline operacional da empresa. Registra todas as interações de todos
  * os departamentos.
