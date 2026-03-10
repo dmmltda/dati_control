@@ -81,8 +81,9 @@ export function initImportModule() {
     setStep(1);
     initUploadZone();
 
-    // Botão Baixar Modelo
-    $('btn-import-template')?.addEventListener('click', downloadTemplate);
+    // Botão Baixar Modelo — é tag <a download>, não precisa de JS.
+    // Apenas impede que o clique propague para o drop zone.
+    $('btn-import-template')?.addEventListener('click', (e) => e.stopPropagation());
 
     // Botão Cancelar importação
     $('btn-import-cancel')?.addEventListener('click', cancelImport);
