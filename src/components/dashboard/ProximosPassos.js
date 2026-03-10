@@ -8,6 +8,7 @@
  */
 
 import { colors, statusColors, card } from '../../theme/tokens.js';
+import { initTooltipSystem, showTooltip, hideTooltip } from './Tooltip.js';
 
 // ─── Estado interno do painel ────────────────────────────────────────────────
 let _empresas = [];
@@ -15,8 +16,9 @@ let _usuarios = [];
 let _container = null;
 let _filtroResponsavel = 'Todos';
 let _filtroTab = 'Todos';
+let _filtroData = null;   // string 'YYYY-MM-DD' ou null quando nenhuma data selecionada
 let _paginaAtual = 1;
-const ITENS_POR_PAGINA = 15;
+const ITENS_POR_PAGINA = 25;
 
 const HOJE = new Date('2026-03-10');
 HOJE.setHours(0, 0, 0, 0);
@@ -77,9 +79,16 @@ function filtrarPassos(passos) {
 
   // Filtro por responsável
   if (_filtroResponsavel !== 'Todos') {
-    result = result.filter(p =>
-      p.responsaveis?.includes(_filtroResponsavel)
-    );
+    result = result.filter(p => p.responsaveis?.includes(_filtroResponsavel));
+  }
+
+  // Filtro por data específica (AND com a tab)
+  if (_filtroData) {
+    result = result.filter(p => {
+      const d = new Date(p.dataVencimento);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return iso === _filtroData;
+    });
   }
 
   // Filtro por tab
@@ -139,19 +148,26 @@ function renderResponsaveis(responsaveis) {
   const lista = responsaveis?.slice(0, 3) ?? [];
   const avatarColors = [colors.primary, colors.accent, colors.success];
   return `
-    <div style="display: flex; align-items: center; gap: -4px;">
+    <div style="display: flex; align-items: center;">
       ${lista.map((nome, i) => {
     const iniciais = nome.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
     const bg = avatarColors[i % avatarColors.length];
-    return `<span title="${nome}" style="
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 28px; height: 28px; border-radius: 50%;
-          background: ${bg}; color: #fff;
-          font-size: 0.65rem; font-weight: 700;
-          border: 2px solid white;
-          margin-left: ${i > 0 ? '-6px' : '0'};
-          position: relative; z-index: ${10 - i};
-        ">${iniciais}</span>`;
+    return `<span
+          data-responsavel-nome="${nome.replace(/"/g, '&quot;')}"
+          style="
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%;
+            background: ${bg}; color: #fff;
+            font-size: 0.65rem; font-weight: 700;
+            border: 2px solid white;
+            margin-left: ${i > 0 ? '-6px' : '0'};
+            position: relative; z-index: ${10 - i};
+            cursor: default;
+            transition: transform 120ms, z-index 0ms;
+          "
+          onmouseenter="this.style.transform='scale(1.25)';this.style.zIndex='99'"
+          onmouseleave="this.style.transform='scale(1)';this.style.zIndex='${10 - i}'"
+        >${iniciais}</span>`;
   }).join('')}
     </div>
   `;
@@ -331,13 +347,14 @@ function renderContadores(todos) {
   `;
 }
 
-// ─── Filtros: Tabs e Dropdown ─────────────────────────────────────────────────
+// ─── Filtros: Tabs, Calendário e Dropdown ────────────────────────────────────
 
 function renderFiltros() {
   const tabs = ['Todos', 'Vencidos', 'Hoje', 'Semana', 'Concluídos'];
 
+  // Tabs ficam "apagados" quando há filtro por data ativo
   const tabHtml = tabs.map(tab => {
-    const ativo = _filtroTab === tab;
+    const ativo = _filtroTab === tab && !_filtroData;
     return `
       <button onclick="window._proximosPassos?.setTab('${tab}')"
         style="
@@ -350,15 +367,81 @@ function renderFiltros() {
     `;
   }).join('');
 
+  // Badge de data ativa com botão × para limpar
+  const dataLabel = (() => {
+    if (!_filtroData) return '';
+    const [ano, mes, dia] = _filtroData.split('-');
+    return `${dia}/${mes}/${ano}`;
+  })();
+
+  const dataAtivaBadge = _filtroData ? `
+    <span style="
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 0.4rem 0.6rem 0.4rem 0.9rem;
+      border-radius: 8px; font-size: 0.8rem; font-weight: 700;
+      background: ${colors.primary}; color: #fff;
+      white-space: nowrap; animation: pp-fade-in 200ms ease;
+    ">
+      &#128197; ${dataLabel}
+      <button
+        onclick="window._proximosPassos?.clearData()"
+        title="Limpar filtro de data"
+        style="
+          background: rgba(255,255,255,0.25); border: none; border-radius: 50%;
+          width: 18px; height: 18px; color: white; font-size: 11px; font-weight: 900;
+          cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+          margin-left: 2px; transition: background 150ms; line-height: 1; padding: 0;
+        "
+        onmouseenter="this.style.background='rgba(255,255,255,0.4)'"
+        onmouseleave="this.style.background='rgba(255,255,255,0.25)'">&times;</button>
+    </span>
+  ` : '';
+
+  // Botão de calendário — clique abre o input[type=date] nativo via showPicker()
+  const calBtn = `
+    <div style="position: relative; display: inline-flex;">
+      <button
+        id="pp-calendar-btn"
+        onclick="var i=document.getElementById('pp-date-picker'); if(i.showPicker) i.showPicker(); else i.click();"
+        title="Filtrar por data específica"
+        style="
+          padding: 0.45rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+          border: 1px solid ${_filtroData ? colors.primary : colors.border};
+          background: ${_filtroData ? colors.primary + '18' : 'transparent'};
+          color: ${_filtroData ? colors.primary : colors.textMuted};
+          cursor: pointer; transition: all 150ms; font-family: inherit;
+          display: inline-flex; align-items: center; gap: 5px;
+        "
+        onmouseenter="this.style.borderColor='${colors.primary}'; this.style.color='${colors.primary}'"
+        onmouseleave="if(!document.getElementById('pp-date-picker').value){ this.style.borderColor='${colors.border}'; this.style.color='${colors.textMuted}'; }"
+      >&#128197; Data</button>
+      <input
+        type="date"
+        id="pp-date-picker"
+        value="${_filtroData || ''}"
+        onchange="window._proximosPassos?.setData(this.value)"
+        style="position: absolute; inset: 0; opacity: 0; pointer-events: none; cursor: pointer;"
+      >
+    </div>
+  `;
+
   const optionsHtml = [
     '<option value="Todos">Todos os responsáveis</option>',
     ..._usuarios.map(u => `<option value="${u.nome}" ${_filtroResponsavel === u.nome ? 'selected' : ''}>${u.nome}</option>`),
   ].join('');
 
   return `
-    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+    <style>
+      @keyframes pp-fade-in {
+        from { opacity: 0; transform: scale(0.88); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+    </style>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
+      <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center;">
         ${tabHtml}
+        ${calBtn}
+        ${dataAtivaBadge}
       </div>
       <select onchange="window._proximosPassos?.setResponsavel(this.value)"
         style="
@@ -372,6 +455,7 @@ function renderFiltros() {
     </div>
   `;
 }
+
 
 // ─── Render principal ─────────────────────────────────────────────────────────
 
@@ -400,7 +484,7 @@ function render() {
             width: 28px; height: 28px; border-radius: 8px;
             display: inline-flex; align-items: center; justify-content: center;
             font-size: 0.9rem;
-          ">⚡</span>
+          ">&#x26A1;</span>
           Próximos Passos por Responsável
           <span style="
             background: rgba(232,131,42,0.12); color: ${colors.accent};
@@ -426,6 +510,26 @@ function render() {
       ${renderPaginacao(passosFiltrados.length)}
     </section>
   `;
+
+  // ─── Tooltip nos avatares de responsáveis ────────────────────────────────
+  // Usa event delegation no container para não criar listeners duplicados.
+  initTooltipSystem();
+
+  _container.querySelectorAll('[data-responsavel-nome]').forEach(avatar => {
+    const nome = avatar.getAttribute('data-responsavel-nome');
+
+    avatar.addEventListener('mouseenter', (ev) => {
+      showTooltip(ev, {
+        emoji: '👤',
+        titulo: nome,
+        simples: true,   // pill compacto — só o nome
+      });
+    });
+
+    avatar.addEventListener('mouseleave', () => {
+      hideTooltip();
+    });
+  });
 }
 
 // ─── API pública do painel ────────────────────────────────────────────────────
@@ -451,6 +555,18 @@ export function renderProximosPassos(containerId, empresas, usuarios) {
     },
     setResponsavel(nome) {
       _filtroResponsavel = nome;
+      _paginaAtual = 1;
+      render();
+    },
+    /** Filtra pela data ISO 'YYYY-MM-DD' escolhida no calendário */
+    setData(iso) {
+      _filtroData = iso || null;
+      _paginaAtual = 1;
+      render();
+    },
+    /** Limpa o filtro de data e volta ao estado de tab ativo */
+    clearData() {
+      _filtroData = null;
       _paginaAtual = 1;
       render();
     },

@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
+import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,9 +25,81 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Servir arquivos estáticos do frontend (10/10 logic)
 app.use(express.static(path.join(__dirname, '..')));
 
-// Health Check
+// ─── Clerk Middleware ────────────────────────────────────────────────────────
+// Injeta req.auth em todas as requisições. Não bloqueia por si só.
+// As rotas protegidas usam requireAuth() individualmente.
+app.use(clerkMiddleware({ secretKey: process.env.CLERK_SECRET_KEY }));
+
+// Health Check — rota pública, sem autenticação
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', message: 'Servidor Journey 10/10 operando!' });
+});
+
+// ─── Middleware: Extração e sincronização de usuário Clerk ──────────────────
+/**
+ * Extrai o usuário logado via Clerk e sincroniza com a tabela `users` local.
+ * Adiciona req.usuarioAtual = { id, nome, email, avatar, role }
+ * Se o userId do Clerk não existir em `users`, cria automaticamente.
+ */
+async function extractUsuario(req, res, next) {
+    const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: 'Não autenticado' });
+
+    try {
+        let usuario = await prisma.users.findUnique({ where: { id: userId } });
+
+        if (!usuario) {
+            // Sincronização on-demand: busca dados no Clerk Backend API
+            const clerkUser = await fetch(
+                `https://api.clerk.com/v1/users/${userId}`,
+                { headers: { Authorization: `Bearer ${process.env.CLERK_SECRET_KEY}` } }
+            ).then(r => r.json());
+
+            const primeiroNome = clerkUser.first_name || '';
+            const ultimoNome = clerkUser.last_name || '';
+            const nomeCompleto = `${primeiroNome} ${ultimoNome}`.trim() || clerkUser.username || 'Usuário';
+            const email = clerkUser.email_addresses?.[0]?.email_address || '';
+            const iniciais = nomeCompleto.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
+
+            usuario = await prisma.users.create({
+                data: {
+                    id: userId,
+                    nome: nomeCompleto,
+                    email,
+                    avatar: iniciais,
+                    role: 'member',
+                    ativo: true,
+                }
+            });
+            console.log(`[Auth] ✅ Novo usuário sincronizado: ${nomeCompleto} (${userId})`);
+        }
+
+        req.usuarioAtual = usuario;
+        next();
+    } catch (err) {
+        console.error('[Auth] Erro ao sincronizar usuário Clerk:', err);
+        return res.status(500).json({ error: 'Erro de autenticação' });
+    }
+}
+
+// ─── Endpoints de Usuário ────────────────────────────────────────────────────
+
+// Retorna dados do usuário logado (usado pelo frontend após inicializar Clerk)
+app.get('/api/me', extractUsuario, (req, res) => {
+    res.json(req.usuarioAtual);
+});
+
+// Lista todos os usuários ativos (para dropdowns, filtros, etc.)
+app.get('/api/usuarios', extractUsuario, async (req, res) => {
+    try {
+        const usuarios = await prisma.users.findMany({
+            where: { ativo: true },
+            orderBy: { nome: 'asc' }
+        });
+        res.json(usuarios);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // =============================================================================
@@ -139,7 +212,7 @@ function sanitizeCompanyScalars(raw) {
 }
 
 // GET all companies with relations
-app.get('/api/companies', async (req, res) => {
+app.get('/api/companies', extractUsuario, async (req, res) => {
     try {
         const companies = await prisma.companies.findMany({
             include: {
@@ -166,7 +239,7 @@ app.get('/api/companies', async (req, res) => {
 });
 
 // GET single company
-app.get('/api/companies/:id', async (req, res) => {
+app.get('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const company = await prisma.companies.findUnique({
@@ -193,7 +266,7 @@ app.get('/api/companies/:id', async (req, res) => {
 });
 
 // POST new company 10/10 — versão blindada (mesma arquitetura do PUT)
-app.post('/api/companies', async (req, res) => {
+app.post('/api/companies', extractUsuario, async (req, res) => {
     try {
         const payload = req.body;
         console.log('\n📬 [POST /api/companies] Criando nova empresa...');
@@ -434,7 +507,7 @@ app.post('/api/companies', async (req, res) => {
 });
 
 // PUT update company — versão blindada contra nested writes no Prisma
-app.put('/api/companies/:id', async (req, res) => {
+app.put('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const payload = req.body;
@@ -733,7 +806,7 @@ app.put('/api/companies/:id', async (req, res) => {
 });
 
 // DELETE company
-app.delete('/api/companies/:id', async (req, res) => {
+app.delete('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const id = req.params.id;
         if (!id) return res.status(400).json({ error: 'ID obrigatório' });
@@ -858,7 +931,7 @@ function sanitizeRow(row) {
 
 // ── GET /api/import/template ─────────────────────────────────────────────────
 // Serve o arquivo modelo real (template_importacao_dati.xlsx)
-app.get('/api/import/template', (req, res) => {
+app.get('/api/import/template', extractUsuario, (req, res) => {
     try {
         const filePath = path.join(__dirname, 'template_importacao_dati.xlsx');
         const buffer = readFileSync(filePath);
@@ -873,7 +946,7 @@ app.get('/api/import/template', (req, res) => {
     }
 });
 // ── POST /api/import/upload ───────────────────────────────────────────────────
-app.post('/api/import/upload', upload.single('file'), async (req, res) => {
+app.post('/api/import/upload', extractUsuario, upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
 
@@ -905,26 +978,86 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
         const baseRows = isMultiTab ? empresaRows : flatRows;
 
         if (baseRows.length === 0) {
-            return res.status(400).json({ error: 'Planilha vazia ou sem dados reconhecíveis. Verifique se a aba "Empresas - Preencher" contém dados.' });
+            const abasDetectadas = wb.SheetNames.join(', ');
+            const temAbaEmpresas = wb.SheetNames.some(n => n.toLowerCase().includes('empresa') && n.toLowerCase().includes('preencher'));
+            if (temAbaEmpresas) {
+                return res.status(400).json({
+                    error: `A aba "Empresas - Preencher" foi encontrada mas está vazia. Preencha ao menos uma linha de empresa e tente novamente. (Abas detectadas: ${abasDetectadas})`
+                });
+            }
+            return res.status(400).json({
+                error: `Planilha sem dados reconhecíveis. Abas encontradas: "${abasDetectadas}". Use o modelo oficial com a aba "Empresas - Preencher".`
+            });
         }
         if (baseRows.length > 10000) {
             return res.status(400).json({ error: `Limite de 10.000 linhas excedido. Arquivo contém ${baseRows.length} linhas.` });
         }
 
-        // Montar linhas combinadas
+
+        // Helpers
         const s = (v) => (typeof v === 'string' ? v.trim() : v != null ? String(v).trim() : '');
         const n = (v) => { const p = parseFloat(String(v || '').replace(',', '.')); return isNaN(p) ? null : p; };
+        const norm = (v) => s(v).toLowerCase(); // normaliza nome para comparação
 
-        const sanitized = baseRows.map((empRow, i) => {
-            const ctRow = contatoRows[i] || {};
-            const prodRow = produtoRows[i] || {};
+        let sanitized;
 
-            if (isMultiTab) {
-                // Modelo multi-aba: combinar as 3 abas por índice
+        if (isMultiTab) {
+            // ── NOVO MODELO: linkagem por Nome da Empresa ──────────────────────────
+            // Agrupa contatos por nome de empresa (normalizado)
+            const contatosByEmpresa = {};
+            for (const ct of contatoRows) {
+                const empNome = norm(ct['Nome da Empresa'] || '');
+                if (!empNome) continue;
+                if (!contatosByEmpresa[empNome]) contatosByEmpresa[empNome] = [];
+                contatosByEmpresa[empNome].push({
+                    contato_nome: s(ct['Nome do Contato'] || ct.contato_nome || ''),
+                    cargo: s(ct['Cargo'] || ct.cargo || ''),
+                    departamento: s(ct['Departamento'] || ct.departamento || '') || null,
+                    contato_email: s(ct['E-mail'] || ct['Email'] || ct.contato_email || '').toLowerCase(),
+                    contato_telefone: s(ct['Whatsapp'] || ct['WhatsApp'] || ct.contato_telefone || ''),
+                    linkedin: s(ct['Linkedin'] || ct['LinkedIn'] || ct.linkedin || '') || null,
+                });
+            }
+
+            // Agrupa produtos por nome de empresa (normalizado)
+            const produtosByEmpresa = {};
+            for (const prod of produtoRows) {
+                const empNome = norm(prod['Nome da Empresa'] || '');
+                if (!empNome) continue;
+                if (!produtosByEmpresa[empNome]) produtosByEmpresa[empNome] = [];
+                produtosByEmpresa[empNome].push({
+                    produto_dati: s(prod['Produto DATI'] || ''),
+                    tipo_cobranca: s(prod['Tipo de Cobrança'] || prod['Tipo de Cobranca'] || ''),
+                    valor_unitario: n(prod['Valor Unitário'] || prod['Valor Unitario'] || prod.valor_unitario),
+                    valor_minimo: n(prod['Valor Mínimo'] || prod['Valor Minimo'] || prod.valor_minimo),
+                    cobranca_setup: s(prod['Cobrança de Setup'] || prod['Cobranca de Setup'] || ''),
+                    valor_setup: n(prod['Valor de Setup'] || prod.valor_setup),
+                    qtd_usuarios: s(prod['Quantidade de Usuários'] || prod['Quantidade de Usuarios'] || ''),
+                    valor_usuario_adic: n(prod['Valor por Usuário Adicional'] || prod['Valor por Usuario Adicional']),
+                    total_horas_hd: n(prod['Total Horas Mensais - Help Desk'] || prod.total_horas_hd),
+                    valor_adic_hd: n(prod['Valor Adicional por Hora - Help Desk'] || prod.valor_adic_hd),
+                });
+            }
+
+            // Montar staging por empresa (1 linha por empresa)
+            sanitized = empresaRows.map((empRow, i) => {
+                const empNome = s(empRow['Nome da Empresa'] || empRow.empresa || '');
+                const empKey = norm(empNome);
+
+                // Primeiro contato fica nos campos diretos; restantes ficam em JSON
+                const contatos = contatosByEmpresa[empKey] || [];
+                const ct0 = contatos[0] || {};
+                const contatosExtra = contatos.length > 1 ? contatos.slice(1) : null;
+
+                // Primeiro produto fica nos campos diretos; restantes ficam em JSON
+                const produtos = produtosByEmpresa[empKey] || [];
+                const prod0 = produtos[0] || {};
+                const produtosExtra = produtos.length > 1 ? produtos.slice(1) : null;
+
                 return {
                     rowNum: i + 2,
                     // Empresa
-                    empresa: s(empRow['Nome da Empresa'] || empRow.empresa || ''),
+                    empresa: empNome,
                     status_empresa: s(empRow['Status da Empresa'] || empRow['Status Empresa'] || ''),
                     cnpj: s(empRow['CNPJ'] || empRow.cnpj || ''),
                     tipo_empresa: s(empRow['Tipo de Empresa'] || empRow['Tipo Empresa'] || ''),
@@ -932,30 +1065,35 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
                     cidade: s(empRow['Cidade'] || empRow.cidade || ''),
                     segmento: s(empRow['Segmento'] || empRow.segmento || ''),
                     site: s(empRow['Site'] || empRow.site || ''),
-                    // Contato (aba separada)
-                    contato_nome: s(ctRow['Nome do Contato'] || ctRow.contato_nome || ''),
-                    cargo: s(ctRow['Cargo'] || ctRow.cargo || ''),
-                    departamento: s(ctRow['Departamento'] || ctRow.departamento || '') || null,
-                    contato_email: s(ctRow['E-mail'] || ctRow['Email'] || ctRow.contato_email || '').toLowerCase(),
-                    contato_telefone: s(ctRow['Whatsapp'] || ctRow['WhatsApp'] || ctRow.contato_telefone || ''),
-                    linkedin: s(ctRow['Linkedin'] || ctRow['LinkedIn'] || ctRow.linkedin || '') || null,
-                    // Produto DATI (aba separada)
-                    produto_dati: s(prodRow['Produto DATI'] || prodRow.produto_dati || ''),
-                    tipo_cobranca: s(prodRow['Tipo de Cobrança'] || prodRow['Tipo de Cobranca'] || ''),
-                    valor_unitario: n(prodRow['Valor Unitário'] || prodRow['Valor Unitario'] || prodRow.valor_unitario),
-                    valor_minimo: n(prodRow['Valor Mínimo'] || prodRow['Valor Minimo'] || prodRow.valor_minimo),
-                    cobranca_setup: s(prodRow['Cobrança de Setup'] || prodRow['Cobranca de Setup'] || ''),
-                    valor_setup: n(prodRow['Valor de Setup'] || prodRow.valor_setup),
-                    qtd_usuarios: s(prodRow['Quantidade de Usuários'] || prodRow['Quantidade de Usuarios'] || prodRow.qtd_usuarios || ''),
-                    valor_usuario_adic: n(prodRow['Valor por Usuário Adicional'] || prodRow['Valor por Usuario Adicional'] || prodRow.valor_usuario_adic),
-                    total_horas_hd: n(prodRow['Total Horas Mensais - Help Desk'] || prodRow.total_horas_hd),
-                    valor_adic_hd: n(prodRow['Valor Adicional por Hora - Help Desk'] || prodRow.valor_adic_hd),
+                    // Contato principal
+                    contato_nome: ct0.contato_nome || '',
+                    cargo: ct0.cargo || '',
+                    departamento: ct0.departamento || null,
+                    contato_email: ct0.contato_email || '',
+                    contato_telefone: ct0.contato_telefone || '',
+                    linkedin: ct0.linkedin || null,
+                    // Contatos extras (JSON)
+                    contatos_extra_json: contatosExtra ? JSON.stringify(contatosExtra) : null,
+                    // Produto principal
+                    produto_dati: prod0.produto_dati || null,
+                    tipo_cobranca: prod0.tipo_cobranca || null,
+                    valor_unitario: prod0.valor_unitario,
+                    valor_minimo: prod0.valor_minimo,
+                    cobranca_setup: prod0.cobranca_setup || null,
+                    valor_setup: prod0.valor_setup,
+                    qtd_usuarios: prod0.qtd_usuarios || null,
+                    valor_usuario_adic: prod0.valor_usuario_adic,
+                    total_horas_hd: prod0.total_horas_hd != null ? Math.round(prod0.total_horas_hd) : null,
+                    valor_adic_hd: prod0.valor_adic_hd,
+                    // Produtos extras (JSON)
+                    produtos_extra_json: produtosExtra ? JSON.stringify(produtosExtra) : null,
                 };
-            } else {
-                // Modelo plano (aba única com tudo) — compatibilidade retroativa
-                return { rowNum: i + 2, ...sanitizeRow(empRow) };
-            }
-        });
+            });
+        } else {
+            // Modelo plano (aba única com tudo) — compatibilidade retroativa
+            sanitized = flatRows.map((r, i) => ({ rowNum: i + 2, ...sanitizeRow(r) }));
+        }
+
 
         // Criar import_job
         const job = await prisma.import_jobs.create({
@@ -998,6 +1136,8 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
                     valor_usuario_adic: r.valor_usuario_adic != null ? r.valor_usuario_adic : null,
                     total_horas_hd: r.total_horas_hd != null ? Math.round(r.total_horas_hd) : null,
                     valor_adic_hd: r.valor_adic_hd != null ? r.valor_adic_hd : null,
+                    contatos_extra_json: r.contatos_extra_json || null,
+                    produtos_extra_json: r.produtos_extra_json || null,
                     status: 'pending',
                 })),
             });
@@ -1011,7 +1151,7 @@ app.post('/api/import/upload', upload.single('file'), async (req, res) => {
 });
 
 // ── POST /api/import/:id/validate ────────────────────────────────────────────
-app.post('/api/import/:id/validate', async (req, res) => {
+app.post('/api/import/:id/validate', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const job = await prisma.import_jobs.findUnique({ where: { id } });
@@ -1069,7 +1209,7 @@ app.post('/api/import/:id/validate', async (req, res) => {
 });
 
 // ── GET /api/import/:id/preview ──────────────────────────────────────────────
-app.get('/api/import/:id/preview', async (req, res) => {
+app.get('/api/import/:id/preview', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const { status, page = 1, pageSize = 50 } = req.query;
@@ -1091,7 +1231,7 @@ app.get('/api/import/:id/preview', async (req, res) => {
 });
 
 // ── POST /api/import/:id/simulate ────────────────────────────────────────────
-app.post('/api/import/:id/simulate', async (req, res) => {
+app.post('/api/import/:id/simulate', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const job = await prisma.import_jobs.findUnique({ where: { id } });
@@ -1151,7 +1291,7 @@ app.post('/api/import/:id/simulate', async (req, res) => {
 });
 
 // ── POST /api/import/:id/execute ─────────────────────────────────────────────
-app.post('/api/import/:id/execute', async (req, res) => {
+app.post('/api/import/:id/execute', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const job = await prisma.import_jobs.findUnique({ where: { id } });
@@ -1264,48 +1404,79 @@ app.post('/api/import/:id/execute', async (req, res) => {
                             }
                         }
 
-                        // Cria contato se houver dados (independente de empresa ser nova ou duplicada)
-                        if (companyId && (row.contato_nome || row.contato_email)) {
+                        // ── Cria contato principal (se houver dados) ──
+                        const criarContato = async (ct, cid) => {
+                            if (!cid || (!ct.contato_nome && !ct.contato_email && !ct.Nome_do_contato && !ct.Email_1)) return;
                             await tx.contacts.create({
                                 data: {
                                     id: randomUUID(),
-                                    companyId,
-                                    Nome_do_contato: row.contato_nome || null,
-                                    Email_1: row.contato_email || null,
-                                    WhatsApp: row.contato_telefone || null,
-                                    Cargo_do_contato: row.cargo || null,
-                                    Departamento_do_contato: row.departamento || null,
-                                    LinkedIn: row.linkedin || null,
+                                    companyId: cid,
+                                    Nome_do_contato: ct.contato_nome || ct.Nome_do_contato || null,
+                                    Email_1: ct.contato_email || ct.Email_1 || null,
+                                    WhatsApp: ct.contato_telefone || ct.WhatsApp || null,
+                                    Cargo_do_contato: ct.cargo || ct.Cargo_do_contato || null,
+                                    Departamento_do_contato: ct.departamento || ct.Departamento_do_contato || null,
+                                    LinkedIn: ct.linkedin || ct.LinkedIn || null,
                                     updatedAt: new Date(),
                                 },
                             });
                             contacts_created++;
+                        };
+
+                        if (companyId && (row.contato_nome || row.contato_email)) {
+                            await criarContato(row, companyId);
                         }
 
-                        // Cria produto DATI se houver dados
-                        if (companyId && row.produto_dati) {
+                        // Contatos extras (múltiplos contatos por empresa)
+                        if (companyId && row.contatos_extra_json) {
+                            try {
+                                const extras = JSON.parse(row.contatos_extra_json);
+                                for (const ct of extras) {
+                                    await criarContato(ct, companyId);
+                                }
+                            } catch (e) { console.warn('[import/execute] contatos_extra_json inválido:', e.message); }
+                        }
+
+                        // ── Cria produto DATI (principal e extras) ──
+                        const criarProduto = async (prod, cid) => {
+                            if (!cid || !prod.produto_dati) return;
                             try {
                                 await tx.company_products.create({
                                     data: {
                                         id: randomUUID(),
-                                        companyId,
-                                        Produto_DATI: row.produto_dati,
-                                        Tipo_cobranca: row.tipo_cobranca || null,
-                                        Valor_unitario: row.valor_unitario != null ? row.valor_unitario : null,
-                                        Valor_minimo: row.valor_minimo != null ? row.valor_minimo : null,
-                                        Cobranca_setup: row.cobranca_setup || null,
-                                        Valor_setup: row.valor_setup != null ? row.valor_setup : null,
-                                        Qtd_usuarios: row.qtd_usuarios || null,
-                                        Valor_usuario_adicional: row.valor_usuario_adic != null ? row.valor_usuario_adic : null,
-                                        Total_horas_hd: row.total_horas_hd != null ? Math.round(row.total_horas_hd) : null,
-                                        Valor_adic_hd: row.valor_adic_hd != null ? row.valor_adic_hd : null,
+                                        companyId: cid,
+                                        Produto_DATI: prod.produto_dati || prod.Produto_DATI,
+                                        Tipo_cobranca: prod.tipo_cobranca || prod.Tipo_cobranca || null,
+                                        Valor_unitario: prod.valor_unitario != null ? prod.valor_unitario : null,
+                                        Valor_minimo: prod.valor_minimo != null ? prod.valor_minimo : null,
+                                        Cobranca_setup: prod.cobranca_setup || prod.Cobranca_setup || null,
+                                        Valor_setup: prod.valor_setup != null ? prod.valor_setup : null,
+                                        Qtd_usuarios: prod.qtd_usuarios || prod.Qtd_usuarios || null,
+                                        Valor_usuario_adicional: prod.valor_usuario_adic != null ? prod.valor_usuario_adic : null,
+                                        Total_horas_hd: prod.total_horas_hd != null ? Math.round(prod.total_horas_hd) : null,
+                                        Valor_adic_hd: prod.valor_adic_hd != null ? prod.valor_adic_hd : null,
                                         updatedAt: new Date(),
                                     },
                                 });
                             } catch (prodErr) {
                                 console.warn('[import/execute] produto ignorado:', prodErr.message);
                             }
+                        };
+
+                        if (companyId && row.produto_dati) {
+                            await criarProduto(row, companyId);
                         }
+
+                        // Produtos extras (múltiplos produtos por empresa)
+                        if (companyId && row.produtos_extra_json) {
+                            try {
+                                const extras = JSON.parse(row.produtos_extra_json);
+                                for (const prod of extras) {
+                                    await criarProduto(prod, companyId);
+                                }
+                            } catch (e) { console.warn('[import/execute] produtos_extra_json inválido:', e.message); }
+                        }
+
                     });
                 } catch (rowErr) {
                     console.error(`[import/execute] Linha ${row.row_number} (${row.empresa}) falhou:`, rowErr.message);
@@ -1344,7 +1515,7 @@ app.post('/api/import/:id/execute', async (req, res) => {
 });
 
 // ── DELETE /api/import/:id ────────────────────────────────────────────────────
-app.delete('/api/import/:id', async (req, res) => {
+app.delete('/api/import/:id', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         await prisma.import_jobs.delete({ where: { id } });
@@ -1363,7 +1534,7 @@ app.delete('/api/import/:id', async (req, res) => {
 const ACTIVITY_TYPES = ['Comentário', 'Reunião', 'Chamados HD', 'Chamados CS', 'Ação necessária'];
 
 // ── GET /api/companies/:id/activities ─────────────────────────────────────────
-app.get('/api/companies/:id/activities', async (req, res) => {
+app.get('/api/companies/:id/activities', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const { type, department, status, assignee, dateFrom, dateTo, page = 1, pageSize = 50 } = req.query;
@@ -1401,7 +1572,7 @@ app.get('/api/companies/:id/activities', async (req, res) => {
 });
 
 // ── POST /api/companies/:id/activities ────────────────────────────────────────
-app.post('/api/companies/:id/activities', async (req, res) => {
+app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
     try {
         const { id: companyId } = req.params;
         const {
@@ -1489,7 +1660,7 @@ app.post('/api/companies/:id/activities', async (req, res) => {
 });
 
 // ── PUT /api/activities/:activityId ──────────────────────────────────────────
-app.put('/api/activities/:activityId', async (req, res) => {
+app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
     try {
         const { activityId } = req.params;
         const {
@@ -1562,7 +1733,7 @@ app.put('/api/activities/:activityId', async (req, res) => {
 });
 
 // ── DELETE /api/activities/:activityId ───────────────────────────────────────
-app.delete('/api/activities/:activityId', async (req, res) => {
+app.delete('/api/activities/:activityId', extractUsuario, async (req, res) => {
     try {
         const { activityId } = req.params;
         await prisma.activities.delete({ where: { id: activityId } });

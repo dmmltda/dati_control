@@ -48,6 +48,10 @@ function fmtBRL(val) {
 // SEÇÃO 2: RENDERIZAÇÃO DE LINHAS (com checkboxes)
 // ============================================================================
 
+// Mapa em memória: prodId → { propostaData, propostaName, contratoData, contratoName }
+// Evita embutir DataURLs base64 enormes como atributos HTML
+const _prodDocMap = {};
+
 function renderProdutosRows(rows) {
     const tbody = document.getElementById('produtos-table-body');
     if (!tbody) return;
@@ -69,6 +73,17 @@ function renderProdutosRows(rows) {
 
     tbody.innerHTML = rows.map(p => {
         const isSelected = companyProductsManager?.isSelected(String(p.id));
+
+        // Armazena dados de arquivo no mapa (evita DataURL inline no HTML)
+        _prodDocMap[p.id] = {
+            propostaData: p.propostaData || null,
+            propostaName: p.propostaName || null,
+            contratoData: p.contratoData || null,
+            contratoName: p.contratoName || null,
+        };
+
+        const safeName = (n) => (n || '').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
         return `
         <tr class="produto-row${isSelected ? ' row-selected' : ''}" data-prod-id="${p.id}">
             <td>
@@ -85,13 +100,19 @@ function renderProdutosRows(rows) {
             <td>${p.totalHorasHd ? p.totalHorasHd + 'h/mês' : '—'}</td>
             <td>
                 ${p.propostaData
-                    ? '<span class="badge-prod-yes"><i class="ph ph-check"></i> Sim</span>'
-                    : '<span class="badge-prod-no">Não</span>'}
+                ? `<button type="button" class="badge-prod-yes badge-prod-link" data-prod-doc="proposta" data-prod-id-doc="${p.id}"
+                              title="Baixar: ${safeName(p.propostaName || 'proposta')}">
+                          <i class="ph ph-file-arrow-down"></i> ${safeName(p.propostaName || 'Proposta')}
+                       </button>`
+                : '<span class="badge-prod-no">Não</span>'}
             </td>
             <td>
                 ${p.contratoData
-                    ? '<span class="badge-prod-yes"><i class="ph ph-check"></i> Sim</span>'
-                    : '<span class="badge-prod-no">Não</span>'}
+                ? `<button type="button" class="badge-prod-yes badge-prod-link" data-prod-doc="contrato" data-prod-id-doc="${p.id}"
+                              title="Baixar: ${safeName(p.contratoName || 'contrato')}">
+                          <i class="ph ph-file-arrow-down"></i> ${safeName(p.contratoName || 'Contrato')}
+                       </button>`
+                : '<span class="badge-prod-no">Não</span>'}
             </td>
             <td>
                 <div class="actions">
@@ -107,6 +128,29 @@ function renderProdutosRows(rows) {
             </td>
         </tr>`;
     }).join('');
+
+    // ── Wire: clique nos badges de documento (event delegation) ──────────────
+    tbody.querySelectorAll('[data-prod-doc]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.prodIdDoc;
+            const type = btn.dataset.prodDoc; // 'proposta' | 'contrato'
+            const doc = _prodDocMap[id];
+            if (!doc) return;
+
+            const dataUrl = type === 'proposta' ? doc.propostaData : doc.contratoData;
+            const name = type === 'proposta' ? (doc.propostaName || 'proposta') : (doc.contratoName || 'contrato');
+
+            if (!dataUrl) return;
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = name;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    });
 
     // Atualiza a bulk toolbar após cada render
     updateProdutosBulkUI();
@@ -142,7 +186,7 @@ function renderProdutosPagination({ currentPage, totalPages, pageSize, totalReco
     }
 
     const start = Math.min((currentPage - 1) * pageSize + 1, totalRecords);
-    const end   = Math.min(currentPage * pageSize, totalRecords);
+    const end = Math.min(currentPage * pageSize, totalRecords);
 
     container.style.display = 'flex';
     container.innerHTML = `
@@ -151,11 +195,11 @@ function renderProdutosPagination({ currentPage, totalPages, pageSize, totalReco
                 <i class="ph ph-caret-left"></i>
             </button>
             ${pageItems.map(item =>
-                item === '...'
-                    ? '<span class="pagination-dots">···</span>'
-                    : `<button class="pagination-page ${item === currentPage ? 'active' : ''}"
+        item === '...'
+            ? '<span class="pagination-dots">···</span>'
+            : `<button class="pagination-page ${item === currentPage ? 'active' : ''}"
                                data-prod-page="${item}">${item}</button>`
-            ).join('')}
+    ).join('')}
             <button class="pagination-btn" data-prod-action="next" ${!hasNext ? 'disabled' : ''} title="Próxima página">
                 <i class="ph ph-caret-right"></i>
             </button>
@@ -242,8 +286,8 @@ export function updateProdutosBulkUI() {
     const toolbar = document.getElementById('produtos-bulk-toolbar');
     if (!toolbar || !mgr) return;
 
-    const ids    = mgr.getSelectedIds();
-    const count  = ids.length;
+    const ids = mgr.getSelectedIds();
+    const count = ids.length;
     const hasAny = count > 0;
 
     // Toolbar visual
@@ -258,21 +302,21 @@ export function updateProdutosBulkUI() {
     }
 
     // Botões — CRÍTICO: usar .disabled ao invés de apenas CSS
-    const editBtn   = document.getElementById('bulk-edit-produtos-btn');
+    const editBtn = document.getElementById('bulk-edit-produtos-btn');
     const deleteBtn = document.getElementById('bulk-delete-produtos-btn');
-    const clearBtn  = document.getElementById('bulk-clear-produtos-btn');
-    if (editBtn)   editBtn.disabled   = !hasAny;
+    const clearBtn = document.getElementById('bulk-clear-produtos-btn');
+    if (editBtn) editBtn.disabled = !hasAny;
     if (deleteBtn) deleteBtn.disabled = !hasAny;
-    if (clearBtn)  clearBtn.disabled  = !hasAny;
+    if (clearBtn) clearBtn.disabled = !hasAny;
 
     // Select-all checkbox (estado: checked / indeterminate / unchecked)
     const selectAllCb = document.getElementById('select-all-produtos');
     if (selectAllCb) {
         const pageData = mgr.getPaginatedData();
-        const pageIds  = pageData.map(p => String(p.id ?? p._id)).filter(Boolean);
-        const allSelected  = pageIds.length > 0 && pageIds.every(id => mgr.isSelected(id));
+        const pageIds = pageData.map(p => String(p.id ?? p._id)).filter(Boolean);
+        const allSelected = pageIds.length > 0 && pageIds.every(id => mgr.isSelected(id));
         const someSelected = pageIds.some(id => mgr.isSelected(id));
-        selectAllCb.checked       = allSelected;
+        selectAllCb.checked = allSelected;
         selectAllCb.indeterminate = someSelected && !allSelected;
     }
 }
@@ -299,20 +343,20 @@ export function initCompanyProductsTable() {
     companyProductsManager = new TableManager({
         data: state.tempProdutos || [],
         columns: [
-            { key: 'nome',          label: 'Produto',          type: 'string',       sortable: true,  searchable: true,  filterable: true },
-            { key: 'tipoCobranca',  label: 'Tipo de Cobrança', type: 'string',       sortable: true,  searchable: true,  filterable: true },
-            { key: 'valorUnitario', label: 'Valor Unitário',   type: 'number',       sortable: true,  searchable: false, filterable: true },
-            { key: 'valorSetup',    label: 'Valor Setup',      type: 'number',       sortable: true,  searchable: false, filterable: true },
-            { key: 'qtdUsuarios',   label: 'Usuários',         type: 'string',       sortable: false, searchable: true,  filterable: true },
-            { key: 'totalHorasHd',  label: 'Help Desk (h)',    type: 'number',       sortable: true,  searchable: false, filterable: true },
-            { key: 'propostaData',  label: 'Proposta',         type: 'string',       sortable: false, searchable: false, filterable: true, filterType: 'boolean-date' },
-            { key: 'contratoData',  label: 'Contrato',         type: 'string',       sortable: false, searchable: false, filterable: true, filterType: 'boolean-date' },
+            { key: 'nome', label: 'Produto', type: 'string', sortable: true, searchable: true, filterable: true },
+            { key: 'tipoCobranca', label: 'Tipo de Cobrança', type: 'string', sortable: true, searchable: true, filterable: true },
+            { key: 'valorUnitario', label: 'Valor Unitário', type: 'number', sortable: true, searchable: false, filterable: true },
+            { key: 'valorSetup', label: 'Valor Setup', type: 'number', sortable: true, searchable: false, filterable: true },
+            { key: 'qtdUsuarios', label: 'Usuários', type: 'string', sortable: false, searchable: true, filterable: true },
+            { key: 'totalHorasHd', label: 'Help Desk (h)', type: 'number', sortable: true, searchable: false, filterable: true },
+            { key: 'propostaData', label: 'Proposta', type: 'string', sortable: false, searchable: false, filterable: true, filterType: 'boolean-date' },
+            { key: 'contratoData', label: 'Contrato', type: 'string', sortable: false, searchable: false, filterable: true, filterType: 'boolean-date' },
         ],
         pageSize: 10,
-        tableId:  'produtos-table',
-        renderRows:       renderProdutosRows,
+        tableId: 'produtos-table',
+        renderRows: renderProdutosRows,
         renderPagination: renderProdutosPagination,
-        renderFilters:    renderProdutosActiveFilters,
+        renderFilters: renderProdutosActiveFilters,
     });
 
     // ── Wire: paginação (event delegation, uma vez por container) ──────────
@@ -323,9 +367,9 @@ export function initCompanyProductsTable() {
             const btn = e.target.closest('[data-prod-page], [data-prod-action]');
             if (!btn || !companyProductsManager) return;
             const action = btn.dataset.prodAction;
-            const page   = btn.dataset.prodPage;
-            if (action === 'prev')       companyProductsManager.prevPage();
-            else if (action === 'next')  companyProductsManager.nextPage();
+            const page = btn.dataset.prodPage;
+            if (action === 'prev') companyProductsManager.prevPage();
+            else if (action === 'next') companyProductsManager.nextPage();
             else if (page !== undefined) companyProductsManager.goToPage(parseInt(page));
         });
     }

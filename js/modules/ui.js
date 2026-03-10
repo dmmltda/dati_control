@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { TableManager } from './table-manager.js';
 import { TableManager as TableManager2 } from '../core/table-manager.js'; // 🧪 TableManager 2.0 - teste paralelo
+import { initTooltipSystem } from '../core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
 import {
     initCompanyProductsTable as _initProdutosTable,
     refreshCompanyProductsTable as _refreshProdutosTable,
@@ -1336,137 +1337,18 @@ export function switchProdTab(event, tabId) {
     const target = document.getElementById(tabId);
     if (target) target.style.display = 'block';
 
+
     event.target.classList.add('active');
     event.target.style.color = 'var(--text-main)';
 }
 
 
-/* ═══════════════════════════════════════════════════════════════════
-   Tooltip Singleton — "Próximo Passo"
-   Estratégia: um único elemento appendado no <body>,
-   posicionado via getBoundingClientRect — nunca cortado por overflow.
-════════════════════════════════════════════════════════════════════= */
+/* ════════════════════════════════════════════════════════════════════════════
+   Tooltip System — core/tooltip.js
+   Exportado para compatibilidade retroativa com chamadas existentes.
+════════════════════════════════════════════════════════════════════════════ */
 
-let _pptEl = null;
-let _pptHideTimer = null;
-
-function _getPPT() {
-    if (!_pptEl) {
-        _pptEl = document.createElement('div');
-        _pptEl.id = 'ppt-singleton';
-        _pptEl.className = 'prox-passo-tooltip';
-        _pptEl.setAttribute('role', 'tooltip');
-        _pptEl.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;display:none;';
-        document.body.appendChild(_pptEl);
-    }
-    return _pptEl;
-}
-
-function _showPPT(trigger) {
-    clearTimeout(_pptHideTimer);
-    const passo = trigger.dataset.tooltipPasso || '';
-    const status = trigger.dataset.tooltipStatus || '';
-    const color = trigger.dataset.tooltipColor || '#6366f1';
-    const date = trigger.dataset.tooltipDate || '';
-
-    const el = _getPPT();
-    el.innerHTML = `
-        <div class="ppt-header">
-            <i class="ph ph-flag-pennant"></i>
-            <span>Próximo Passo</span>
-        </div>
-        <div class="ppt-body">${passo}</div>
-        <div class="ppt-footer">
-            <span class="ppt-badge" style="background:${color}20;color:${color};border:1px solid ${color}40;">
-                <i class="ph ph-circle-dashed"></i> ${status}
-            </span>
-            ${date ? `<span class="ppt-date"><i class="ph ph-clock"></i> ${date}</span>` : ''}
-        </div>
-        <div class="ppt-arrow"></div>
-    `;
-
-    el.style.display = 'block';
-    el.style.visibility = 'hidden';
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(6px) scale(0.97)';
-
-    requestAnimationFrame(() => {
-        const rect = trigger.getBoundingClientRect();
-        const tw = el.offsetWidth;
-        const th = el.offsetHeight;
-
-        let left = rect.left + rect.width / 2 - tw / 2;
-        let top = rect.top - th - 10;
-
-        if (left < 8) left = 8;
-        if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
-        if (top < 8) top = rect.bottom + 10;
-
-        el.style.left = `${left}px`;
-        el.style.top = `${top}px`;
-        el.style.visibility = 'visible';
-        el.style.opacity = '1';
-        el.style.transform = 'translateY(0) scale(1)';
-    });
-}
-
-function _hidePPT() {
-    _pptHideTimer = setTimeout(() => {
-        if (_pptEl) {
-            _pptEl.style.opacity = '0';
-            _pptEl.style.transform = 'translateY(4px) scale(0.97)';
-            setTimeout(() => { if (_pptEl) _pptEl.style.display = 'none'; }, 200);
-        }
-    }, 80);
-}
-
+/** @deprecated — use initTooltipSystem() diretamente */
 export function initProxPassoTooltip() {
-    // Inicializa uma única vez no documento (thead tooltips)
-    if (document._thTooltipInit) return;
-    document._thTooltipInit = true;
-
-    document.addEventListener('mouseenter', (e) => {
-        const trigger = e.target.closest('.th-info-btn[data-th-tooltip]');
-        if (!trigger) return;
-
-        // Monta o conteúdo do tooltip a partir do data-th-tooltip
-        const text = trigger.dataset.thTooltip || '';
-        const el = _getPPT();
-        el.innerHTML = `
-            <div class="ppt-header">
-                <i class="ph ph-info"></i>
-                <span>Sobre esta coluna</span>
-            </div>
-            <div class="ppt-body" style="white-space:pre-line;">${text}</div>
-            <div class="ppt-arrow"></div>
-        `;
-
-        el.style.display = 'block';
-        el.style.visibility = 'hidden';
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(6px) scale(0.97)';
-
-        requestAnimationFrame(() => {
-            const rect = trigger.getBoundingClientRect();
-            const tw = el.offsetWidth;
-            const th = el.offsetHeight;
-
-            let left = rect.left + rect.width / 2 - tw / 2;
-            let top = rect.bottom + 10; // aparece ABAIXO do header
-
-            if (left < 8) left = 8;
-            if (left + tw > window.innerWidth - 8) left = window.innerWidth - tw - 8;
-
-            el.style.left = `${left}px`;
-            el.style.top = `${top}px`;
-            el.style.visibility = 'visible';
-            el.style.opacity = '1';
-            el.style.transform = 'translateY(0) scale(1)';
-        });
-    }, true);
-
-    document.addEventListener('mouseleave', (e) => {
-        const trigger = e.target.closest('.th-info-btn[data-th-tooltip]');
-        if (trigger) _hidePPT();
-    }, true);
+    initTooltipSystem();
 }

@@ -1317,6 +1317,97 @@ span.flatpickr-weekday,
     color: #ef4444;
 }
 
+/* ── Upload de arquivos no modal de produto ── */
+.editor-file-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0 !important;
+}
+
+.btn-file-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 1rem;
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px dashed rgba(99, 102, 241, 0.35);
+    border-radius: 8px;
+    color: var(--primary, #6366f1);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    width: 100%;
+    justify-content: center;
+    user-select: none;
+}
+
+.btn-file-upload:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary, #6366f1);
+    transform: translateY(-1px);
+}
+
+.btn-file-upload i {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.file-attached {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(34, 197, 94, 0.07);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #4ade80;
+    min-width: 0;
+}
+
+.file-attached i {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    color: #4ade80;
+}
+
+.file-attached-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    color: var(--text-secondary, #cbd5e0);
+}
+
+.btn-file-remove {
+    background: transparent;
+    border: none;
+    color: rgba(239, 68, 68, 0.6);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    font-size: 0.85rem;
+}
+
+.btn-file-remove:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.file-hint {
+    font-size: 0.72rem;
+    color: rgba(148, 163, 184, 0.5);
+    line-height: 1.3;
+}
+
 /* ── Badges de Proposta/Contrato na tabela ── */
 .badge-prod-yes {
     display: inline-flex;
@@ -1341,6 +1432,28 @@ span.flatpickr-weekday,
     background: rgba(100, 116, 139, 0.1);
     color: var(--text-muted, #94a3b8);
     border: 1px solid rgba(100, 116, 139, 0.15);
+}
+
+/* ── Badge clicável para abrir documento ── */
+.badge-prod-link {
+    cursor: pointer;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: all 0.18s ease;
+    line-height: 1.2;
+}
+
+.badge-prod-link:hover {
+    background: rgba(34, 197, 94, 0.22);
+    border-color: rgba(34, 197, 94, 0.5);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(34, 197, 94, 0.2);
+}
+
+.badge-prod-link i {
+    flex-shrink: 0;
 }
 
 /* ── Nome da célula de produto ── */
@@ -1670,11 +1783,163 @@ span.flatpickr-weekday,
    Design: Glassmorphism · Animação spring · Seta · Footer contextual
 ═══════════════════════════════════════════════════════════════════════════ */
 
-.prox-passo-wrapper {
+/* ════════════════════════════════════════════════════════════════════════════
+   TOOLTIP SYSTEM — UX 10/10
+   Padrão global reutilizável. Singleton injetado no <body> via JS.
+   Posicionado por getBoundingClientRect — nunca cortado por overflow.
+════════════════════════════════════════════════════════════════════════════ */
+
+/* Card principal — posição controlada 100% via JS inline style */
+.dati-tooltip {
+    font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif;
+    position: fixed;
+    z-index: 99999;
+    pointer-events: none;
+    color: #CBD5E1;
+    /* cor base para herdar — evita herdar do tema */
+
+    min-width: 180px;
+    max-width: 260px;
+
+    padding: 12px 14px;
+    background: #1E293B;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    box-shadow:
+        0 4px 6px rgba(0, 0, 0, 0.25),
+        0 12px 24px rgba(0, 0, 0, 0.20);
+
+    overflow: visible;
+
+    /* Transição suave */
+    transition:
+        opacity 150ms ease,
+        transform 150ms ease;
+}
+
+/* Header — label da coluna */
+.dati-tooltip .dati-tooltip__header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #E8832A !important;
+    line-height: 1;
+}
+
+.dati-tooltip .dati-tooltip__header i {
+    font-size: 10px;
+    color: #E8832A !important;
+    flex-shrink: 0;
+}
+
+/* Body — conteúdo descritivo */
+.dati-tooltip__body {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #CBD5E1;
+    white-space: pre-line;
+    word-break: break-word;
+}
+
+/* Seta — aponta para o trigger */
+.dati-tooltip__arrow {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #1E293B;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transform: rotate(45deg);
+    pointer-events: none;
+}
+
+/* Seta abaixo do card (tooltip acima do trigger) */
+.dati-tooltip--top .dati-tooltip__arrow {
+    bottom: -5px;
+    left: 50%;
+    margin-left: -4px;
+    border-top: none;
+    border-left: none;
+}
+
+/* Seta acima do card (tooltip abaixo do trigger) */
+.dati-tooltip--bottom .dati-tooltip__arrow {
+    top: -5px;
+    left: 50%;
+    margin-left: -4px;
+    border-bottom: none;
+    border-right: none;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Ícone ⓘ — Trigger nos cabeçalhos da tabela
+════════════════════════════════════════════════════════════════════════════ */
+
+.th-info-btn {
     position: relative;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
+    vertical-align: middle;
+    cursor: help;
+    flex-shrink: 0;
+    line-height: 1;
 }
+
+.th-info-btn i {
+    font-size: 13px;
+    color: #64748B;
+    position: relative;
+    z-index: 1;
+    transition: color 150ms ease;
+    line-height: 1;
+}
+
+.th-info-btn:hover i {
+    color: #E8832A;
+}
+
+/* Pulse ring sutil — chama atenção sem distrair */
+.th-pulse {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(232, 131, 42, 0.35);
+    animation: th-pulse-ring 2.8s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes th-pulse-ring {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.6;
+    }
+
+    60% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+}
+
+.th-info-btn:hover .th-pulse {
+    animation-play-state: paused;
+    opacity: 0;
+}
+
 
 /* Trigger — linha clicável visível */
 .prox-passo-trigger {
@@ -1817,4 +2082,147 @@ span.flatpickr-weekday,
     border-right: 1px solid rgba(99, 102, 241, 0.25);
     border-bottom: 1px solid rgba(99, 102, 241, 0.25);
     border-radius: 0 0 3px 0;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Ícone ⓘ com Pulse Ring — Cabeçalhos da Tabela de Empresas
+   Sinaliza ao usuário que há informação contextual disponível via hover.
+═══════════════════════════════════════════════════════════════════════════ */
+
+.th-info-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    vertical-align: middle;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.th-info-btn i {
+    font-size: 0.8rem;
+    color: rgba(99, 102, 241, 0.5);
+    position: relative;
+    z-index: 1;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.th-info-btn:hover i {
+    color: #818cf8;
+    transform: scale(1.15);
+}
+
+/* Pulse ring — anel que expande e desaparece em loop */
+.th-pulse {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(99, 102, 241, 0.4);
+    animation: th-pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    pointer-events: none;
+}
+
+@keyframes th-pulse-ring {
+    0% {
+        transform: scale(0.85);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(0.85);
+        opacity: 0;
+    }
+}
+
+/* Pausa o pulse quando hover — foco no ícone */
+.th-info-btn:hover .th-pulse {
+    animation-play-state: paused;
+    opacity: 0;
+}
+
+/* ─── Clerk Sign-In Container ──────────────────────────────────────────────── */
+.login-clerk-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    padding: 3rem 2rem;
+    min-height: 100vh;
+    justify-content: center;
+}
+
+.login-brand {
+    text-align: center;
+}
+
+.login-brand img {
+    height: 48px;
+    margin-bottom: 0.5rem;
+}
+
+.login-brand h1 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #0F3460;
+    margin: 0.5rem 0 0.25rem;
+    text-align: center;
+}
+
+.login-brand p {
+    font-size: 0.875rem;
+    color: #64748B;
+    text-align: center;
+    margin: 0;
+}
+
+/* Clerk monta um <div> com iframe interno — garante centralização */
+#clerk-sign-in-mount {
+    width: 100%;
+    max-width: 420px;
+}
+/* ─── Dropdown de usuário (Menu Geral) ─── */
+.db-user-dropdown { position: relative; display: inline-flex; }
+.db-user-dropdown-menu {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: #ffffff; border: 1px solid #E2E8F0; border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14); min-width: 230px;
+  z-index: 9999; overflow: hidden; display: none;
+}
+.db-user-dropdown-menu.open { display: block; animation: db-dd-in 140ms ease; }
+@keyframes db-dd-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.db-dropdown-header {
+  padding: 0.65rem 1rem 0.35rem; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #64748B;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.db-dropdown-item {
+  display: flex; align-items: center; gap: 0.65rem; padding: 0.65rem 1rem;
+  font-size: 13px; color: #1A202C; cursor: pointer; transition: background 140ms;
+  font-family: 'Plus Jakarta Sans', sans-serif; border: none; background: none;
+  width: 100%; text-align: left;
+}
+.db-dropdown-item:hover { background: #F4F6F9; }
+.db-dropdown-item.active { background: rgba(15,52,96,0.08); color: #0F3460; font-weight: 700; }
+.db-dropdown-divider { height: 1px; background: #E2E8F0; margin: 0.25rem 0; }
+.db-user-btn {
+  display: flex; align-items: center; gap: 0.5rem; background: #F4F6F9;
+  border: 1px solid #E2E8F0; border-radius: 10px; padding: 0.4rem 0.75rem 0.4rem 0.5rem;
+  cursor: pointer; transition: background 150ms, border-color 150ms;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #1A202C; font-weight: 600;
+}
+.db-user-btn:hover { background: #E2E8F0; border-color: #CBD5E1; }
+.db-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: #0F3460;
+  color: white; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; flex-shrink: 0;
 }

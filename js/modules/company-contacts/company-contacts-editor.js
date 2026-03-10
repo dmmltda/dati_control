@@ -58,7 +58,7 @@ export function openContatoEditor(id = null) {
         <div class="ce-form-grid">
 
             <div class="input-group ce-span-3">
-                <label for="cef-nome">Nome do Contato <span class="required-star">*</span></label>
+                <label for="cef-nome">Nome do Contato <span class="required-star">*</span> <span class="th-info-btn" data-th-title="NOME DO CONTATO" data-th-tooltip="Nome completo da pessoa. Máx. 20 caracteres alfanuméricos. Será exibido na tabela de contatos e em atividades."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 <input type="text" id="cef-nome" class="input-control"
                     placeholder="Nome completo" maxlength="20"
                     value="${cont?.nome || ''}">
@@ -66,31 +66,31 @@ export function openContatoEditor(id = null) {
             </div>
 
             <div class="input-group">
-                <label for="cef-cargo">Cargo</label>
+                <label for="cef-cargo">Cargo <span class="th-info-btn" data-th-title="CARGO" data-th-tooltip="Posição hierárquica do contato: Estagiário, Auxiliar, Analista, Supervisor, Gerente, Diretor ou Proprietário."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 ${buildSelect('cef-cargo', CARGOS, cont?.cargo || '')}
             </div>
 
             <div class="input-group ce-span-2">
-                <label for="cef-departamento">Departamento</label>
+                <label for="cef-departamento">Departamento <span class="th-info-btn" data-th-title="DEPARTAMENTO" data-th-tooltip="Área da empresa onde o contato atua: Comercial, Compras, Comex, Financeiro, Logística, TI, etc."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 ${buildSelect('cef-departamento', DEPARTAMENTOS, cont?.departamento || '')}
             </div>
 
             <div class="input-group ce-span-3">
-                <label for="cef-email1">E-mail</label>
+                <label for="cef-email1">E-mail <span class="th-info-btn" data-th-title="E-MAIL CORPORATIVO" data-th-tooltip="Endereço de e-mail corporativo do contato. Será usado em comunicações e campanhas de marketing."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 <input type="email" id="cef-email1" class="input-control"
                     placeholder="exemplo@empresa.com.br"
                     value="${cont?.email1 || ''}">
             </div>
 
             <div class="input-group">
-                <label for="cef-whatsapp">WhatsApp</label>
+                <label for="cef-whatsapp">WhatsApp <span class="th-info-btn" data-th-title="WHATSAPP" data-th-tooltip="Número de WhatsApp com DDD no formato (11) 99999-9999. Permite contato rápido via app."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 <input type="tel" id="cef-whatsapp" class="input-control"
                     placeholder="(11) 99999-9999"
                     value="${cont?.whatsapp || cont?.telefone || ''}">
             </div>
 
             <div class="input-group ce-span-2">
-                <label for="cef-linkedin">LinkedIn</label>
+                <label for="cef-linkedin">LinkedIn <span class="th-info-btn" data-th-title="LINKEDIN" data-th-tooltip="URL completa do perfil LinkedIn. Ex: https://linkedin.com/in/nome. Útil para pesquisa antes de reuniões."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                 <input type="url" id="cef-linkedin" class="input-control"
                     placeholder="https://linkedin.com/in/..."
                     value="${cont?.linkedin || ''}">

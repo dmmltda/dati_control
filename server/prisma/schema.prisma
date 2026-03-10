@@ -250,6 +250,9 @@ model import_staging {
   valor_usuario_adic Decimal?   @db.Decimal(15, 2)
   total_horas_hd    Int?
   valor_adic_hd     Decimal?    @db.Decimal(15, 2)
+  // Contatos e produtos extras (quando há mais de 1 por empresa)
+  contatos_extra_json String?   // JSON array de contatos adicionais
+  produtos_extra_json String?   // JSON array de produtos adicionais
   status            String      @default("pending")
   error_message     String?
   import_jobs       import_jobs @relation(fields: [import_id], references: [id], onDelete: Cascade)
@@ -303,4 +306,19 @@ model activity_next_step_responsibles {
   activity_id String
   user_id     String
   activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO DE USUÁRIOS — sincronizado com Clerk
+// O id é o Clerk User ID (ex: "user_2abc123...")
+// ══════════════════════════════════════════════════════════════════════════════
+model users {
+  id        String   @id              // Clerk User ID — string literal, não UUID gerado localmente
+  nome      String
+  email     String   @unique
+  avatar    String?                   // Iniciais (ex: "DS") — gerado a partir do nome
+  role      String   @default("member") // "admin" | "cs" | "comercial" | "member"
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

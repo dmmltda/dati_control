@@ -21,10 +21,11 @@ import {
 import { refreshCompanyContactsTable } from './modules/company-contacts/company-contacts-table.js';
 import { initImportModule } from './modules/importer/import-manager.js';
 import * as activities from './modules/activities.js';
+import { initTooltipSystem } from './core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
 
 // ─── Journey Dashboard (novo módulo) ────────────────────────────────────────
 import { initDashboard } from '../src/pages/Dashboard.js';
-import { mockUsuarios } from '../src/data/mockData.js';
+// mockUsuarios removido — substituiído por /api/usuarios (Clerk-sincronizado)
 
 // Controla se o dashboard já foi inicializado
 let _dashboardIniciado = false;
@@ -55,24 +56,39 @@ function mostrarJourneyDashboard() {
 // Todas as funções window._ são expostas globalmente para os onclick do HTML.
 
 /**
- * Popula o #db-user-list com os usuários do mock
+ * Popula o #db-user-list com os usuários reais da API /api/usuarios
  */
-function _dbInicializarMenu() {
+async function _dbInicializarMenu() {
     const lista = document.getElementById('db-user-list');
     if (!lista) return;
 
     const avatarColors = ['#0F3460', '#1A5276', '#E8832A', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899'];
 
-    lista.innerHTML = mockUsuarios.map((u, i) => {
+    // Cache local dos usuários carregados (para _dbSelecionarUsuario)
+    let usuarios = [];
+    try {
+        const token = await auth.getAuthToken();
+        usuarios = await fetch('/api/usuarios', {
+            headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.json()).catch(() => []);
+    } catch (err) {
+        console.warn('[Dashboard] Não foi possível carregar usuários:', err);
+    }
+
+    // Armazena no window para o _dbSelecionarUsuario usar
+    window.__usuariosCache = Array.isArray(usuarios) ? usuarios : [];
+
+    lista.innerHTML = window.__usuariosCache.map((u, i) => {
         const cor = avatarColors[i % avatarColors.length];
+        const avatarText = u.avatar || (u.nome ? u.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
         return `
             <button class="db-dropdown-item" id="db-dd-${u.id}"
-                onclick="window._dbSelecionarUsuario('${u.nome}', '${u.nome}', '${u.avatar}', event)"
+                onclick="window._dbSelecionarUsuario('${u.nome}', '${u.nome}', '${avatarText}', event)"
                 style="--avatar-cor:${cor};">
-                <span style="width:26px;height:26px;border-radius:50%;background:${cor};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;">${u.avatar}</span>
+                <span style="width:26px;height:26px;border-radius:50%;background:${cor};color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0;">${avatarText}</span>
                 <div style="display:flex;flex-direction:column;min-width:0;flex:1;">
                     <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${u.nome}</span>
-                    <span style="font-size:11px;color:#64748B;font-weight:400;">${u.role}</span>
+                    <span style="font-size:11px;color:#64748B;font-weight:400;">${u.role || 'member'}</span>
                 </div>
                 <i class="ph ph-check" id="check-${u.id}" style="margin-left:auto;font-size:12px;color:#0F3460;display:none;"></i>
             </button>
@@ -121,8 +137,9 @@ window._dbSelecionarUsuario = function (nome, label, avatar, event) {
         document.getElementById(idTarget)?.classList.add('active');
         document.getElementById('check-Todos').style.display = 'inline';
     } else {
-        // Acha o botão pelo nome do usuário
-        const usuario = mockUsuarios.find(u => u.nome === nome);
+        // Acha o botão pelo nome do usuário usando o cache da API
+        const usuarios = window.__usuariosCache || [];
+        const usuario = usuarios.find(u => u.nome === nome);
         if (usuario) {
             document.getElementById(`db-dd-${usuario.id}`)?.classList.add('active');
             const chk = document.getElementById(`check-${usuario.id}`);
@@ -431,20 +448,28 @@ function handleGlobalClick(e) {
 // SECTION 3: App Initialization
 // =============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Check Auth
-    if (sessionStorage.getItem('dati_auth') === 'true') {
-        auth.showApp();
-        // Inicializa o dashboard na primeira carga (view padrão)
+document.addEventListener('DOMContentLoaded', async () => {
+    // Inicializa Clerk — ele decide sozinho se mostra login ou app
+    // (substitui a verificação sessionStorage anterior)
+    await auth.initClerk();
+
+    // Inicializa o Journey Dashboard quando o Clerk confirmar a autenticação.
+    // O evento 'dati:app-ready' é emitido pelo auth.js (_bootstrapApp) após login
+    // bem-sucedido — funciona tanto para sessão preexistente quanto para login novo.
+    document.addEventListener('dati:app-ready', () => {
         mostrarJourneyDashboard();
-    }
+    });
+
     ui.initGlobalPickers();
+
+    // 🎯 Inicializa o sistema global de tooltips (data-th-tooltip)
+    initTooltipSystem();
 
     // Register global click delegation
     document.addEventListener('click', handleGlobalClick);
 
     // --- Static Form Listeners ---
-    document.getElementById('login-form')?.addEventListener('submit', auth.handleLogin);
+    // login-form removido — o Clerk gerencia o submit da tela de login
     document.getElementById('company-form')?.addEventListener('submit', handlers.handleCompanySubmit);
 
     // --- Static Change Listeners (form elements, never recreated by DOM) ---

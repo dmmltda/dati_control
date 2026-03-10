@@ -207,15 +207,68 @@ function buildModalHTML(prod) {
                     </div>
                 </div>
 
+                <!-- DOCUMENTOS -->
+                <div class="editor-section">
+                    <div class="editor-section-title">
+                        <i class="ph ph-paperclip"></i>
+                        <span>Documentos</span>
+                    </div>
+                    <div class="editor-grid">
+
+                        <!-- Proposta Comercial -->
+                        <div class="input-group editor-file-group">
+                            <label>Proposta Comercial</label>
+                            ${prod?.propostaName
+            ? `<div class="file-attached" id="proposta-attached">
+                                    <i class="ph ph-file-pdf"></i>
+                                    <span class="file-attached-name" title="${prod.propostaName}">${prod.propostaName}</span>
+                                    <button type="button" class="btn-file-remove" id="btn-remove-proposta" title="Remover">
+                                        <i class="ph ph-x"></i>
+                                    </button>
+                                   </div>`
+            : ''}
+                            <label class="btn-file-upload" for="prod-proposta-file" id="label-proposta-upload"
+                                   style="${prod?.propostaName ? 'display:none' : ''}">
+                                <i class="ph ph-upload-simple"></i>
+                                <span>Selecionar arquivo</span>
+                            </label>
+                            <input type="file" id="prod-proposta-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" style="display:none">
+                            <span class="file-hint">PDF, Word, Excel, imagem (máx. 10 MB)</span>
+                        </div>
+
+                        <!-- Contrato -->
+                        <div class="input-group editor-file-group">
+                            <label>Contrato</label>
+                            ${prod?.contratoName
+            ? `<div class="file-attached" id="contrato-attached">
+                                    <i class="ph ph-file-pdf"></i>
+                                    <span class="file-attached-name" title="${prod.contratoName}">${prod.contratoName}</span>
+                                    <button type="button" class="btn-file-remove" id="btn-remove-contrato" title="Remover">
+                                        <i class="ph ph-x"></i>
+                                    </button>
+                                   </div>`
+            : ''}
+                            <label class="btn-file-upload" for="prod-contrato-file" id="label-contrato-upload"
+                                   style="${prod?.contratoName ? 'display:none' : ''}">
+                                <i class="ph ph-upload-simple"></i>
+                                <span>Selecionar arquivo</span>
+                            </label>
+                            <input type="file" id="prod-contrato-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" style="display:none">
+                            <span class="file-hint">PDF, Word, Excel, imagem (máx. 10 MB)</span>
+                        </div>
+
+                    </div>
+                </div>
+
             </div><!-- /modal-body -->
 
             <!-- ── Footer ── -->
             <div class="produto-modal-footer">
                 ${isEdit
-                    ? `<button type="button" id="btn-excluir-produto" class="btn btn-danger-outline">
+            ? `<button type="button" id="btn-excluir-produto" class="btn btn-danger-outline">
                             <i class="ph ph-trash"></i> Excluir Produto
                        </button>`
-                    : '<span></span>'}
+            : '<span></span>'}
                 <div class="produto-modal-footer-right">
                     <button type="button" id="btn-cancelar-produto" class="btn btn-secondary">Cancelar</button>
                     <button type="button" id="btn-salvar-produto" class="btn btn-primary">
@@ -232,19 +285,67 @@ function buildModalHTML(prod) {
 // SEÇÃO 4: COLETA DE DADOS DO FORMULÁRIO
 // ============================================================================
 
-function collectFromForm() {
+/** Lê um arquivo de input e retorna { data: base64String, name: fileName } ou null */
+function readFileAsBase64(inputId) {
+    return new Promise((resolve) => {
+        const input = document.getElementById(inputId);
+        if (!input || !input.files || !input.files[0]) { resolve(null); return; }
+        const file = input.files[0];
+        if (file.size > 10 * 1024 * 1024) {
+            resolve({ error: `Arquivo "${file.name}" excede 10 MB.` });
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => resolve({ data: e.target.result, name: file.name });
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(file);
+    });
+}
+
+async function collectFromForm(existingProd = null) {
     const cobrancaSetup = document.getElementById('prod-cobranca-setup')?.checked;
+
+    // Lê arquivos (se selecionados)
+    const propostaFile = await readFileAsBase64('prod-proposta-file');
+    const contratoFile = await readFileAsBase64('prod-contrato-file');
+
+    // Valida tamanho
+    if (propostaFile?.error) throw new Error(propostaFile.error);
+    if (contratoFile?.error) throw new Error(contratoFile.error);
+
+    // Proposta: usa novo arquivo, ou mantém existente (a menos que tenha sido removido)
+    const propostaRemovida = document.getElementById('proposta-attached') === null
+        && (existingProd?.propostaData || existingProd?.propostaName)
+        && document.getElementById('label-proposta-upload')?.style.display !== 'none';
+    const propostaData = propostaFile ? propostaFile.data
+        : (propostaRemovida ? null : (existingProd?.propostaData ?? null));
+    const propostaName = propostaFile ? propostaFile.name
+        : (propostaRemovida ? null : (existingProd?.propostaName ?? null));
+
+    // Contrato: idem
+    const contratoRemovida = document.getElementById('contrato-attached') === null
+        && (existingProd?.contratoData || existingProd?.contratoName)
+        && document.getElementById('label-contrato-upload')?.style.display !== 'none';
+    const contratoData = contratoFile ? contratoFile.data
+        : (contratoRemovida ? null : (existingProd?.contratoData ?? null));
+    const contratoName = contratoFile ? contratoFile.name
+        : (contratoRemovida ? null : (existingProd?.contratoName ?? null));
+
     return {
-        nome:          document.getElementById('prod-nome')?.value || '',
-        tipoCobranca:  document.getElementById('prod-tipo-cobranca')?.value || '',
+        nome: document.getElementById('prod-nome')?.value || '',
+        tipoCobranca: document.getElementById('prod-tipo-cobranca')?.value || '',
         valorUnitario: parseCurrency('prod-valor-unitario'),
-        valorMinimo:   parseCurrency('prod-valor-minimo'),
+        valorMinimo: parseCurrency('prod-valor-minimo'),
         cobrancaSetup: cobrancaSetup ? 'Sim' : 'Não',
-        valorSetup:    cobrancaSetup ? parseCurrency('prod-valor-setup') : null,
-        qtdUsuarios:   document.getElementById('prod-qtd-usuarios')?.value?.trim() || null,
+        valorSetup: cobrancaSetup ? parseCurrency('prod-valor-setup') : null,
+        qtdUsuarios: document.getElementById('prod-qtd-usuarios')?.value?.trim() || null,
         valorUserAdic: parseCurrency('prod-valor-usuario-adic'),
-        totalHorasHd:  parseInt(document.getElementById('prod-total-horas-hd')?.value) || null,
-        valorAdicHd:   parseCurrency('prod-valor-adic-hd'),
+        totalHorasHd: parseInt(document.getElementById('prod-total-horas-hd')?.value) || null,
+        valorAdicHd: parseCurrency('prod-valor-adic-hd'),
+        propostaData,
+        propostaName,
+        contratoData,
+        contratoName,
     };
 }
 
@@ -291,6 +392,40 @@ export function openProdutoEditor(prodId = null) {
         if (group) group.style.visibility = e.target.checked ? 'visible' : 'hidden';
     });
 
+    // Upload: Proposta — mostra nome do arquivo ao selecionar
+    document.getElementById('prod-proposta-file')?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const label = document.getElementById('label-proposta-upload');
+        if (label) label.querySelector('span').textContent = file.name;
+    });
+
+    // Upload: Contrato — mostra nome do arquivo ao selecionar
+    document.getElementById('prod-contrato-file')?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const label = document.getElementById('label-contrato-upload');
+        if (label) label.querySelector('span').textContent = file.name;
+    });
+
+    // Remover proposta existente
+    document.getElementById('btn-remove-proposta')?.addEventListener('click', () => {
+        document.getElementById('proposta-attached')?.remove();
+        const label = document.getElementById('label-proposta-upload');
+        if (label) { label.style.display = ''; label.querySelector('span').textContent = 'Selecionar arquivo'; }
+        const input = document.getElementById('prod-proposta-file');
+        if (input) input.value = '';
+    });
+
+    // Remover contrato existente
+    document.getElementById('btn-remove-contrato')?.addEventListener('click', () => {
+        document.getElementById('contrato-attached')?.remove();
+        const label = document.getElementById('label-contrato-upload');
+        if (label) { label.style.display = ''; label.querySelector('span').textContent = 'Selecionar arquivo'; }
+        const input = document.getElementById('prod-contrato-file');
+        if (input) input.value = '';
+    });
+
     // Fechar: botão ×, Cancelar, click no overlay
     document.getElementById('btn-close-produto-modal')?.addEventListener('click', closeProdutoEditor);
     document.getElementById('btn-cancelar-produto')?.addEventListener('click', closeProdutoEditor);
@@ -299,8 +434,14 @@ export function openProdutoEditor(prodId = null) {
     });
 
     // Salvar
-    document.getElementById('btn-salvar-produto')?.addEventListener('click', () => {
-        const data = collectFromForm();
+    document.getElementById('btn-salvar-produto')?.addEventListener('click', async () => {
+        let data;
+        try {
+            data = await collectFromForm(prod);
+        } catch (err) {
+            showToast(err.message, 'error');
+            return;
+        }
 
         if (!data.nome) {
             showToast('Selecione um produto.', 'error');
@@ -520,31 +661,31 @@ export function openBulkProdutoEditor(ids) {
         const partial = {};
 
         const tipoCobranca = document.getElementById('prod-tipo-cobranca')?.value;
-        if (tipoCobranca)                              partial.tipoCobranca  = tipoCobranca;
+        if (tipoCobranca) partial.tipoCobranca = tipoCobranca;
 
         const valorUnitario = parseCurrency('prod-valor-unitario');
-        if (valorUnitario != null)                     partial.valorUnitario = valorUnitario;
+        if (valorUnitario != null) partial.valorUnitario = valorUnitario;
 
         const valorMinimo = parseCurrency('prod-valor-minimo');
-        if (valorMinimo != null)                       partial.valorMinimo   = valorMinimo;
+        if (valorMinimo != null) partial.valorMinimo = valorMinimo;
 
         const valorSetup = parseCurrency('prod-valor-setup');
-        if (valorSetup != null)                        partial.valorSetup    = valorSetup;
+        if (valorSetup != null) partial.valorSetup = valorSetup;
 
         const qtdUsuarios = document.getElementById('prod-qtd-usuarios')?.value?.trim();
-        if (qtdUsuarios)                               partial.qtdUsuarios   = qtdUsuarios;
+        if (qtdUsuarios) partial.qtdUsuarios = qtdUsuarios;
 
         const valorUserAdic = parseCurrency('prod-valor-usuario-adic');
-        if (valorUserAdic != null)                     partial.valorUserAdic = valorUserAdic;
+        if (valorUserAdic != null) partial.valorUserAdic = valorUserAdic;
 
         const horasRaw = document.getElementById('prod-total-horas-hd')?.value;
         if (horasRaw !== '' && horasRaw != null) {
             const horas = parseInt(horasRaw);
-            if (!isNaN(horas))                         partial.totalHorasHd  = horas;
+            if (!isNaN(horas)) partial.totalHorasHd = horas;
         }
 
         const valorAdicHd = parseCurrency('prod-valor-adic-hd');
-        if (valorAdicHd != null)                       partial.valorAdicHd   = valorAdicHd;
+        if (valorAdicHd != null) partial.valorAdicHd = valorAdicHd;
 
         if (Object.keys(partial).length === 0) {
             showToast('Preencha pelo menos um campo para aplicar.', 'warning');

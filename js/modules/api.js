@@ -1,3 +1,5 @@
+import { getAuthToken } from './auth.js';
+
 const API_URL = '/api';
 
 // Mapeamento DB -> Frontend (10/10 compatibility)
@@ -22,22 +24,22 @@ function mapFromDB(comp) {
 
         // Relacionamentos
         produtos: (comp.company_products || []).map(p => ({
-            id:            p.id,
-            nome:          p.Produto_DATI,
-            tipoCobranca:  p.Tipo_cobranca,
-            valorUnitario: p.Valor_unitario  != null ? parseFloat(p.Valor_unitario)  : null,
-            valorMinimo:   p.Valor_minimo    != null ? parseFloat(p.Valor_minimo)    : null,
-            valorTotal:    p.Valor_total     != null ? parseFloat(p.Valor_total)     : null,
+            id: p.id,
+            nome: p.Produto_DATI,
+            tipoCobranca: p.Tipo_cobranca,
+            valorUnitario: p.Valor_unitario != null ? parseFloat(p.Valor_unitario) : null,
+            valorMinimo: p.Valor_minimo != null ? parseFloat(p.Valor_minimo) : null,
+            valorTotal: p.Valor_total != null ? parseFloat(p.Valor_total) : null,
             cobrancaSetup: p.Cobranca_setup,
-            valorSetup:    p.Valor_setup     != null ? parseFloat(p.Valor_setup)     : null,
-            qtdUsuarios:   p.Qtd_usuarios,
+            valorSetup: p.Valor_setup != null ? parseFloat(p.Valor_setup) : null,
+            qtdUsuarios: p.Qtd_usuarios,
             valorUserAdic: p.Valor_usuario_adicional != null ? parseFloat(p.Valor_usuario_adicional) : null,
-            totalHorasHd:  p.Total_horas_hd,
-            valorAdicHd:   p.Valor_adic_hd   != null ? parseFloat(p.Valor_adic_hd)   : null,
-            propostaData:  p.Proposta_comercial,
-            propostaName:  p.Proposta_nome,
-            contratoData:  p.Contrato,
-            contratoName:  p.Contrato_nome,
+            totalHorasHd: p.Total_horas_hd,
+            valorAdicHd: p.Valor_adic_hd != null ? parseFloat(p.Valor_adic_hd) : null,
+            propostaData: p.Proposta_comercial,
+            propostaName: p.Proposta_nome,
+            contratoData: p.Contrato,
+            contratoName: p.Contrato_nome,
         })),
         produtosNames: (comp.company_products || []).map(p => p.Produto_DATI).filter(Boolean).join(', '),
 
@@ -112,24 +114,40 @@ function mapFromDB(comp) {
     };
 }
 
+/**
+ * Wrapper fetch autenticado — adiciona o token Clerk automaticamente.
+ * @param {string} url
+ * @param {RequestInit} options
+ */
+async function _fetch(url, options = {}) {
+    const token = await getAuthToken();
+    return fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...options.headers,
+        },
+    });
+}
+
 export const api = {
     async getCompanies() {
-        const response = await fetch(`${API_URL}/companies`);
+        const response = await _fetch(`${API_URL}/companies`);
         const data = await response.json();
         return Array.isArray(data) ? data.map(mapFromDB) : [];
     },
 
     async getCompany(id) {
-        const response = await fetch(`${API_URL}/companies/${id}`);
+        const response = await _fetch(`${API_URL}/companies/${id}`);
         const data = await response.json();
         return mapFromDB(data);
     },
 
     async createCompany(companyData) {
         // O companyData enviado pelo migration.js já está no formato DB 10/10
-        const response = await fetch(`${API_URL}/companies`, {
+        const response = await _fetch(`${API_URL}/companies`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(companyData)
         });
         const data = await response.json();
@@ -137,9 +155,8 @@ export const api = {
     },
 
     async updateCompany(id, companyData) {
-        const response = await fetch(`${API_URL}/companies/${id}`, {
+        const response = await _fetch(`${API_URL}/companies/${id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(companyData)
         });
         const data = await response.json();
@@ -147,7 +164,7 @@ export const api = {
     },
 
     async deleteCompany(id) {
-        const res = await fetch(`${API_URL}/companies/${id}`, {
+        const res = await _fetch(`${API_URL}/companies/${id}`, {
             method: 'DELETE'
         });
         if (!res.ok) {

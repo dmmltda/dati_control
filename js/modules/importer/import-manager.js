@@ -131,7 +131,16 @@ function initUploadZone() {
     const fileInput = $('import-file-input');
     if (!zone || !fileInput) return;
 
-    zone.addEventListener('click', () => fileInput.click());
+    // Evita acúmulo de listeners quando o módulo é reinicializado
+    // (navegação de volta à tela de importação)
+    if (zone._uploadListenersAttached) return;
+    zone._uploadListenersAttached = true;
+
+    zone.addEventListener('click', (e) => {
+        // Não abre o seletor se o clique foi no botão de download
+        if (e.target.closest('#btn-import-template')) return;
+        fileInput.click();
+    });
 
     zone.addEventListener('dragover', (e) => {
         e.preventDefault();

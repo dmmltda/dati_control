@@ -9,16 +9,17 @@
  */
 
 import { colors, kpiColors, card } from '../../theme/tokens.js';
+import { initTooltipSystem, showTooltip, hideTooltip, updateTooltipPosition } from './Tooltip.js';
 
 // ─── Ícones SVG inline (Phosphor-style) ──────────────────────────────────────
 const icons = {
-    building: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M9 21v-8h6v8"/></svg>`,
-    check: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`,
-    xcircle: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
-    trending: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"/><path d="M14 7h7v7"/></svg>`,
-    sparkles: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.912 5.813-5.75 1.32 4.33 3.844L7.23 20.5 12 17.25l4.77 3.25-1.438-6.523 4.33-3.844-5.75-1.32Z"/></svg>`,
-    arrowUp: `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
-    arrowDn: `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>`,
+  building: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M3 7l9-4 9 4M4 7v14M20 7v14M9 21v-8h6v8"/></svg>`,
+  check: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>`,
+  xcircle: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>`,
+  trending: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17 9 11l4 4 8-8"/><path d="M14 7h7v7"/></svg>`,
+  sparkles: `<svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3-1.912 5.813-5.75 1.32 4.33 3.844L7.23 20.5 12 17.25l4.77 3.25-1.438-6.523 4.33-3.844-5.75-1.32Z"/></svg>`,
+  arrowUp: `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
+  arrowDn: `<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>`,
 };
 
 /**
@@ -27,24 +28,24 @@ const icons = {
  * @returns {Object} métricas calculadas
  */
 function calcularMetricas(empresas) {
-    const hoje = new Date('2026-03-10');
-    const mesAtual = hoje.getMonth();
-    const anoAtual = hoje.getFullYear();
+  const hoje = new Date('2026-03-10');
+  const mesAtual = hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
 
-    const total = empresas.length;
-    const ativos = empresas.filter(e => e.status === 'Cliente Ativo').length;
-    const inativos = empresas.filter(e =>
-        e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso'
-    ).length;
-    const leads = empresas.filter(e =>
-        ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento'].includes(e.status)
-    ).length;
-    const novosMes = empresas.filter(e => {
-        const d = new Date(e.createdAt);
-        return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
-    }).length;
+  const total = empresas.length;
+  const ativos = empresas.filter(e => e.status === 'Cliente Ativo').length;
+  const inativos = empresas.filter(e =>
+    e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso'
+  ).length;
+  const leads = empresas.filter(e =>
+    ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento'].includes(e.status)
+  ).length;
+  const novosMes = empresas.filter(e => {
+    const d = new Date(e.createdAt);
+    return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
+  }).length;
 
-    return { total, ativos, inativos, leads, novosMes };
+  return { total, ativos, inativos, leads, novosMes };
 }
 
 /**
@@ -52,12 +53,12 @@ function calcularMetricas(empresas) {
  * @param {Object} config - configuração do card
  */
 function renderCard({ label, value, variacao, icone, cor, descricao }) {
-    const positivo = variacao >= 0;
-    const varIcon = positivo ? icons.arrowUp : icons.arrowDn;
-    const varCor = positivo ? colors.success : colors.danger;
-    const varTexto = `${positivo ? '+' : ''}${variacao}%`;
+  const positivo = variacao >= 0;
+  const varIcon = positivo ? icons.arrowUp : icons.arrowDn;
+  const varCor = positivo ? colors.success : colors.danger;
+  const varTexto = `${positivo ? '+' : ''}${variacao}%`;
 
-    return `
+  return `
     <article class="kpi-card" style="
       background: ${colors.bgCard};
       border-radius: ${card.borderRadius};
@@ -71,7 +72,8 @@ function renderCard({ label, value, variacao, icone, cor, descricao }) {
       gap: 0.5rem;
       position: relative;
       overflow: hidden;
-    " onmouseenter="this.style.transform='${card.hoverTransform}';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
+    " data-kpi-key="${label.toLowerCase().replace(/ /g, '-')}"
+       onmouseenter="this.style.transform='${card.hoverTransform}';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
        onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='${card.boxShadow}'">
 
       <!-- Ícone de fundo decorativo -->
@@ -129,56 +131,79 @@ function renderCard({ label, value, variacao, icone, cor, descricao }) {
  * @param {Object} stats       - { variacaoMesAnterior: {...} }
  */
 export function renderKPICards(containerId, empresas, stats) {
-    const el = document.getElementById(containerId);
-    if (!el) return;
+  initTooltipSystem();
 
-    const m = calcularMetricas(empresas);
-    const vars = stats?.variacaoMesAnterior || {};
+  const el = document.getElementById(containerId);
+  if (!el) return;
 
-    const cards = [
-        {
-            label: 'Total de Empresas',
-            value: m.total,
-            variacao: vars.total ?? 0,
-            icone: icons.building,
-            cor: kpiColors.total,
-            descricao: 'Na base completa',
-        },
-        {
-            label: 'Clientes Ativos',
-            value: m.ativos,
-            variacao: vars.ativos ?? 0,
-            icone: icons.check,
-            cor: kpiColors.ativos,
-            descricao: 'Status: Cliente Ativo',
-        },
-        {
-            label: 'Clientes Inativos',
-            value: m.inativos,
-            variacao: vars.inativos ?? 0,
-            icone: icons.xcircle,
-            cor: kpiColors.inativos,
-            descricao: 'Inativos + Suspensos',
-        },
-        {
-            label: 'Leads no Funil',
-            value: m.leads,
-            variacao: vars.leads ?? 0,
-            icone: icons.trending,
-            cor: kpiColors.leads,
-            descricao: 'Prospect → Proposta',
-        },
-        {
-            label: 'Novos este Mês',
-            value: m.novosMes,
-            variacao: vars.novosMes ?? 0,
-            icone: icons.sparkles,
-            cor: kpiColors.novos,
-            descricao: 'Março 2026',
-        },
-    ];
+  const m = calcularMetricas(empresas);
+  const vars = stats?.variacaoMesAnterior || {};
 
-    el.innerHTML = `
+  const hoje = new Date('2026-03-10');
+  const mesAtual = hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
+
+  const cards = [
+    {
+      label: 'Total de Empresas', value: m.total, variacao: vars.total ?? 0,
+      icone: icons.building, cor: kpiColors.total, descricao: 'Na base completa',
+      emoji: '🏢',
+      getItems: () => empresas.slice(0, 8).map(e => ({
+        nome: e.nome, dotCor: kpiColors.total,
+        badge: e.status, badgeBg: 'rgba(15,52,96,0.1)', badgeCor: kpiColors.total,
+      })),
+    },
+    {
+      label: 'Clientes Ativos', value: m.ativos, variacao: vars.ativos ?? 0,
+      icone: icons.check, cor: kpiColors.ativos, descricao: 'Status: Cliente Ativo',
+      emoji: '✅',
+      getItems: () => empresas.filter(e => e.status === 'Cliente Ativo')
+        .sort((a, b) => (b.nps ?? 0) - (a.nps ?? 0))
+        .slice(0, 8)
+        .map(e => ({
+          nome: e.nome, dotCor: kpiColors.ativos, nps: e.nps ?? null,
+          badge: e.healthScore, badgeBg: 'rgba(16,185,129,0.1)', badgeCor: kpiColors.ativos
+        })),
+    },
+    {
+      label: 'Clientes Inativos', value: m.inativos, variacao: vars.inativos ?? 0,
+      icone: icons.xcircle, cor: kpiColors.inativos, descricao: 'Inativos + Suspensos',
+      emoji: '⚠️',
+      getItems: () => empresas
+        .filter(e => e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso')
+        .slice(0, 8)
+        .map(e => ({
+          nome: e.nome, dotCor: kpiColors.inativos,
+          badge: e.status, badgeBg: 'rgba(239,68,68,0.1)', badgeCor: kpiColors.inativos
+        })),
+    },
+    {
+      label: 'Leads no Funil', value: m.leads, variacao: vars.leads ?? 0,
+      icone: icons.trending, cor: kpiColors.leads, descricao: 'Prospect → Proposta',
+      emoji: '🚀',
+      getItems: () => empresas
+        .filter(e => ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento'].includes(e.status))
+        .slice(0, 8)
+        .map(e => ({
+          nome: e.nome, dotCor: kpiColors.leads,
+          badge: e.status, badgeBg: 'rgba(232,131,42,0.1)', badgeCor: kpiColors.leads
+        })),
+    },
+    {
+      label: 'Novos este Mês', value: m.novosMes, variacao: vars.novosMes ?? 0,
+      icone: icons.sparkles, cor: kpiColors.novos, descricao: 'Março 2026',
+      emoji: '✨',
+      getItems: () => empresas
+        .filter(e => { const d = new Date(e.createdAt); return d.getMonth() === mesAtual && d.getFullYear() === anoAtual; })
+        .slice(0, 8)
+        .map(e => ({
+          nome: e.nome, dotCor: kpiColors.novos,
+          badge: e.status, badgeBg: 'rgba(245,158,11,0.1)', badgeCor: kpiColors.novos
+        })),
+    },
+  ];
+
+  el.innerHTML = `
     <div style="
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -187,4 +212,23 @@ export function renderKPICards(containerId, empresas, stats) {
       ${cards.map(renderCard).join('')}
     </div>
   `;
+
+  // Attacha tooltips após o render
+  cards.forEach(cardData => {
+    const key = cardData.label.toLowerCase().replace(/ /g, '-');
+    const artigo = el.querySelector(`[data-kpi-key="${key}"]`);
+    if (!artigo) return;
+
+    artigo.style.cursor = 'default';
+
+    artigo.addEventListener('mouseenter', (ev) => {
+      showTooltip(ev, {
+        emoji: cardData.emoji,
+        titulo: cardData.label,
+        items: cardData.getItems(),
+      });
+    });
+    artigo.addEventListener('mousemove', (ev) => updateTooltipPosition(ev));
+    artigo.addEventListener('mouseleave', () => hideTooltip());
+  });
 }

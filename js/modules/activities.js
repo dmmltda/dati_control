@@ -453,14 +453,14 @@ function _showModal({ title, submitLabel, prefill }) {
 
                 <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Tipo de Atividade *</label>
+                        <label>Tipo de Atividade * <span class="th-info-btn" data-th-title="TIPO DE ATIVIDADE" data-th-tooltip="Categoria da interação: Comentário (nota interna), Reunião, Chamados HD (suporte técnico), Chamados CS (sucesso do cliente), Ação necessária (urgente)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-type" class="input-control" required>
                             <option value="">Selecione...</option>
                             ${ACTIVITY_TYPES.map(t => `<option value="${t}" ${prefill?.activity_type === t ? 'selected' : ''}>${t}</option>`).join('')}
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Departamento *</label>
+                        <label>Departamento * <span class="th-info-btn" data-th-title="DEPARTAMENTO EXECUTOR" data-th-tooltip="Qual área da DATI executou esta atividade: Comercial, Customer Success, Help Desk, TI, Financeiro, Produto ou Operações."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-dept" class="input-control" required>
                             <option value="">Selecione...</option>
                             ${ACTIVITY_DEPARTMENTS.map(d => `<option value="${d}" ${prefill?.department === d ? 'selected' : ''}>${d}</option>`).join('')}
@@ -469,23 +469,23 @@ function _showModal({ title, submitLabel, prefill }) {
                 </div>
 
                 <div class="input-group" style="margin-bottom:1rem;">
-                    <label>Título *</label>
+                    <label>Título * <span class="th-info-btn" data-th-title="TÍTULO DA ATIVIDADE" data-th-tooltip="Nome conciso da atividade. Será exibido na timeline e na coluna Título da tabela. Ex: 'Reunião de onboarding com gerente de comex'."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                     <input type="text" id="modal-act-title" class="input-control" required placeholder="Título da atividade" value="${prefill?.title || ''}">
                 </div>
 
                 <div class="input-group" style="margin-bottom:1rem;">
-                    <label>Descrição *</label>
+                    <label>Descrição * <span class="th-info-btn" data-th-title="DESCRIÇÃO" data-th-tooltip="Detalhamento do que foi discutido, decidido ou executado. Fica visível na timeline completa da empresa."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                     <textarea id="modal-act-desc" class="input-control" rows="3" required placeholder="Descreva a atividade...">${prefill?.description || ''}</textarea>
                 </div>
 
                 <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Responsáveis *</label>
+                        <label>Responsáveis * <span class="th-info-btn" data-th-title="RESPONSÁVEIS" data-th-tooltip="Colaboradores DATI que participaram ou são responsáveis. Separe vários nomes por vírgula."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="text" id="modal-act-assignees" class="input-control" required placeholder="Nome dos responsáveis" value="${assigneesValue}">
                         <span style="font-size:0.73rem;color:var(--text-muted);margin-top:0.25rem;display:block;">Separe por vírgula</span>
                     </div>
                     <div class="input-group">
-                        <label>Data e Horário *</label>
+                        <label>Data e Horário * <span class="th-info-btn" data-th-title="DATA E HORÁRIO" data-th-tooltip="Quando a atividade ocorreu ou está agendada. Usado para ordenar a timeline cronologicamente."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="datetime-local" id="modal-act-datetime" class="input-control" required value="${dtValue}">
                     </div>
                 </div>
@@ -497,14 +497,14 @@ function _showModal({ title, submitLabel, prefill }) {
 
                 <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Status</label>
+                        <label>Status <span class="th-info-btn" data-th-title="STATUS" data-th-tooltip="Estado atual: Aberta (não iniciada), Em andamento (em execução), Concluída (finalizada), Cancelada (descartada)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-status" class="input-control">
                             <option value="">Selecione...</option>
                             ${ACTIVITY_STATUSES.map(s => `<option value="${s}" ${prefill?.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Criado por</label>
+                        <label>Criado por <span class="th-info-btn" data-th-title="CRIADO POR" data-th-tooltip="Identificador do usuário DATI que registrou esta atividade. Preenchido automaticamente pelo sistema."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="text" id="modal-act-created-by" class="input-control" placeholder="Nome do usuário" value="${prefill?.created_by_user_id || ''}">
                     </div>
                 </div>
@@ -532,7 +532,7 @@ function _showModal({ title, submitLabel, prefill }) {
                         </div>
                     </div>
                     <div class="input-group" style="margin-top:0.75rem;margin-bottom:0;">
-                        <label style="font-size:0.78rem;">Ou informe manualmente (minutos)</label>
+                        <label style="font-size:0.78rem;">Ou informe manualmente (minutos) <span class="th-info-btn" data-th-title="TEMPO MANUAL" data-th-tooltip="Use o cronômetro acima ou insira manualmente o tempo em minutos. Ex: 90 = 1h30min. Será exibido na coluna Tempo da tabela."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="number" id="modal-act-time-min" class="input-control" min="0" placeholder="ex: 30" value="${prefill?.time_spent_minutes || ''}">
                     </div>
                 </div>
@@ -542,16 +542,16 @@ function _showModal({ title, submitLabel, prefill }) {
                     <div style="font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-arrow-right-dashed" style="color:var(--secondary);"></i> Próximo Passo</div>
                     <div class="grid-2" style="margin-bottom:0.75rem;">
                         <div class="input-group" style="margin-bottom:0;">
-                            <label>Título do Próximo Passo</label>
+                            <label>Título do Próximo Passo <span class="th-info-btn" data-th-title="PRÓXIMO PASSO" data-th-tooltip="Ação concreta a ser realizada após esta atividade. Aparecerá na coluna 'Próximo Passo' na tabela de Empresas e de Atividades."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                             <input type="text" id="modal-act-next-title" class="input-control" placeholder="O que fazer a seguir?" value="${prefill?.next_step_title || ''}">
                         </div>
                         <div class="input-group" style="margin-bottom:0;">
-                            <label>Data do Próximo Passo</label>
+                            <label>Data do Próximo Passo <span class="th-info-btn" data-th-title="DATA DO PRÓXIMO PASSO" data-th-tooltip="Prazo para execução do próximo passo. Aparecerá ao lado do título na coluna Próximo Passo."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                             <input type="date" id="modal-act-next-date" class="input-control" value="${nextDtValue}">
                         </div>
                     </div>
                     <div class="input-group" style="margin-bottom:0;">
-                        <label>Responsáveis do Próximo Passo</label>
+                        <label>Responsáveis do Próximo Passo <span class="th-info-btn" data-th-title="RESPONSÁVEIS DO PRÓXIMO PASSO" data-th-tooltip="Quem irá executar o próximo passo. Pode ser diferente dos responsáveis pela atividade atual. Separe por vírgula."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="text" id="modal-act-next-resp" class="input-control" placeholder="Nomes, separados por vírgula" value="${nextStepResp}">
                     </div>
                 </div>

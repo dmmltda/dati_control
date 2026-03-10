@@ -29,33 +29,29 @@
     <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
+
+    <!-- Clerk Auth -->
+    <!-- ⚠️  IMPORTANTE: Substitua o valor abaixo pela sua publishable key real -->
+    <!-- Obtenha em: https://dashboard.clerk.com → Seu App → API Keys -->
+    <script>
+        window.__clerk_publishable_key = 'pk_test_d2VsbC1wbGF0eXB1cy05Mi5jbGVyay5hY2NvdW50cy5kZXYk';
+    </script>
+    <script src="https://well-platypus-92.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js" type="text/javascript"></script>
 </head>
 
 <body>
 
     <!-- Login Screen -->
     <div id="login-screen" class="screen flex-active">
-        <form id="login-form" class="glass-panel login-card">
-            <div class="logo">Journey</div>
-            <p>CRM Inteligente e Simplificado</p>
-
-            <div style="text-align: left; margin-top: 2rem;">
-                <div class="input-group">
-                    <label for="username">Usuário</label>
-                    <input type="text" id="username" class="input-control" placeholder="admin" autocomplete="username">
-                </div>
-                <div class="input-group">
-                    <label for="password">Senha</label>
-                    <input type="password" id="password" class="input-control" placeholder="dati2024"
-                        autocomplete="current-password">
-                </div>
+        <div class="login-clerk-container">
+            <div class="login-brand">
+                <img src="assets/logo-dati.svg" alt="DATI" onerror="this.style.display='none'">
+                <h1>dati_control</h1>
+                <p>CRM &amp; Customer Success</p>
             </div>
-
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem;">
-                Entrar <i class="ph ph-arrow-right"></i>
-            </button>
-            <div id="login-error">Credenciais inválidas. Tente admin / dati2024.</div>
-        </form>
+            <!-- Clerk renderiza o componente de login aqui -->
+            <div id="clerk-sign-in-mount"></div>
+        </div>
     </div>
 
     <!-- Main App Layout -->
@@ -197,7 +193,14 @@
                                 </button>
                             </div>
                         </div>
+                        <span class="th-info-btn" style="margin-left: 10px; flex-shrink: 0;"
+                            data-th-title="COMO FUNCIONA A BUSCA"
+                            data-th-tooltip="Busca simultânea em todos os campos:&#10;• Nome da empresa&#10;• Status (Ex: Ativo, Prospect)&#10;• Saúde (Saudável, Atenção, Risco)&#10;• Segmento (Ex: Logística)&#10;• Cidade e Estado&#10;• CNPJ&#10;• Produtos DATI contratados&#10;&#10;Não diferencia maiúsculas/minúsculas. Busca parcial: &quot;log&quot; encontra &quot;Logística&quot;.">
+                            <i class="ph ph-info"></i>
+                            <span class="th-pulse"></span>
+                        </span>
                     </div>
+
                     <!-- Active Filters Indicator (UX 10/10) -->
                     <div id="active-filters-bar" class="active-filters-bar" style="display: none;">
                         <div class="active-filters-chips" id="active-filters-chips">
@@ -308,6 +311,9 @@
                                             onclick="ui.toggleFilterPopover('comp_produtosNames', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Produtos DATI contratados por esta empresa. Cada produto pode ter usuários, cobrança e status próprios."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_produtosNames"></div>
                                     </th>
                                     <th class="sortable-header" data-key="segmento" style="text-align: center;">
@@ -316,6 +322,9 @@
                                             onclick="ui.toggleFilterPopover('comp_segmento', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
+                                        <span class="th-info-btn"
+                                            data-th-tooltip="Setor de atuação da empresa: Agronegócio, Logística, Farmacêutico, etc. Usado para segmentar relatórios e campanhas."><i
+                                                class="ph ph-info"></i><span class="th-pulse"></span></span>
                                         <div class="filter-popover" id="filter-popover-comp_segmento"></div>
                                     </th>
                                     <th>Ações</th>
@@ -608,17 +617,24 @@
                                     Dados Básicos</h2>
                                 <div class="grid-2">
                                     <div class="input-group">
-                                        <label>Nome da Empresa *</label>
+                                        <label>Nome da Empresa * <span class="th-info-btn"
+                                                data-th-title="NOME DA EMPRESA"
+                                                data-th-tooltip="Razão social ou nome fantasia da empresa. Usado na identificação em toda a plataforma."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <input type="text" id="emp-nome" class="input-control" required
                                             style="grid-column: span 2;">
                                     </div>
                                     <div class="input-group">
-                                        <label>CNPJ</label>
+                                        <label>CNPJ <span class="th-info-btn" data-th-title="CNPJ"
+                                                data-th-tooltip="Número de identificação fiscal da empresa no formato 00.000.000/0000-00. Usado para evitar duplicatas na importação."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <input type="text" id="emp-cnpj" class="input-control"
                                             placeholder="00.000.000/0000-00" oninput="utils.maskCNPJ(this)">
                                     </div>
                                     <div class="input-group">
-                                        <label>Tipo de Empresa</label>
+                                        <label>Tipo de Empresa <span class="th-info-btn" data-th-title="TIPO DE EMPRESA"
+                                                data-th-tooltip="Classifica a atividade principal da empresa no comércio exterior: Importador, Exportador, Despachante, Agente de Carga, etc."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="emp-tipo" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="Agente de Carga">Agente de Carga</option>
@@ -636,7 +652,9 @@
                                 </div>
                                 <div class="grid-4">
                                     <div class="input-group">
-                                        <label>Estado</label>
+                                        <label>Estado <span class="th-info-btn" data-th-title="ESTADO"
+                                                data-th-tooltip="UF onde a empresa está localizada. Usado para segmentar por região e carregar cidades disponíveis."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="emp-estado" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="AC">AC</option>
@@ -669,13 +687,17 @@
                                         </select>
                                     </div>
                                     <div class="input-group">
-                                        <label>Cidade</label>
+                                        <label>Cidade <span class="th-info-btn" data-th-title="CIDADE"
+                                                data-th-tooltip="Município da empresa. Disponível após selecionar o Estado. Usado em relatórios regionais."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <input type="text" id="emp-cidade" class="input-control" list="cidades-list"
                                             placeholder="Aguardando estado..." disabled>
                                         <datalist id="cidades-list"></datalist>
                                     </div>
                                     <div class="input-group">
-                                        <label>Canal</label>
+                                        <label>Canal <span class="th-info-btn" data-th-title="CANAL DE AQUISIÇÃO"
+                                                data-th-tooltip="Como a empresa chegou até a DATI. Ex: DATI &gt; Vendedor, Google &gt; Orgânico, Parceiros, etc. Essencial para análise de ROI por canal."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="emp-canal" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="DATI > Indica">DATI > Indica</option>
@@ -696,7 +718,9 @@
                                         </select>
                                     </div>
                                     <div class="input-group">
-                                        <label>Segmento</label>
+                                        <label>Segmento <span class="th-info-btn" data-th-title="SEGMENTO"
+                                                data-th-tooltip="Setor de atuação da empresa (Agronegócio, Logística, Farmacêutico...). Usado para segmentar campanhas e relatórios comerciais."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="emp-segmento" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="Agronegócio">Agronegócio</option>
@@ -815,6 +839,9 @@
                                                         title="Filtrar por Produto">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="PRODUTO"
+                                                        data-th-tooltip="Nome do produto DATI contratado pela empresa. Ex: DATI Export, DATI Import, DATI Analytics."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_nome"></div>
                                                 </th>
                                                 <!-- Tipo de Cobrança: string filter -->
@@ -826,6 +853,9 @@
                                                         title="Filtrar por Tipo de Cobrança">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="TIPO DE COBRANÇA"
+                                                        data-th-tooltip="Define o modelo de receita: Mensalidade (recorrente), Avulso (por evento), Setup (implantação única)."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_tipoCobranca">
                                                     </div>
                                                 </th>
@@ -838,6 +868,9 @@
                                                         title="Filtrar por Valor Unitário">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="VALOR UNITÁRIO"
+                                                        data-th-tooltip="Valor mensal ou recorrente cobrado por este produto. Base para cálculo de MRR e ARR da empresa."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_valorUnitario">
                                                     </div>
                                                 </th>
@@ -849,6 +882,9 @@
                                                         title="Filtrar por Valor Setup">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="VALOR DE SETUP"
+                                                        data-th-tooltip="Taxa de implantação cobrada uma única vez na contratação. Não é recorrente."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_valorSetup">
                                                     </div>
                                                 </th>
@@ -860,6 +896,9 @@
                                                         title="Filtrar por Quantidade de Usuários">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="QUANTIDADE DE USUÁRIOS"
+                                                        data-th-tooltip="Número de licenças/acessos ativos neste produto. Relevante para produtos com cobrança por usuário."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_qtdUsuarios">
                                                     </div>
                                                 </th>
@@ -872,6 +911,9 @@
                                                         title="Filtrar por Horas de Help Desk">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="HELP DESK"
+                                                        data-th-tooltip="Horas mensais de suporte técnico incluídas no contrato deste produto. Ex: 7h/mês."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_totalHorasHd">
                                                     </div>
                                                 </th>
@@ -883,6 +925,9 @@
                                                         title="Filtrar por Proposta">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="PROPOSTA"
+                                                        data-th-tooltip="Indica se uma proposta comercial foi enviada para este produto. Exibe a data de envio quando disponível."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_propostaData">
                                                     </div>
                                                 </th>
@@ -894,6 +939,9 @@
                                                         title="Filtrar por Contrato">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="CONTRATO"
+                                                        data-th-tooltip="Indica se o contrato foi assinado. Exibe a data de assinatura quando disponível. Sem contrato = produto ainda em negociação."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_contratoData">
                                                     </div>
                                                 </th>
@@ -990,6 +1038,9 @@
                                                         onclick="ui.toggleFilterPopover('contatos_nome', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="NOME DO CONTATO"
+                                                        data-th-tooltip="Pessoa de referência na empresa. Máx. 20 caracteres. Usado em comunicações, atividades e CS."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-contatos_nome"></div>
                                                 </th>
                                                 <!-- Cargo: string filter -->
@@ -999,6 +1050,9 @@
                                                         onclick="ui.toggleFilterPopover('contatos_cargo', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="CARGO"
+                                                        data-th-tooltip="Posição hierárquica do contato na empresa. Ex: Gerente de Comércio Exterior, Diretor Financeiro."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-contatos_cargo">
                                                     </div>
                                                 </th>
@@ -1010,6 +1064,9 @@
                                                         onclick="ui.toggleFilterPopover('contatos_departamento', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="DEPARTAMENTO"
+                                                        data-th-tooltip="Área da empresa onde o contato atua. Ex: Compras, Comex, Financeiro, TI. Útil para direcionar comunicações."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover"
                                                         id="filter-popover-contatos_departamento"></div>
                                                 </th>
@@ -1020,13 +1077,21 @@
                                                         onclick="ui.toggleFilterPopover('contatos_email1', event)">
                                                         <i class="ph ph-funnel"></i>
                                                     </button>
+                                                    <span class="th-info-btn" data-th-title="E-MAIL"
+                                                        data-th-tooltip="E-mail corporativo do contato. Usado para comunicações e disparo de campanhas."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-contatos_email1">
                                                     </div>
                                                 </th>
-                                                <!-- WhatsApp: sem filtro -->
-                                                <th>WhatsApp</th>
-                                                <!-- LinkedIn: sem filtro -->
-                                                <th style="text-align:center;">LinkedIn</th>
+                                                <th>WhatsApp <span class="th-info-btn" data-th-title="WHATSAPP"
+                                                        data-th-tooltip="Número de WhatsApp do contato no formato (XX) XXXXX-XXXX. Direto para comunicação rápida."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
+                                                </th>
+                                                <th style="text-align:center;">LinkedIn <span class="th-info-btn"
+                                                        data-th-title="LINKEDIN"
+                                                        data-th-tooltip="URL do perfil LinkedIn do contato. Útil para pesquisa e prospecção prévia à reunião."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
+                                                </th>
                                                 <th style="width:90px;">Ações</th>
                                             </tr>
                                         </thead>
@@ -1336,36 +1401,57 @@
                                             <tr>
                                                 <th class="sortable-header" data-key="activity_type"
                                                     style="width:130px;">
-                                                    Tipo
+                                                    Tipo <span class="th-info-btn" data-th-title="TIPO DE ATIVIDADE"
+                                                        data-th-tooltip="Categoria da interação: Reunião, E-mail, Ligação, Visita, Proposta, Demo, etc."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th class="sortable-header" data-key="title">
-                                                    Título
+                                                    Título <span class="th-info-btn" data-th-title="TÍTULO"
+                                                        data-th-tooltip="Nome descritivo da atividade. Ex: 'Reunião de onboarding', 'Apresentação de proposta'."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="description">
-                                                    Descrição
+                                                    Descrição <span class="th-info-btn" data-th-title="DESCRIÇÃO"
+                                                        data-th-tooltip="Detalhamento do que foi feito ou discutido na atividade. Fica visível na timeline."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th class="sortable-header" data-key="department"
                                                     style="text-align:center;width:120px;">
-                                                    Departamento
+                                                    Departamento <span class="th-info-btn" data-th-title="DEPARTAMENTO"
+                                                        data-th-tooltip="Qual área da DATI executou esta atividade: Comercial, CS, Suporte, Financeiro."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="assignees" style="width:140px;">
-                                                    Responsáveis
+                                                    Responsáveis <span class="th-info-btn" data-th-title="RESPONSÁVEIS"
+                                                        data-th-tooltip="Colaboradores DATI responsáveis por executar ou acompanhar esta atividade."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="created_by" style="width:110px;">
-                                                    Criado por
+                                                    Criado por <span class="th-info-btn" data-th-title="CRIADO POR"
+                                                        data-th-tooltip="Usuário DATI que registrou esta atividade no sistema."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th class="sortable-header" data-key="activity_date"
                                                     style="text-align:center;width:100px;">
-                                                    Data
+                                                    Data <span class="th-info-btn" data-th-title="DATA"
+                                                        data-th-tooltip="Data em que a atividade ocorreu ou foi agendada. Ordene por esta coluna para ver as mais recentes."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="time_spent" style="text-align:center;width:90px;">
-                                                    Tempo
+                                                    Tempo <span class="th-info-btn" data-th-title="TEMPO GASTO"
+                                                        data-th-tooltip="Duração da atividade em minutos ou horas. Usado para controle de produtividade e SLA."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="next_step" style="width:160px;">
-                                                    Próximo Passo
+                                                    Próximo Passo <span class="th-info-btn"
+                                                        data-th-title="PRÓXIMO PASSO"
+                                                        data-th-tooltip="Ação definida para avançar o relacionamento após esta atividade. Aparece também na coluna Próximo Passo da tabela de Empresas."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th data-key="status" style="text-align:center;width:110px;">
-                                                    Status
+                                                    Status <span class="th-info-btn" data-th-title="STATUS DA ATIVIDADE"
+                                                        data-th-tooltip="Estado atual: Pendente (não iniciado), Em andamento, Concluído, Cancelado."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <th style="text-align:right;width:80px;">Ações</th>
                                             </tr>
@@ -1412,7 +1498,10 @@
                                 </div>
                                 <div class="grid-2">
                                     <div class="input-group">
-                                        <label>Já trabalha com Comex?</label>
+                                        <label>Já trabalha com Comex? <span class="th-info-btn"
+                                                data-th-title="COMÉRCIO EXTERIOR"
+                                                data-th-tooltip="Indica se a empresa já realiza operações de importação ou exportação. Se Sim, informe qual sistema ou processo usa atualmente."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="qual-tem-comex" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="Sim">Sim</option>
@@ -1426,7 +1515,9 @@
                                 </div>
                                 <div class="grid-2">
                                     <div class="input-group">
-                                        <label>Possui ERP?</label>
+                                        <label>Possui ERP? <span class="th-info-btn" data-th-title="ERP"
+                                                data-th-tooltip="Sistema de gestão empresarial (SAP, TOTVS, Oracle...). Relevante para avaliar maturidade tecnológica e possível integração com produtos DATI."><i
+                                                    class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                                         <select id="qual-tem-erp" class="input-control">
                                             <option value="">Selecione...</option>
                                             <option value="Sim">Sim</option>
@@ -1438,12 +1529,24 @@
                                         <input type="text" id="qual-qual-erp" class="input-control">
                                     </div>
                                 </div>
-                                <div class="input-group"><label>Principal Objetivo</label><textarea id="qual-objetivo"
+                                <div class="input-group"><label>Principal Objetivo <span class="th-info-btn"
+                                            data-th-title="PRINCIPAL OBJETIVO"
+                                            data-th-tooltip="O que a empresa espera resolver ou alcançar ao contratar a DATI. Guia a abordagem comercial e de CS."><i
+                                                class="ph ph-info"></i><span
+                                                class="th-pulse"></span></span></label><textarea id="qual-objetivo"
                                         class="input-control" rows="2"></textarea></div>
-                                <div class="input-group"><label>Principais Dores/Gargalos</label><textarea
-                                        id="qual-dores" class="input-control" rows="2"></textarea></div>
-                                <div class="input-group"><label>O que esperam da DATI?</label><textarea
-                                        id="qual-expectativa" class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>Principais Dores/Gargalos <span class="th-info-btn"
+                                            data-th-title="DORES E GARGALOS"
+                                            data-th-tooltip="Problemas operacionais ou estratégicos relatados pela empresa. Base para personalizar a proposta de valor."><i
+                                                class="ph ph-info"></i><span
+                                                class="th-pulse"></span></span></label><textarea id="qual-dores"
+                                        class="input-control" rows="2"></textarea></div>
+                                <div class="input-group"><label>O que esperam da DATI? <span class="th-info-btn"
+                                            data-th-title="EXPECTATIVAS"
+                                            data-th-tooltip="Como a empresa imagina que a DATI vai ajudá-la. Importante para alinhamento de expectativas e definição de SLA."><i
+                                                class="ph ph-info"></i><span
+                                                class="th-pulse"></span></span></label><textarea id="qual-expectativa"
+                                        class="input-control" rows="2"></textarea></div>
                             </div>
 
                             <!-- Tab: Follow-up (legada — mantida oculta para preservar código existente) -->

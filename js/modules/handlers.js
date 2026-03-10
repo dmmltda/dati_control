@@ -25,7 +25,7 @@ export function saveNewContato() {
     ['new-cont-nome', 'new-cont-email1', 'new-cont-tel', 'new-cont-cargo', 'new-cont-dep', 'new-cont-linkedin'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('contact-form-container').style.display = 'none';
     document.getElementById('btn-toggle-contact-form').style.display = 'inline-flex';
-    
+
     ui.renderContatosTable();
     utils.showToast('Contato adicionado!', 'success');
 }
@@ -53,7 +53,7 @@ export function saveEditContato(id) {
     cont.nome = nomeInput.value.trim();
     cont.email1 = document.getElementById(`edit-cont-email1-${id}`).value.trim();
     cont.telefone = document.getElementById(`edit-cont-tel-${id}`).value.trim();
-    
+
     state.editingContatoId = null;
     ui.renderContatosTable();
     utils.showToast('Contato atualizado!', 'success');
@@ -90,7 +90,7 @@ export async function handleCompanySubmit(e) {
             Modo_da_empresa: document.getElementById('emp-canal').value.trim() || null,
             Health_Score: document.getElementById('emp-health-score').value || null,
             NPS: document.getElementById('emp-nps').value || null,
-            
+
             // Qualificação
             Tem_algum_comex: document.getElementById('qual-tem-comex').value || null,
             Qual_comex: document.getElementById('qual-qual-comex').value || null,
@@ -101,16 +101,20 @@ export async function handleCompanySubmit(e) {
             Qual_ERP: document.getElementById('qual-qual-erp').value.trim() || null,
 
             Produtos: (state.tempProdutos || []).map(p => ({
-                nome:          p.nome,
-                tipoCobranca:  p.tipoCobranca,
+                nome: p.nome,
+                tipoCobranca: p.tipoCobranca,
                 valorUnitario: p.valorUnitario,
-                valorMinimo:   p.valorMinimo,
+                valorMinimo: p.valorMinimo,
                 cobrancaSetup: p.cobrancaSetup,
-                valorSetup:    p.valorSetup,
-                qtdUsuarios:   p.qtdUsuarios,
+                valorSetup: p.valorSetup,
+                qtdUsuarios: p.qtdUsuarios,
                 valorUserAdic: p.valorUserAdic,
-                totalHorasHd:  p.totalHorasHd ? parseInt(p.totalHorasHd) : null,
-                valorAdicHd:   p.valorAdicHd,
+                totalHorasHd: p.totalHorasHd ? parseInt(p.totalHorasHd) : null,
+                valorAdicHd: p.valorAdicHd,
+                propostaData: p.propostaData ?? null,
+                propostaName: p.propostaName ?? null,
+                contratoData: p.contratoData ?? null,
+                contratoName: p.contratoName ?? null,
             })),
 
             Contatos: state.tempContatos.map(c => ({
@@ -176,26 +180,26 @@ export async function handleCompanySubmit(e) {
         // =====================================================================
         if (state.bulkEditIds && state.bulkEditIds.length > 0) {
             const bulkIds = [...state.bulkEditIds];
-            const count   = bulkIds.length;
+            const count = bulkIds.length;
 
             // Coleta só os campos com valor (não nulo, não vazio)
             const partialPayload = {};
             const fieldMap = {
-                Status:               document.getElementById('emp-status')?.value,
-                Nome_da_empresa:      document.getElementById('emp-nome')?.value?.trim(),
-                Estado:               document.getElementById('emp-estado')?.value?.trim(),
-                Cidade:               document.getElementById('emp-cidade')?.value?.trim(),
-                Tipo_de_empresa:      document.getElementById('emp-tipo')?.value?.trim(),
-                Segmento_da_empresa:  document.getElementById('emp-segmento')?.value?.trim(),
-                Modo_da_empresa:      document.getElementById('emp-canal')?.value?.trim(),
-                Site:                 document.getElementById('emp-site')?.value?.trim(),
-                Health_Score:         document.getElementById('emp-health-score')?.value,
-                NPS:                  document.getElementById('emp-nps')?.value,
-                Tem_algum_comex:      document.getElementById('qual-tem-comex')?.value,
-                ERP:                  document.getElementById('qual-tem-erp')?.value,
-                Dores_Gargalos:       document.getElementById('qual-dores')?.value?.trim(),
-                Principal_Objetivo:   document.getElementById('qual-objetivo')?.value?.trim(),
-                Expectativa_da_DATI:  document.getElementById('qual-expectativa')?.value?.trim(),
+                Status: document.getElementById('emp-status')?.value,
+                Nome_da_empresa: document.getElementById('emp-nome')?.value?.trim(),
+                Estado: document.getElementById('emp-estado')?.value?.trim(),
+                Cidade: document.getElementById('emp-cidade')?.value?.trim(),
+                Tipo_de_empresa: document.getElementById('emp-tipo')?.value?.trim(),
+                Segmento_da_empresa: document.getElementById('emp-segmento')?.value?.trim(),
+                Modo_da_empresa: document.getElementById('emp-canal')?.value?.trim(),
+                Site: document.getElementById('emp-site')?.value?.trim(),
+                Health_Score: document.getElementById('emp-health-score')?.value,
+                NPS: document.getElementById('emp-nps')?.value,
+                Tem_algum_comex: document.getElementById('qual-tem-comex')?.value,
+                ERP: document.getElementById('qual-tem-erp')?.value,
+                Dores_Gargalos: document.getElementById('qual-dores')?.value?.trim(),
+                Principal_Objetivo: document.getElementById('qual-objetivo')?.value?.trim(),
+                Expectativa_da_DATI: document.getElementById('qual-expectativa')?.value?.trim(),
             };
 
             // Inclui somente campos com valor preenchido
@@ -221,24 +225,24 @@ export async function handleCompanySubmit(e) {
 
                     // Usa o payload existente mapeado e mescla com as alterações
                     const fullPayload = {
-                        Nome_da_empresa:     existing.nome,
-                        Status:              existing.status,
-                        Estado:              existing.estado,
-                        Cidade:              existing.cidade,
-                        Tipo_de_empresa:     existing.tipo,
+                        Nome_da_empresa: existing.nome,
+                        Status: existing.status,
+                        Estado: existing.estado,
+                        Cidade: existing.cidade,
+                        Tipo_de_empresa: existing.tipo,
                         Segmento_da_empresa: existing.segmento,
-                        Modo_da_empresa:     existing.canal,
-                        Site:                existing.site,
-                        Health_Score:        existing.healthScore,
-                        NPS:                 existing.nps,
-                        Contatos:            [],
-                        Reunioes:            [],
-                        Dashboards:          [],
-                        NPS_History:         [],
-                        Tickets:             [],
-                        Notas:               [],
-                        Follow_Ups:          [],
-                        Produtos:            [],   // bulk edit não altera produtos individuais
+                        Modo_da_empresa: existing.canal,
+                        Site: existing.site,
+                        Health_Score: existing.healthScore,
+                        NPS: existing.nps,
+                        Contatos: [],
+                        Reunioes: [],
+                        Dashboards: [],
+                        NPS_History: [],
+                        Tickets: [],
+                        Notas: [],
+                        Follow_Ups: [],
+                        Produtos: [],   // bulk edit não altera produtos individuais
                         ...partialPayload          // sobrescreve apenas os campos preenchidos
                     };
 
@@ -317,7 +321,7 @@ export function saveTempDashboard() {
         const data = document.getElementById('new-db-data').value;
         const dest = document.getElementById('new-db-dest').value;
         const link = document.getElementById('new-db-link').value;
-        if(!data || !dest || !link) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
+        if (!data || !dest || !link) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
         state.tempDashboards.push({ data, destinatarios: dest, link });
         document.getElementById('btn-cancel-dashboard').click();
         ui.renderDashboardsTable();
@@ -333,7 +337,7 @@ export function saveTempNPS() {
         const data = document.getElementById('new-nps-data').value;
         const dest = document.getElementById('new-nps-dest').value;
         const score = document.getElementById('new-nps-score').value;
-        if(!data || !dest || !score) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
+        if (!data || !dest || !score) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
         state.tempNPSHistory.push({ data, destinatarios: dest, forms: document.getElementById('new-nps-forms').value, score });
         document.getElementById('btn-cancel-nps').click();
         ui.renderNPSHistoryTable();
@@ -348,7 +352,7 @@ export function saveTempCSMeet() {
     try {
         const data = document.getElementById('new-cs-meet-data').value;
         const parts = document.getElementById('new-cs-meet-parts').value;
-        if(!data || !parts) { utils.showToast('Data e Participantes são obrigatórios.', 'error'); return; }
+        if (!data || !parts) { utils.showToast('Data e Participantes são obrigatórios.', 'error'); return; }
         state.tempReunioesCS.push({ data, participantes: parts, obs: document.getElementById('new-cs-meet-obs').value, link: document.getElementById('new-cs-meet-link').value });
         document.getElementById('btn-cancel-cs-meet').click();
         ui.renderCSMeetingsTable();
@@ -363,7 +367,7 @@ export function saveTempTicket() {
     const data = document.getElementById('new-tk-data').value;
     const num = document.getElementById('new-tk-num').value;
     const resumo = document.getElementById('new-tk-resumo').value;
-    if(!data || !num || !resumo) { utils.showToast('Data, Número e Resumo são obrigatórios.', 'error'); return; }
+    if (!data || !num || !resumo) { utils.showToast('Data, Número e Resumo são obrigatórios.', 'error'); return; }
     state.tempChamados.push({ data, numero: num, resumo, autor: document.getElementById('new-tk-autor').value, link: document.getElementById('new-tk-link').value });
     document.getElementById('btn-cancel-ticket').click();
     ui.renderTicketsTable();
@@ -373,7 +377,7 @@ export function saveTempTicket() {
 export function addCSNote() {
     const noteInput = document.getElementById('new-cs-note');
     const text = noteInput.value.trim();
-    if(!text) return;
+    if (!text) return;
 
     state.tempNotes.push({
         text: text,
@@ -396,7 +400,7 @@ export function saveTempReuniao() {
     try {
         console.log('📅 Tentando salvar reunião geral...');
         const dateVal = document.getElementById('new-meet-date').value;
-        if(!dateVal) {
+        if (!dateVal) {
             utils.showToast('A data é obrigatória.', 'error');
             return;
         }
@@ -425,9 +429,9 @@ export function saveTempFollowUp() {
     try {
         const usuario = document.getElementById('new-fw-usuario').value.trim();
         const conteudo = document.getElementById('new-fw-content').value.trim();
-        if(!usuario || !conteudo) { 
-            utils.showToast('Usuário e Conteúdo são obrigatórios.', 'error'); 
-            return; 
+        if (!usuario || !conteudo) {
+            utils.showToast('Usuário e Conteúdo são obrigatórios.', 'error');
+            return;
         }
 
         state.tempFollowUps.push({
