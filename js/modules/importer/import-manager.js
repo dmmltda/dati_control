@@ -2,16 +2,27 @@
  * ============================================================================
  * Import Manager — Orquestrador do Módulo de Importação em Massa
  * ============================================================================
- * Controla o fluxo completo:
- *   Step 1: Upload
- *   Step 2: Validação (automática após upload)
- *   Step 3: Preview
- *   Step 4: Simulação
- *   Step 5: Confirmação + Execução
  */
 
-import { API_BASE } from '../config.js';
-import { showToast } from '../utils.js';
+// Utilitário de toast inline (evita dependência de import quebrado)
+function showToast(msg, type = 'info') {
+    const existing = document.getElementById('import-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'import-toast';
+    toast.style.cssText = `
+        position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
+        padding: 0.85rem 1.5rem; border-radius: 10px; font-size: 0.9rem;
+        font-family: inherit; font-weight: 500; max-width: 400px;
+        background: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#6366f1'};
+        color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        animation: fadeIn 0.25s ease;
+    `;
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast?.remove(), 4000);
+}
 
 // ── Estado do módulo ──────────────────────────────────────────────────────────
 let currentImportId = null;
@@ -411,8 +422,13 @@ function renderFinalResult(result) {
     });
 }
 
-async function downloadTemplate() {
-    window.open('/api/import/template', '_blank');
+function downloadTemplate() {
+    const a = document.createElement('a');
+    a.href = '/api/import/template';
+    a.download = 'template_importacao_dati.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 100);
 }
 
 async function cancelImport() {
