@@ -86,6 +86,14 @@
                         </a>
                     </div>
                 </div>
+                <!-- Minhas Tarefas -->
+                <a class="nav-item" data-view="minhas-tarefas">
+                    <i class="ph ph-checks"></i> Minhas Tarefas
+                </a>
+                <!-- Catálogo de Produtos -->
+                <a class="nav-item" data-view="catalogo-produtos">
+                    <i class="ph ph-tag"></i> Catálogo de Produtos
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -111,19 +119,19 @@
                 <div class="top-bar" style="margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
                     <div>
                         <h1
-                            style="font-family:'Plus Jakarta Sans','DM Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#1A202C; margin:0 0 0.2rem; display:flex; align-items:center; gap:0.5rem;">
-                            <i class="ph ph-path" style="color:#0F3460;"></i>
-                            Journey — Dashboard
+                            style="font-family:'Plus Jakarta Sans','DM Sans',sans-serif; font-size:1.25rem; font-weight:700; color:#e2e8f0; margin:0 0 0.2rem; display:flex; align-items:center; gap:0.5rem;">
+                            <i class="ph ph-path" style="color:#5b52f6;"></i>
+                            Dashboard
                         </h1>
                         <p
-                            style="color:#64748B; font-size:0.75rem; margin:0; font-family:'Plus Jakarta Sans',sans-serif;">
+                            style="color:#8b98b4; font-size:0.75rem; margin:0; font-family:'Plus Jakarta Sans',sans-serif;">
                             O que precisa acontecer hoje — e quem é o responsável por fazer acontecer.
                         </p>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
                         <!-- Data atual -->
                         <span id="dashboard-data-hoje"
-                            style="font-size:0.75rem; color:#64748B; background:#F4F6F9; padding:0.35rem 0.8rem; border-radius:8px; border:1px solid #E2E8F0; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap;"></span>
+                            style="font-size:0.75rem; color:#8b98b4; background:#171e32; padding:0.35rem 0.8rem; border-radius:8px; border:1px solid #26314a; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap;"></span>
 
                         <!-- Dropdown de Usuário / Visualizar como -->
                         <div class="db-user-dropdown" id="db-user-dropdown-wrap">
@@ -887,6 +895,13 @@
                                                             class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                     <div class="filter-popover" id="filter-popover-prod_valorSetup">
                                                     </div>
+                                                </th>
+                                                <!-- Valor Total: calculado -->
+                                                <th data-key="valorTotal" style="white-space:nowrap;">
+                                                    <span>Valor Total</span>
+                                                    <span class="th-info-btn" data-th-title="VALOR TOTAL"
+                                                        data-th-tooltip="Soma do valor base (maior entre Valor Unitário e Valor Mínimo) mais o Valor de Setup, quando aplicável. Representa o total financeiro deste produto."><i
+                                                            class="ph ph-info"></i><span class="th-pulse"></span></span>
                                                 </th>
                                                 <!-- Usuários: string filter -->
                                                 <th data-key="qtdUsuarios">
@@ -1807,6 +1822,100 @@
                 </div><!-- /import-container -->
             </div><!-- /#view-import -->
 
+            <!-- Minhas Tarefas View (Tasks Board) -->
+            <div id="view-minhas-tarefas" class="view-section" style="display: none;">
+                <!-- Preenchido dinamicamente por tasks-board.js -->
+            </div>
+
+            <!-- ══════════════════════════════════════════════════════════════ -->
+            <!-- Catálogo de Produtos DATI                                     -->
+            <!-- ══════════════════════════════════════════════════════════════ -->
+            <div id="view-catalogo-produtos" class="view-section" style="display: none;">
+
+                <!-- Topbar -->
+                <div class="top-bar">
+                    <div>
+                        <h1>
+                            <i class="ph ph-tag" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                            Catálogo de Produtos
+                        </h1>
+                        <p>Portfólio de produtos DATI — gestão centralizada do que a empresa oferece.</p>
+                    </div>
+                    <button type="button" id="btn-novo-produto-catalogo" class="btn btn-primary">
+                        <i class="ph ph-plus"></i> Novo Produto
+                    </button>
+                </div>
+
+                <!-- KPI Cards -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+                    <div class="glass-panel" style="text-align:center; padding:1.25rem 1rem;">
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--text-primary);" id="cat-stat-total">—</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; font-weight:500;">Total no Catálogo</div>
+                    </div>
+                    <div class="glass-panel" style="text-align:center; padding:1.25rem 1rem;">
+                        <div style="font-size:1.8rem; font-weight:800; color:#10b981;" id="cat-stat-ativos">—</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; font-weight:500;">Ativos</div>
+                    </div>
+                    <div class="glass-panel" style="text-align:center; padding:1.25rem 1rem;">
+                        <div style="font-size:1.8rem; font-weight:800; color:#64748b;" id="cat-stat-inativos">—</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; font-weight:500;">Inativos</div>
+                    </div>
+                    <div class="glass-panel" style="text-align:center; padding:1.25rem 1rem;">
+                        <div style="font-size:1.8rem; font-weight:800; color:#f59e0b;" id="cat-stat-emdev">—</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.2rem; font-weight:500;">Em desenvolvimento</div>
+                    </div>
+                </div>
+
+                <!-- Filtros e busca -->
+                <div class="glass-panel" style="margin-bottom:1.5rem;">
+                    <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                        <!-- Campo de busca -->
+                        <div class="search-container" style="flex:1; min-width:220px;">
+                            <div class="search-wrapper">
+                                <i class="ph ph-magnifying-glass search-icon"></i>
+                                <input type="text" id="cat-busca" class="search-input"
+                                    placeholder="Buscar produto, categoria, público alvo...">
+                                <button type="button" id="cat-clear-busca" class="btn-clear-search" style="display:none;">
+                                    <i class="ph ph-x"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Filtros por status -->
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary cat-filter-btn active" data-cat-filter="todos"
+                                style="font-size:0.8rem; padding:0.4rem 0.9rem;">
+                                Todos
+                            </button>
+                            <button type="button" class="btn btn-secondary cat-filter-btn" data-cat-filter="Ativo"
+                                style="font-size:0.8rem; padding:0.4rem 0.9rem; color:#10b981;">
+                                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10b981;margin-right:4px;"></span>Ativos
+                            </button>
+                            <button type="button" class="btn btn-secondary cat-filter-btn" data-cat-filter="Inativo"
+                                style="font-size:0.8rem; padding:0.4rem 0.9rem; color:#64748b;">
+                                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#64748b;margin-right:4px;"></span>Inativos
+                            </button>
+                            <button type="button" class="btn btn-secondary cat-filter-btn" data-cat-filter="Em desenvolvimento"
+                                style="font-size:0.8rem; padding:0.4rem 0.9rem; color:#f59e0b;">
+                                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:4px;"></span>Em dev
+                            </button>
+                        </div>
+
+                        <!-- Contador de resultados -->
+                        <span id="cat-result-count" style="font-size:0.8rem; color:var(--text-muted); white-space:nowrap;"></span>
+                    </div>
+                </div>
+
+                <!-- Grid de cards -->
+                <div id="catalogo-grid" class="catalogo-grid">
+                    <div style="grid-column:1/-1; text-align:center; padding:3rem; color:var(--text-muted);">
+                        <i class="ph ph-spinner-gap" style="font-size:2rem; display:block; margin-bottom:0.75rem;"></i>
+                        Carregando catálogo...
+                    </div>
+                </div>
+            </div>
+            <!-- fim view-catalogo-produtos -->
+
         </main>
     </div>
 
@@ -1845,6 +1954,116 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- Modal: Catálogo de Produtos — Criar / Editar                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="catalogo-modal-overlay" class="produto-modal-overlay">
+        <div class="produto-modal" role="dialog" aria-modal="true"
+            aria-labelledby="cat-modal-title" style="max-width:680px; width:95%;">
+
+            <!-- Header -->
+            <div class="produto-modal-header">
+                <h2 id="cat-modal-title" class="produto-modal-title">
+                    <i class="ph ph-tag"></i>
+                    <span>Novo Produto</span>
+                </h2>
+                <button type="button" id="cat-btn-fechar-modal" class="btn-modal-close" title="Fechar">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="produto-modal-body" style="max-height:75vh; overflow-y:auto; display:flex; flex-direction:column; gap:1.25rem;">
+
+                <!-- Preview do card -->
+                <div id="cat-preview-card"
+                    style="display:flex; align-items:center; gap:1rem; padding:1rem; border-radius:10px; background:var(--bg-glass); border:1px solid var(--border-color); border-top:3px solid #5b52f6;">
+                    <div id="cat-icone-preview"
+                        style="width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;background:#5b52f622;color:#5b52f6;">
+                        <i class="ph ph-cube"></i>
+                    </div>
+                    <div>
+                        <div id="cat-preview-nome" style="font-weight:700; font-size:0.95rem; color:var(--text-primary);">Novo Produto</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">Pré-visualização do card</div>
+                    </div>
+                </div>
+
+                <!-- Grid de campos -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <div class="input-group" style="grid-column:span 2;">
+                        <label>Nome do Produto *</label>
+                        <input type="text" id="cat-nome" class="input-control" placeholder="Ex: DATI Import" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Categoria</label>
+                        <input type="text" id="cat-categoria" class="input-control" placeholder="Ex: Importação, Exportação...">
+                    </div>
+                    <div class="input-group">
+                        <label>Status</label>
+                        <select id="cat-status" class="input-control">
+                            <option value="Ativo">Ativo</option>
+                            <option value="Inativo">Inativo</option>
+                            <option value="Em desenvolvimento">Em desenvolvimento</option>
+                        </select>
+                    </div>
+                    <div class="input-group" style="grid-column:span 2;">
+                        <label>Descrição</label>
+                        <textarea id="cat-descricao" class="input-control" rows="2"
+                            placeholder="Descrição resumida do produto..." style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Público-Alvo</label>
+                        <input type="text" id="cat-publico-alvo" class="input-control" placeholder="Ex: Importadores, Despachantes...">
+                    </div>
+                    <div class="input-group">
+                        <label>Ordem de Exibição</label>
+                        <input type="number" id="cat-ordem" class="input-control" value="0" min="0" style="width:100%;">
+                    </div>
+                    <div class="input-group" style="grid-column:span 2;">
+                        <label>Principais Benefícios</label>
+                        <textarea id="cat-beneficios" class="input-control" rows="2"
+                            placeholder="Liste os principais benefícios do produto..." style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>URL do Site / Landing Page</label>
+                        <input type="url" id="cat-site-url" class="input-control" placeholder="https://...">
+                    </div>
+                    <div class="input-group">
+                        <label>URL do Vídeo de Apresentação</label>
+                        <input type="url" id="cat-video-url" class="input-control" placeholder="https://youtube.com/...">
+                    </div>
+                </div>
+
+                <!-- Seletor de Ícone -->
+                <div class="input-group">
+                    <label style="margin-bottom:0.5rem; display:block;">Ícone</label>
+                    <div id="cat-icone-picker"
+                        style="display:flex; flex-wrap:wrap; gap:0.4rem; padding:0.75rem; background:var(--bg-glass); border:1px solid var(--border-color); border-radius:8px;">
+                        <!-- Preenchido pelo JS -->
+                    </div>
+                </div>
+
+                <!-- Seletor de Cor -->
+                <div class="input-group">
+                    <label style="margin-bottom:0.5rem; display:block;">Cor do Badge</label>
+                    <div id="cat-cor-picker"
+                        style="display:flex; flex-wrap:wrap; gap:0.5rem; padding:0.75rem; background:var(--bg-glass); border:1px solid var(--border-color); border-radius:8px;">
+                        <!-- Preenchido pelo JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="produto-modal-footer">
+                <button type="button" id="cat-btn-cancelar" class="btn btn-secondary">Cancelar</button>
+                <div class="produto-modal-footer-right">
+                    <button type="button" id="cat-btn-salvar" class="btn btn-primary">
+                        <i class="ph ph-floppy-disk"></i> Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
 </body>

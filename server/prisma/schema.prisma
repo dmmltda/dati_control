@@ -276,7 +276,7 @@ model import_logs {
 
 model activities {
   id                              String                           @id @default(uuid())
-  company_id                      String
+  company_id                      String?                          // Nullable: permite atividades/tarefas globais sem empresa vinculada
   activity_type                   String                           // ENUM: Comentário | Reunião | Chamados HD | Chamados CS | Ação necessária
   title                           String
   description                     String?
@@ -289,9 +289,21 @@ model activities {
   time_spent_minutes              Int?
   next_step_title                 String?
   next_step_date                  DateTime?
-  companies                       companies                        @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  // ── NOVOS CAMPOS ──
+  nature                          String                           @default("registro") // "registro" | "tarefa"
+  priority                        String?                          // "baixa" | "média" | "alta" | "urgente"
+  reminder_at                     DateTime?
+  reminder_email                  Boolean                          @default(false)
+  reminder_whatsapp               Boolean                          @default(false)
+  reminder_sent                   Boolean                          @default(false)
+  google_meet_link                String?
+  google_event_id                 String?
+  // ── RELAÇÕES ──
+  companies                       companies?                       @relation(fields: [company_id], references: [id], onDelete: Cascade)
   activity_assignees              activity_assignees[]
   activity_next_step_responsibles activity_next_step_responsibles[]
+  activity_attachments            activity_attachments[]
+  activity_mentions               activity_mentions[]
 }
 
 model activity_assignees {
@@ -308,6 +320,25 @@ model activity_next_step_responsibles {
   activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
 }
 
+model activity_attachments {
+  id          String     @id @default(uuid())
+  activity_id String
+  file_url    String     // URL pública no Supabase Storage
+  file_name   String
+  file_type   String     // "document" | "video" | "image" | "meet_recording"
+  file_size   Int?       // em bytes
+  uploaded_by String?    // user_id (FK users)
+  created_at  DateTime   @default(now())
+  activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}
+
+model activity_mentions {
+  id          String     @id @default(uuid())
+  activity_id String
+  user_id     String     // user_id de quem foi mencionado
+  activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MÓDULO DE USUÁRIOS — sincronizado com Clerk
 // O id é o Clerk User ID (ex: "user_2abc123...")
@@ -321,4 +352,25 @@ model users {
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CATÁLOGO DE PRODUTOS DATI — Registro mestre dos produtos comercializados
+// Independente das empresas — define quais produtos existem no portfólio DATI
+// ══════════════════════════════════════════════════════════════════════════════
+model product_catalog {
+  id          String   @id @default(uuid())
+  nome        String                        // Ex: "DATI Import", "DATI Export", "Smart Read"
+  descricao   String?                       // Descrição longa do produto
+  categoria   String?                       // Ex: "Importação", "Exportação", "Compliance"
+  status      String   @default("Ativo")    // "Ativo" | "Inativo" | "Em desenvolvimento"
+  icone       String?                       // Nome do ícone Phosphor. Ex: "ph-cube"
+  cor_badge   String?                       // Hex da cor do badge. Ex: "#5b52f6"
+  ordem       Int      @default(0)          // Ordem de exibição na listagem
+  site_url    String?                       // URL da landing page do produto
+  video_url   String?                       // URL do vídeo de apresentação
+  beneficios  String?                       // Texto livre — principais benefícios
+  publico_alvo String?                      // Público-alvo do produto
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

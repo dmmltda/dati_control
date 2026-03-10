@@ -44,6 +44,16 @@ function fmtBRL(val) {
     });
 }
 
+/** Calcula o Valor Total de um produto: max(unitario, minimo) + setup */
+function calcValorTotal(p) {
+    const unitario = p.valorUnitario != null ? Number(p.valorUnitario) : 0;
+    const minimo   = p.valorMinimo   != null ? Number(p.valorMinimo)   : 0;
+    const setup    = p.cobrancaSetup === 'Sim' && p.valorSetup != null ? Number(p.valorSetup) : 0;
+    const base  = Math.max(unitario, minimo);
+    const total = base + setup;
+    return total > 0 ? total : null;
+}
+
 // ============================================================================
 // SEÇÃO 2: RENDERIZAÇÃO DE LINHAS (com checkboxes)
 // ============================================================================
@@ -59,7 +69,7 @@ function renderProdutosRows(rows) {
     if (rows.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="table-empty-cell">
+                <td colspan="11" class="table-empty-cell">
                     <div class="table-empty-state">
                         <i class="ph ph-package"></i>
                         <span>Nenhum produto encontrado.
@@ -96,6 +106,7 @@ function renderProdutosRows(rows) {
             <td>${p.tipoCobranca || '—'}</td>
             <td>${fmtBRL(p.valorUnitario)}</td>
             <td>${p.cobrancaSetup === 'Sim' ? fmtBRL(p.valorSetup) : '—'}</td>
+            <td><strong>${fmtBRL(calcValorTotal(p))}</strong></td>
             <td>${p.qtdUsuarios || '—'}</td>
             <td>${p.totalHorasHd ? p.totalHorasHd + 'h/mês' : '—'}</td>
             <td>
@@ -347,6 +358,7 @@ export function initCompanyProductsTable() {
             { key: 'tipoCobranca', label: 'Tipo de Cobrança', type: 'string', sortable: true, searchable: true, filterable: true },
             { key: 'valorUnitario', label: 'Valor Unitário', type: 'number', sortable: true, searchable: false, filterable: true },
             { key: 'valorSetup', label: 'Valor Setup', type: 'number', sortable: true, searchable: false, filterable: true },
+            { key: 'valorTotal', label: 'Valor Total', type: 'number', sortable: false, searchable: false, filterable: false },
             { key: 'qtdUsuarios', label: 'Usuários', type: 'string', sortable: false, searchable: true, filterable: true },
             { key: 'totalHorasHd', label: 'Help Desk (h)', type: 'number', sortable: true, searchable: false, filterable: true },
             { key: 'propostaData', label: 'Proposta', type: 'string', sortable: false, searchable: false, filterable: true, filterType: 'boolean-date' },

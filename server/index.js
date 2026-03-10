@@ -317,7 +317,7 @@ app.get('/api/companies', extractUsuario, async (req, res) => {
                 company_notes: true,
                 company_followups: true
             },
-            orderBy: { updatedAt: 'desc' }
+            orderBy: { Nome_da_empresa: 'asc' }
         });
         res.json(companies);
     } catch (error) {
@@ -983,6 +983,31 @@ function validateRow(row, existingNames, existingEmails, existingCnpjMap) {
     return { status: 'valid', error_message: null };
 }
 
+// Mapa de normalização de status — aliases inválidos que podem vir da planilha
+const STATUS_ALIAS_MAP = {
+    'cliente ativo':        'Ativo',
+    'ativo':                'Ativo',
+    'churned':              'Inativo',
+    'inativo':              'Inativo',
+    'em implementação':     'Em Contrato',
+    'em implementacao':     'Em Contrato',
+    'em contrato':          'Em Contrato',
+    'pausado':              'Suspenso',
+    'suspenso':             'Suspenso',
+    'prospect':             'Prospect',
+    'lead':                 'Lead',
+    'reunião':              'Reunião',
+    'reuniao':              'Reunião',
+    'proposta | andamento': 'Proposta | Andamento',
+    'proposta | recusada':  'Proposta | Recusada',
+};
+
+function normalizeStatus(raw) {
+    if (!raw) return '';
+    const key = String(raw).trim().toLowerCase();
+    return STATUS_ALIAS_MAP[key] || String(raw).trim();
+}
+
 // Sanitizar dados de uma linha — suporta modelo Journey (Empresas + Contatos + Produtos DATI)
 function sanitizeRow(row) {
     const s = (v) => (typeof v === 'string' ? v.trim() : v != null ? String(v).trim() : '');
@@ -990,7 +1015,7 @@ function sanitizeRow(row) {
     return {
         // ── Empresa ─────────────────────────────────────────────────────────
         empresa: s(row['Nome da Empresa'] || row.empresa || row['nome_empresa'] || ''),
-        status_empresa: s(row['Status da Empresa'] || row['Status Empresa'] || row.status_empresa || ''),
+        status_empresa: normalizeStatus(row['Status da Empresa'] || row['Status Empresa'] || row.status_empresa || ''),
         cnpj: s(row['CNPJ'] || row.cnpj || ''),
         tipo_empresa: s(row['Tipo de Empresa'] || row['Tipo Empresa'] || row.tipo_empresa || ''),
         estado: s(row['Estado'] || row.estado || ''),
@@ -1147,7 +1172,7 @@ app.post('/api/import/upload', extractUsuario, upload.single('file'), async (req
                     rowNum: i + 2,
                     // Empresa
                     empresa: empNome,
-                    status_empresa: s(empRow['Status da Empresa'] || empRow['Status Empresa'] || ''),
+                    status_empresa: normalizeStatus(empRow['Status da Empresa'] || empRow['Status Empresa'] || ''),
                     cnpj: s(empRow['CNPJ'] || empRow.cnpj || ''),
                     tipo_empresa: s(empRow['Tipo de Empresa'] || empRow['Tipo Empresa'] || ''),
                     estado: s(empRow['Estado'] || empRow.estado || ''),
@@ -1972,6 +1997,126 @@ app.delete('/api/activities/attachments/:attachmentId', extractUsuario, async (r
         res.status(204).send();
     } catch (error) {
         console.error('[DELETE /attachments]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CATÁLOGO DE PRODUTOS DATI — CRUD Completo
+// Rotas para gerenciar o portfólio de produtos DATI (independente de empresas)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/catalogo-produtos — lista todos os produtos do catálogo
+app.get('/api/catalogo-produtos', extractUsuario, async (req, res) => {
+    try {
+        const produtos = await prisma.product_catalog.findMany({
+            orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
+        });
+        res.json(produtos);
+    } catch (error) {
+        console.error('[Catálogo] GET:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/catalogo-produtos/:id — busca produto específico
+app.get('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
+    try {
+        const produto = await prisma.product_catalog.findUnique({
+            where: { id: req.params.id },
+        });
+        if (!produto) return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
+        res.json(produto);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/catalogo-produtos — cria novo produto no catálogo
+app.post('/api/catalogo-produtos', extractUsuario, async (req, res) => {
+    try {
+        const {
+            nome, descricao, categoria, status, icone,
+            cor_badge, ordem, site_url, video_url, beneficios, publico_alvo
+        } = req.body;
+
+        if (!nome || !nome.trim()) {
+            return res.status(400).json({ error: 'Nome do produto é obrigatório' });
+        }
+
+        const produto = await prisma.product_catalog.create({
+            data: {
+                nome: nome.trim(),
+                descricao: descricao?.trim() || null,
+                categoria: categoria?.trim() || null,
+                status: status || 'Ativo',
+                icone: icone || 'ph-cube',
+                cor_badge: cor_badge || '#5b52f6',
+                ordem: typeof ordem === 'number' ? ordem : 0,
+                site_url: site_url?.trim() || null,
+                video_url: video_url?.trim() || null,
+                beneficios: beneficios?.trim() || null,
+                publico_alvo: publico_alvo?.trim() || null,
+            },
+        });
+
+        console.log(`[Catálogo] ✅ Produto criado: ${produto.nome} (${produto.id})`);
+        res.status(201).json(produto);
+    } catch (error) {
+        console.error('[Catálogo] POST:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/catalogo-produtos/:id — atualiza produto do catálogo
+app.put('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            nome, descricao, categoria, status, icone,
+            cor_badge, ordem, site_url, video_url, beneficios, publico_alvo
+        } = req.body;
+
+        if (!nome || !nome.trim()) {
+            return res.status(400).json({ error: 'Nome do produto é obrigatório' });
+        }
+
+        const produto = await prisma.product_catalog.update({
+            where: { id },
+            data: {
+                nome: nome.trim(),
+                descricao: descricao?.trim() || null,
+                categoria: categoria?.trim() || null,
+                status: status || 'Ativo',
+                icone: icone || 'ph-cube',
+                cor_badge: cor_badge || '#5b52f6',
+                ordem: typeof ordem === 'number' ? ordem : 0,
+                site_url: site_url?.trim() || null,
+                video_url: video_url?.trim() || null,
+                beneficios: beneficios?.trim() || null,
+                publico_alvo: publico_alvo?.trim() || null,
+            },
+        });
+
+        console.log(`[Catálogo] ✅ Produto atualizado: ${produto.nome} (${id})`);
+        res.json(produto);
+    } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
+        console.error('[Catálogo] PUT:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/catalogo-produtos/:id — remove produto do catálogo
+app.delete('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.product_catalog.delete({ where: { id } });
+        console.log(`[Catálogo] ✅ Produto removido: ${id}`);
+        res.status(204).send();
+    } catch (error) {
+        if (error.code === 'P2025') return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
+        console.error('[Catálogo] DELETE:', error.message);
         res.status(500).json({ error: error.message });
     }
 });

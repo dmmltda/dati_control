@@ -21,7 +21,9 @@ import {
 import { refreshCompanyContactsTable } from './modules/company-contacts/company-contacts-table.js';
 import { initImportModule } from './modules/importer/import-manager.js';
 import * as activities from './modules/activities.js';
+import * as tasksBoard from './modules/tasks-board.js';
 import { initTooltipSystem } from './core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
+import * as catalogoProdutos from './modules/catalogo-produtos.js';
 
 // ─── Journey Dashboard (novo módulo) ────────────────────────────────────────
 import { initDashboard } from '../src/pages/Dashboard.js';
@@ -51,6 +53,19 @@ function mostrarJourneyDashboard() {
         _dbInicializarMenu();
     }
 }
+
+/**
+ * Ao receber dati:app-ready (disparado pelo auth.js após login + carregar empresas),
+ * inicializa o dashboard automaticamente se a view dashboard estiver ativa.
+ * Isso corrige o bug em que a tela ficava em "Carregando Dashboard..." no primeiro load.
+ */
+document.addEventListener('dati:app-ready', () => {
+    // Verifica se o dashboard é a view atualmente visível
+    const viewDash = document.getElementById('view-dashboard');
+    if (viewDash && viewDash.style.display !== 'none') {
+        mostrarJourneyDashboard();
+    }
+});
 
 // ─── Lógica do Dropdown de Usuário (menu geral do dashboard) ─────────────────
 // Todas as funções window._ são expostas globalmente para os onclick do HTML.
@@ -188,8 +203,9 @@ function handleNavigation(target) {
         if (view) {
             nav.switchView(view);
             if (view === 'import') initImportModule();
-            // Inicializa o dashboard quando o usuário nav. para ele
             if (view === 'dashboard') mostrarJourneyDashboard();
+            if (view === 'minhas-tarefas') tasksBoard.initTasksBoard();
+            if (view === 'catalogo-produtos') catalogoProdutos.initCatalogoProdutos();
         }
         return true;
     }

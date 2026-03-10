@@ -268,7 +268,12 @@ export function renderCompanyList() {
 
         console.log('[TableManager 2.0] Running as primary table engine');
     } else {
+        // Preserva a página atual para não voltar à página 1 ao editar em background
+        const currentPage = companiesTableManagerV2._page;
         companiesTableManagerV2.setData(state.companies);
+        if (currentPage > 1 && currentPage <= companiesTableManagerV2._totalPages) {
+            companiesTableManagerV2.goToPage(currentPage);
+        }
     }
 
     updateActiveFiltersUI();

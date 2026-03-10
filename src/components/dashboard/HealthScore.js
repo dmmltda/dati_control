@@ -116,7 +116,7 @@ function renderTabelaMinNPS(empresas) {
         data-nps="${e.nps}"
         data-responsavel="${e.responsavel?.nome || '—'}"
         style="cursor:default;"
-        onmouseenter="this.style.background='#F8FAFC'" onmouseleave="this.style.background='transparent'">
+        onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background='transparent'">
       <td style="padding: 0.65rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: ${colors.textMain};
         max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${e.nome}">
         ${e.nome}

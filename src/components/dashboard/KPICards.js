@@ -52,72 +52,55 @@ function calcularMetricas(empresas) {
  * Renderiza um KPI card individual
  * @param {Object} config - configuração do card
  */
-function renderCard({ label, value, variacao, icone, cor, descricao }) {
+function renderCard({ label, value, variacao, cor, destaque }) {
   const positivo = variacao >= 0;
-  const varIcon = positivo ? icons.arrowUp : icons.arrowDn;
-  const varCor = positivo ? colors.success : colors.danger;
-  const varTexto = `${positivo ? '+' : ''}${variacao}%`;
+  const varCor   = positivo ? colors.success : colors.danger;
+  const varSinal  = positivo ? '↑' : '↓';
+  const varTexto  = `${Math.abs(variacao)}%`;
+  // destaque: quando true, o número usa a cor do KPI (ex: Leads)
+  const numColor  = destaque ? cor : colors.textMain;
 
   return `
     <article class="kpi-card" style="
       background: ${colors.bgCard};
       border-radius: ${card.borderRadius};
       box-shadow: ${card.boxShadow};
-      padding: ${card.padding};
-      border-left: 4px solid ${cor};
+      padding: 1rem 1.1rem;
+      border: 1px solid ${colors.border};
+      border-top: 2px solid ${cor};
       transition: ${card.transition};
       cursor: default;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      position: relative;
-      overflow: hidden;
+      gap: 0.45rem;
     " data-kpi-key="${label.toLowerCase().replace(/ /g, '-')}"
-       onmouseenter="this.style.transform='${card.hoverTransform}';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.12)'"
-       onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='${card.boxShadow}'">
+       onmouseenter="this.style.transform='${card.hoverTransform}';this.style.boxShadow='0 8px 28px rgba(0,0,0,0.5)';this.style.borderTopColor='${cor}'"
+       onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='${card.boxShadow}';this.style.borderTopColor='${cor}'">
 
-      <!-- Ícone de fundo decorativo -->
-      <div style="
-        position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
-        opacity: 0.07; color: ${cor};
-      ">
-        <svg width="64" height="64" fill="${cor}" viewBox="0 0 24 24" aria-hidden="true">
-          ${icone.slice(icone.indexOf('>') + 1, icone.lastIndexOf('</'))}
-        </svg>
-      </div>
+      <!-- Label -->
+      <span style="
+        font-size: 0.65rem;
+        font-weight: 700;
+        color: ${colors.textMuted};
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+      ">${label}</span>
 
-      <!-- Label e ícone -->
-      <div style="display: flex; align-items: center; justify-content: space-between;">
+      <!-- Número + variação inline -->
+      <div style="display:flex; align-items:baseline; gap:0.5rem;">
         <span style="
-          font-size: 0.72rem;
-          font-weight: 600;
-          color: ${colors.textMuted};
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        ">${label}</span>
-        <span style="color: ${cor}; opacity: 0.85;">${icone}</span>
-      </div>
-
-      <!-- Número principal -->
-      <div style="
-        font-size: 2.25rem;
-        font-weight: 800;
-        color: ${colors.textMain};
-        line-height: 1;
-        font-variant-numeric: tabular-nums;
-      " aria-label="${label}: ${value}">${value}</div>
-
-      <!-- Descrição e variação -->
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.25rem;">
-        <span style="font-size: 0.75rem; color: ${colors.textMuted};">${descricao}</span>
+          font-size: 2rem;
+          font-weight: 800;
+          color: ${numColor};
+          line-height: 1;
+          font-variant-numeric: tabular-nums;
+        " aria-label="${label}: ${value}">${value}</span>
         <span style="
-          display: inline-flex; align-items: center; gap: 2px;
-          font-size: 0.75rem; font-weight: 700;
+          display:inline-flex; align-items:center; gap:2px;
+          font-size: 0.72rem; font-weight: 700;
           color: ${varCor};
-          background: ${positivo ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'};
-          padding: 2px 6px; border-radius: 9999px;
         " title="Variação vs mês anterior">
-          ${varIcon}${varTexto}
+          ${varSinal}${varTexto}
         </span>
       </div>
     </article>
@@ -146,7 +129,7 @@ export function renderKPICards(containerId, empresas, stats) {
   const cards = [
     {
       label: 'Total de Empresas', value: m.total, variacao: vars.total ?? 0,
-      icone: icons.building, cor: kpiColors.total, descricao: 'Na base completa',
+      cor: kpiColors.total, destaque: false,
       emoji: '🏢',
       getItems: () => empresas.slice(0, 8).map(e => ({
         nome: e.nome, dotCor: kpiColors.total,
@@ -155,7 +138,7 @@ export function renderKPICards(containerId, empresas, stats) {
     },
     {
       label: 'Clientes Ativos', value: m.ativos, variacao: vars.ativos ?? 0,
-      icone: icons.check, cor: kpiColors.ativos, descricao: 'Status: Cliente Ativo',
+      cor: kpiColors.ativos, destaque: false,
       emoji: '✅',
       getItems: () => empresas.filter(e => e.status === 'Cliente Ativo')
         .sort((a, b) => (b.nps ?? 0) - (a.nps ?? 0))
@@ -167,7 +150,7 @@ export function renderKPICards(containerId, empresas, stats) {
     },
     {
       label: 'Clientes Inativos', value: m.inativos, variacao: vars.inativos ?? 0,
-      icone: icons.xcircle, cor: kpiColors.inativos, descricao: 'Inativos + Suspensos',
+      cor: kpiColors.inativos, destaque: false,
       emoji: '⚠️',
       getItems: () => empresas
         .filter(e => e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso')
@@ -179,7 +162,7 @@ export function renderKPICards(containerId, empresas, stats) {
     },
     {
       label: 'Leads no Funil', value: m.leads, variacao: vars.leads ?? 0,
-      icone: icons.trending, cor: kpiColors.leads, descricao: 'Prospect → Proposta',
+      cor: kpiColors.leads, destaque: true,   // número em laranja como no referencial
       emoji: '🚀',
       getItems: () => empresas
         .filter(e => ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento'].includes(e.status))
@@ -191,7 +174,7 @@ export function renderKPICards(containerId, empresas, stats) {
     },
     {
       label: 'Novos este Mês', value: m.novosMes, variacao: vars.novosMes ?? 0,
-      icone: icons.sparkles, cor: kpiColors.novos, descricao: 'Março 2026',
+      cor: kpiColors.novos, destaque: false,
       emoji: '✨',
       getItems: () => empresas
         .filter(e => { const d = new Date(e.createdAt); return d.getMonth() === mesAtual && d.getFullYear() === anoAtual; })

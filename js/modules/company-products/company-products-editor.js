@@ -56,6 +56,38 @@ function fmtForInput(val) {
     });
 }
 
+/** Formata float para exibição como moeda BRL "R$\u00a01.234,50" */
+function fmtBRL(val) {
+    if (val == null || val === '' || isNaN(Number(val))) return 'R$\u00a00,00';
+    return 'R$\u00a0' + Number(val).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+/** Lê valor de input monetário sem criar efeito colateral */
+function readCurrencyInput(id) {
+    const el = document.getElementById(id);
+    if (!el || !el.value.trim()) return 0;
+    const clean = el.value.replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : n;
+}
+
+/** Recalcula e exibe o Valor Total no preview do modal */
+function updateValorTotalPreview() {
+    const el = document.getElementById('prod-valor-total-preview');
+    if (!el) return;
+    const unitario  = readCurrencyInput('prod-valor-unitario');
+    const minimo    = readCurrencyInput('prod-valor-minimo');
+    const setupChk  = document.getElementById('prod-cobranca-setup')?.checked;
+    const setup     = setupChk ? readCurrencyInput('prod-valor-setup') : 0;
+    // Total = max(unitario, minimo) + setup
+    const base  = Math.max(unitario, minimo);
+    const total = base + setup;
+    el.textContent = fmtBRL(total);
+}
+
 /** Gera options HTML para um select */
 function buildOptions(list, selected, placeholder = 'Selecione...') {
     const opts = list.map(opt =>
@@ -151,6 +183,15 @@ function buildModalHTML(prod) {
                         </div>
 
                     </div>
+
+                    <!-- Valor Total calculado -->
+                    <div class="valor-total-preview">
+                        <span class="valor-total-label">
+                            <i class="ph ph-sigma"></i> Valor Total
+                        </span>
+                        <span id="prod-valor-total-preview" class="valor-total-amount">R$&nbsp;0,00</span>
+                    </div>
+
                 </div>
 
                 <!-- USUÁRIOS -->
@@ -386,11 +427,20 @@ export function openProdutoEditor(prodId = null) {
 
     // ── Event listeners ──────────────────────────────────────────────────────
 
-    // Toggle: Cobrança de Setup → mostra/oculta campo Valor Setup
+    // Toggle: Cobrança de Setup → mostra/oculta campo Valor Setup + atualiza total
     document.getElementById('prod-cobranca-setup')?.addEventListener('change', (e) => {
         const group = document.getElementById('prod-setup-group');
         if (group) group.style.visibility = e.target.checked ? 'visible' : 'hidden';
+        updateValorTotalPreview();
     });
+
+    // Recalcula total ao digitar nos campos de valor
+    ['prod-valor-unitario', 'prod-valor-minimo', 'prod-valor-setup'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', updateValorTotalPreview);
+    });
+
+    // Inicializa preview com valores existentes (modo edição)
+    updateValorTotalPreview();
 
     // Upload: Proposta — mostra nome do arquivo ao selecionar
     document.getElementById('prod-proposta-file')?.addEventListener('change', (e) => {

@@ -1,34 +1,23 @@
 /**
- * Dashboard.jsx — Página raiz do Journey Dashboard
- * Orquestra todos os painéis e passa os dados mockados para cada componente.
- *
- * Estrutura:
- *   1. Importa dados mockados
- *   2. Renderiza a estrutura HTML do dashboard no container principal
- *   3. Inicializa cada painel com seus respectivos dados
- *
- * Para adicionar um novo painel:
- *   1. Crie o arquivo em src/components/dashboard/NovoPainel.js
- *   2. Importe-o aqui com `import { renderNovoPainel } from '../components/dashboard/NovoPainel.js'`
- *   3. Adicione um <div id="painel-novo"> no HTML abaixo
- *   4. Chame `renderNovoPainel('painel-novo', dadosNecessarios)` na função iniciar()
+ * Dashboard.js — Página raiz do Journey Dashboard
+ * Usa dados reais de state.companies (carregados via api.getCompanies() no auth.js).
+ * HelpDesk e Onboarding usam mock temporariamente até endpoints da API serem criados.
  */
 
 import {
-  mockEmpresas,
   mockChamados,
   mockOnboardings,
-  mockUsuarios,
-  mockStats,
   mockHelpDeskTimeline,
 } from '../data/mockData.js';
 
-import { renderKPICards } from '../components/dashboard/KPICards.js';
+import { state } from '../../js/modules/state.js';
+
+import { renderKPICards }     from '../components/dashboard/KPICards.js';
 import { renderProximosPassos } from '../components/dashboard/ProximosPassos.js';
-import { renderSalesFunnel } from '../components/dashboard/SalesFunnel.js';
-import { renderHealthScore } from '../components/dashboard/HealthScore.js';
-import { renderHelpDesk } from '../components/dashboard/HelpDesk.js';
-import { renderOnboarding } from '../components/dashboard/Onboarding.js';
+import { renderSalesFunnel }  from '../components/dashboard/SalesFunnel.js';
+import { renderHealthScore }  from '../components/dashboard/HealthScore.js';
+import { renderHelpDesk }     from '../components/dashboard/HelpDesk.js';
+import { renderOnboarding }   from '../components/dashboard/Onboarding.js';
 import { colors } from '../theme/tokens.js';
 
 // ─── Mete o HTML base do dashboard no container ───────────────────────────────
@@ -50,10 +39,10 @@ function injetarEstrutura(containerId) {
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
       margin-bottom: 1.5rem;
-      align-items: start;
+      align-items: stretch;
     " class="grid-dois-col">
-      <div id="painel-funil"></div>
-      <div id="painel-health"></div>
+      <div id="painel-funil"   style="display:flex;flex-direction:column;"></div>
+      <div id="painel-health"  style="display:flex;flex-direction:column;"></div>
     </div>
 
     <!-- Linha 3: Help Desk + Onboarding (50/50) -->
@@ -62,10 +51,10 @@ function injetarEstrutura(containerId) {
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
       margin-bottom: 1.5rem;
-      align-items: start;
+      align-items: stretch;
     " class="grid-dois-col">
-      <div id="painel-helpdesk"></div>
-      <div id="painel-onboarding"></div>
+      <div id="painel-helpdesk"   style="display:flex;flex-direction:column;"></div>
+      <div id="painel-onboarding" style="display:flex;flex-direction:column;"></div>
     </div>
   `;
 }
@@ -73,98 +62,133 @@ function injetarEstrutura(containerId) {
 // ─── Inicialização de todos os painéis ───────────────────────────────────────
 
 function iniciarPaineis() {
-  // Painel 1 — KPI Cards
-  renderKPICards('painel-kpi', mockEmpresas, mockStats);
+  // Usa dados reais do state.companies (carregados pela API)
+  // Fallback para array vazio se ainda não tiver dados
+  const empresas = Array.isArray(state.companies) && state.companies.length > 0
+    ? state.companies
+    : [];
 
-  // Painel 2 — Próximos Passos (painel central)
-  renderProximosPassos('painel-proximos-passos', mockEmpresas, mockUsuarios);
+  // Usuários disponíveis no cache (carregado pelo _dbInicializarMenu)
+  const usuarios = window.__usuariosCache || [];
 
-  // Painel 3 — Funil de Vendas
-  renderSalesFunnel('painel-funil', mockEmpresas);
+  // Variações mensais — mock até endpoint /api/stats ser criado
+  const statsVars = { variacaoMesAnterior: {} };
 
-  // Painel 4 — Health Score
-  renderHealthScore('painel-health', mockEmpresas);
+  // Cada painel tem try/catch independente — erro em um não bloqueia os outros
+  try { renderKPICards('painel-kpi', empresas, statsVars); }
+  catch (e) { console.error('[Dashboard] KPI Cards:', e); }
 
-  // Painel 5 — Help Desk / Chamados
-  renderHelpDesk('painel-helpdesk', mockChamados, mockHelpDeskTimeline);
+  try { renderProximosPassos('painel-proximos-passos', empresas, usuarios); }
+  catch (e) { console.error('[Dashboard] Próximos Passos:', e); }
 
-  // Painel 6 — Onboarding
-  renderOnboarding('painel-onboarding', mockOnboardings);
+  try { renderSalesFunnel('painel-funil', empresas); }
+  catch (e) { console.error('[Dashboard] Funil de Vendas:', e); }
+
+  try { renderHealthScore('painel-health', empresas); }
+  catch (e) { console.error('[Dashboard] Health Score:', e); }
+
+  // HelpDesk e Onboarding: mock até endpoints /api/chamados e /api/onboardings
+  try { renderHelpDesk('painel-helpdesk', mockChamados, mockHelpDeskTimeline); }
+  catch (e) { console.error('[Dashboard] Help Desk:', e); }
+
+  try { renderOnboarding('painel-onboarding', mockOnboardings); }
+  catch (e) { console.error('[Dashboard] Onboarding:', e); }
 }
 
 // ─── Injeção de CSS responsivo inline ────────────────────────────────────────
 
 function injetarCSS() {
+
   const style = document.createElement('style');
   style.id = 'journey-dashboard-css';
   style.textContent = `
-    /*
-     * Reset de fonte para o Dashboard Journey.
-     * O app existente usa html { font-size: 20px } — aqui resetamos
-     * para 16px dentro do container do dashboard para que rem = 16px.
-     */
     #journey-dashboard-root {
-      font-size: 16px !important;
-      /* Sem background próprio — cada painel card tem seu próprio fundo branco.
-         O container é transparente e herda o dark do main-content, assim o
-         comportamento de rolagem é idêntico à lista de empresas. */
+      font-size: 14px;
       background: transparent;
       padding: 0;
+      font-family: 'Plus Jakarta Sans', 'DM Sans', 'Inter', sans-serif;
     }
 
-    /* Garante que os cards herdem a fonte correta */
-    #journey-dashboard-root * {
-      font-family: 'Plus Jakarta Sans', 'DM Sans', sans-serif !important;
+    /* Herança de fonte sem seletor universal */
+    #journey-dashboard-root section,
+    #journey-dashboard-root article,
+    #journey-dashboard-root div,
+    #journey-dashboard-root span,
+    #journey-dashboard-root p,
+    #journey-dashboard-root h2,
+    #journey-dashboard-root button,
+    #journey-dashboard-root select,
+    #journey-dashboard-root td,
+    #journey-dashboard-root th {
+      font-family: inherit;
       box-sizing: border-box;
     }
 
-    /* Responsividade: ≥1280px — full grid */
-    @media (min-width: 1280px) {
-      .kpi-grid {
-        grid-template-columns: repeat(5, 1fr) !important;
-      }
-      .grid-dois-col {
-        grid-template-columns: 1fr 1fr !important;
-      }
+    /* ─── Dark Theme: Painéis ────────────────────────────────────────────────── */
+    /* Painéis de conteúdo: fundo dark card */
+    #painel-proximos-passos section,
+    #painel-funil section,
+    #painel-health section,
+    #painel-helpdesk section,
+    #painel-onboarding section {
+      background: #171e32 !important;
+      border: 1px solid #26314a !important;
+      color: #e2e8f0 !important;
     }
 
-    /* 768px–1279px — sidebar colapsada, 3 colunas KPI */
-    @media (max-width: 1279px) {
-      .kpi-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-      }
-      .grid-dois-col {
-        grid-template-columns: 1fr !important;
-      }
+    /* Painéis do grid 50/50: seções ocupam altura total do container */
+    #painel-funil,
+    #painel-health,
+    #painel-helpdesk,
+    #painel-onboarding {
+      display: flex;
+      flex-direction: column;
+    }
+    #painel-funil > section,
+    #painel-health > section,
+    #painel-helpdesk > section,
+    #painel-onboarding > section {
+      flex: 1 !important;
+      height: 100% !important;
+      box-sizing: border-box !important;
     }
 
-    /* ≤ 767px — 2 colunas KPI, tudo em coluna única */
-    @media (max-width: 767px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-      }
-      .grid-dois-col {
-        grid-template-columns: 1fr !important;
-      }
+    /* KPI articles: cards individuais com fundo dark */
+    #painel-kpi article {
+      background: #171e32 !important;
+      border: 1px solid #26314a !important;
+      color: #e2e8f0 !important;
     }
 
-    /* Scrollbar customizada para tabelas */
-    .table-responsive::-webkit-scrollbar { height: 6px; }
-    .table-responsive::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
-    .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-    .table-responsive::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    /* KPI section wrapper: transparente — cards flutuam no fundo #0f1423 */
+    #painel-kpi section {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+    }
+
+    /* ─── Thead Sticky — fundo dark para evitar ver linhas atrás ─────────────── */
+    #pp-table-wrap thead tr {
+      position: sticky !important;
+      top: 0 !important;
+      background: #1d2642 !important;
+      z-index: 2 !important;
+    }
+    #painel-health table thead tr {
+      background: #1d2642 !important;
+    }
+
+    /* ─── Tabela: Scrollbar Dark ─────────────────────────────────────────────── */
+    #pp-table-wrap::-webkit-scrollbar { height: 5px; width: 5px; }
+    #pp-table-wrap::-webkit-scrollbar-track { background: #1d2642; border-radius: 3px; }
+    #pp-table-wrap::-webkit-scrollbar-thumb { background: #26314a; border-radius: 3px; }
+    #pp-table-wrap::-webkit-scrollbar-thumb:hover { background: #5b52f6; }
 
     /* Suaviza transições de hover nos cards */
     article[style*="transition"] { will-change: transform; }
 
-    /* ─────────────────────────────────────────────────────────────────────────
-     * COMPACTAÇÃO GERAL — override de rem inflados pelo html { font-size: 20px }
-     *
-     * Cada 1rem = 20px neste app (base incomum). Os componentes foram desenhados
-     * com base 16px. A solução é sobrescrever os paddings/font-sizes críticos
-     * com px fixo, escopados ao #journey-dashboard-root.
-     * ───────────────────────────────────────────────────────────────────────── */
-
+    /* ─── COMPACTAÇÃO GERAL ─────────────────────────────────────────────────── */
     /* Painel Próximos Passos — tabela compacta */
     #painel-proximos-passos table td,
     #painel-proximos-passos table th {
@@ -180,18 +204,18 @@ function injetarCSS() {
       font-size: 11px !important;
     }
 
-    /* Avatares dos responsáveis */
-    #painel-proximos-passos [title] span[style*="border-radius:50%"] {
-      width: 22px !important;
-      height: 22px !important;
-      font-size: 9px !important;
-    }
-
     /* Filtros (tabs + select) */
     #painel-proximos-passos button[onclick*="setTab"],
     #painel-proximos-passos button[onclick*="irPagina"] {
       padding: 4px 10px !important;
       font-size: 11px !important;
+    }
+
+    /* Filtro de responsável — select dark */
+    #painel-proximos-passos select {
+      background: #1d2642 !important;
+      border-color: #26314a !important;
+      color: #e2e8f0 !important;
     }
 
     /* Contadores de resumo */
@@ -203,91 +227,95 @@ function injetarCSS() {
     /* Título do painel */
     #painel-proximos-passos h2 {
       font-size: 14px !important;
+      color: #e2e8f0 !important;
     }
     #painel-proximos-passos p {
       font-size: 11px !important;
       margin: 0 !important;
     }
 
-    /* KPI Cards — reduz o gigantismo dos números */
+    /* KPI Cards — compactação e dark border */
     #painel-kpi article {
       padding: 14px 16px !important;
     }
     #painel-kpi [style*="font-size: 2"] {
       font-size: 22px !important;
       line-height: 1.1 !important;
+      color: #e2e8f0 !important;
     }
-    #painel-kpi [style*="font-size: 1.6"] {
-      font-size: 22px !important;
-    }
-    #painel-kpi [style*="font-size: 0.8"] {
-      font-size: 11px !important;
-    }
-    #painel-kpi [style*="font-size: 0.75"] {
-      font-size: 11px !important;
-    }
+    #painel-kpi [style*="font-size: 0.8"] { font-size: 11px !important; }
+    #painel-kpi [style*="font-size: 0.75"] { font-size: 11px !important; color: #8b98b4 !important; }
 
     /* Demais painéis — título e subtítulo compactos */
     #painel-funil h2, #painel-health h2,
     #painel-helpdesk h2, #painel-onboarding h2 {
       font-size: 14px !important;
+      color: #e2e8f0 !important;
     }
     #painel-funil p, #painel-health p,
     #painel-helpdesk p, #painel-onboarding p {
       font-size: 11px !important;
       margin-bottom: 0 !important;
+      color: #8b98b4 !important;
     }
 
-    /* Seção "section" dos panels — padding interno reduzido */
+    /* Seção panels — padding interno reduzido */
     #painel-funil section,
     #painel-health section,
     #painel-helpdesk section,
-    #painel-onboarding section {
-      padding: 16px 18px !important;
-    }
-
-    /* Painel Próximos Passos — padding do card */
+    #painel-onboarding section,
     #painel-proximos-passos section {
       padding: 16px 18px !important;
     }
 
+    /* Gráfico do Funil — fundo das barras em dark */
+    #painel-funil [style*="background:"][style*="18;"] {
+      border-radius: 9999px;
+    }
+
     /* Linha 2 e 3: reduz gap entre painéis */
-    .grid-dois-col {
-      gap: 1rem !important;
-    }
-    #painel-kpi {
-      margin-bottom: 1rem !important;
-    }
-    #painel-proximos-passos {
-      margin-bottom: 1rem !important;
+    .grid-dois-col { gap: 0.75rem !important; }
+    #painel-kpi { margin-bottom: 0.75rem !important; }
+    #painel-proximos-passos { margin-bottom: 0.75rem !important; }
+
+    /* Altura máxima da tabela Próximos Passos */
+    #pp-table-wrap {
+      max-height: 36vh !important;
+      overflow-y: auto !important;
+      overflow-x: auto !important;
     }
 
-
-    /* ────────────────────────────────────────────────────────────
-     * FIX DE ROLAGEM — padrão igual à lista de empresas
-     *
-     * Hierarquia de scroll do app:
-     *   #app-layout { height: 100vh; overflow: hidden; display: flex }
-     *     .sidebar  { flex-shrink: 0 }
-     *     .main-content { flex: 1; overflow-y: auto; height: 100% }  ← scroll aqui
-     *       #view-dashboard { view-section normal, cresce com conteúdo }
-     *
-     * Solução: #view-dashboard NÃO define altura — ele apenas cresce.
-     * O .main-content (que já tem overflow-y: auto) faz a rolagem.
-     * ─────────────────────────────────────────────────────────── */
+    /* ─── FIX DE ROLAGEM ─────────────────────────────────────────────────────── */
     #view-dashboard {
       height: auto !important;
       overflow: visible !important;
       min-height: 0 !important;
     }
-
-    /* Margem inferior do top-bar do dashboard */
     #view-dashboard .top-bar {
       margin-bottom: 0.75rem !important;
       padding-bottom: 0 !important;
     }
 
-    /* ─── Dropdown de usuário (Menu Geral) transferido para css/components.css ─── */
+    /* ─── Responsividade ────────────────────────────────────────────────────────*/
+    @media (min-width: 1280px) {
+      .kpi-grid { grid-template-columns: repeat(5, 1fr) !important; }
+      .grid-dois-col { grid-template-columns: 1fr 1fr !important; }
+    }
+    @media (max-width: 1279px) {
+      .kpi-grid { grid-template-columns: repeat(3, 1fr) !important; }
+      .grid-dois-col { grid-template-columns: 1fr !important; }
+    }
+    @media (max-width: 767px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .grid-dois-col { grid-template-columns: 1fr !important; }
+    }
+  
+
+    /* @keyframes do painel Próximos Passos */
+    @keyframes pp-fade-in {
+      from { opacity: 0; transform: scale(0.88); }
+      to   { opacity: 1; transform: scale(1); }
+    }
   `;
   // Remove e reinjecta (garante que atualizações do CSS sejam aplicadas)
   const elExistente = document.getElementById('journey-dashboard-css');

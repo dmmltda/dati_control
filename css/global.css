@@ -11,18 +11,13 @@ html {
 }
 
 body {
-    background-color: var(--dark);
+    --dark: #0f1423;
+    background-color: #0f1423;
     color: var(--text-main);
     height: 100vh;
-    /* altura fixa ao viewport */
     overflow: hidden;
-    /* impede rolagem no nível da página */
     display: flex;
     flex-direction: column;
-    background-image:
-        radial-gradient(at 0% 0%, rgba(79, 70, 229, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
-    background-attachment: fixed;
 }
 
 /* Scrollbar */

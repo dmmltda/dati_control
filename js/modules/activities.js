@@ -51,6 +51,15 @@ const ACTIVITY_TYPE_CONFIG = {
     'Ação necessária': { icon: 'ph-lightning', color: '#ef4444' },
 };
 
+export const ACTIVITY_PRIORITIES = ['baixa', 'média', 'alta', 'urgente'];
+
+const PRIORITY_CONFIG = {
+    baixa:   { label: 'Baixa',   color: '#64748b', bg: 'rgba(100,116,139,0.12)', icon: 'ph-arrow-down' },
+    'média': { label: 'Média',   color: '#f59e0b', bg: 'rgba(245,158,11,0.12)',  icon: 'ph-arrows-horizontal' },
+    alta:    { label: 'Alta',    color: '#f97316', bg: 'rgba(249,115,22,0.12)', icon: 'ph-arrow-up' },
+    urgente: { label: 'Urgente', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  icon: 'ph-warning' },
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // ESTADO DO MÓDULO
 // ──────────────────────────────────────────────────────────────────────────────
@@ -59,8 +68,10 @@ let _manager = null;
 let _currentCompanyId = null;
 let _timerInterval = null;
 let _timerSeconds = 0;
-let _timerState = 'idle'; // idle | running | paused
+let _timerState = 'idle';
 let _editingActivityId = null;
+let _usuarios = []; // lista de usuários para @mentions
+let _pendingAttachments = []; // arquivos pendentes de upload
 
 // ──────────────────────────────────────────────────────────────────────────────
 // API
@@ -107,12 +118,20 @@ async function _deleteActivityApi(activityId) {
 // INICIALIZAÇÃO DA ABA
 // ──────────────────────────────────────────────────────────────────────────────
 
+async function _loadUsuarios() {
+    try {
+        const res = await fetch('/api/usuarios');
+        if (res.ok) _usuarios = await res.json();
+    } catch (e) { console.warn('[Atividades] Não foi possível carregar usuários:', e.message); }
+}
+
 export async function initActivitiesTab(companyId) {
     _currentCompanyId = companyId;
-    _manager = null; // reset para nova empresa
+    _manager = null;
 
     _renderFiltersBar();
     _renderTableSkeleton();
+    _loadUsuarios();
 
     try {
         const data = await fetchActivities(companyId);
@@ -173,6 +192,8 @@ function _mapActivities(data) {
         assignees: (a.activity_assignees || []).map(r => r.user_id).join(', ') || '-',
         created_by: a.created_by_user_id || '-',
         next_step: a.next_step_title ? `${a.next_step_title}${a.next_step_date ? ' · ' + new Date(a.next_step_date).toLocaleDateString('pt-BR') : ''}` : '-',
+        nature: a.nature || 'registro',
+        priority: a.priority || null,
     }));
 }
 
@@ -497,15 +518,32 @@ function _showModal({ title, submitLabel, prefill }) {
 
                 <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Status <span class="th-info-btn" data-th-title="STATUS" data-th-tooltip="Estado atual: Aberta (não iniciada), Em andamento (em execução), Concluída (finalizada), Cancelada (descartada)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
+                        <label>Status <span class="th-info-btn" data-th-title="STATUS" data-th-tooltip="Estado: Aberta (não iniciada), Em andamento, Concluída, Cancelada."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-status" class="input-control">
                             <option value="">Selecione...</option>
                             ${ACTIVITY_STATUSES.map(s => `<option value="${s}" ${prefill?.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                         </select>
                     </div>
                     <div class="input-group">
-                        <label>Criado por <span class="th-info-btn" data-th-title="CRIADO POR" data-th-tooltip="Identificador do usuário DATI que registrou esta atividade. Preenchido automaticamente pelo sistema."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
-                        <input type="text" id="modal-act-created-by" class="input-control" placeholder="Nome do usuário" value="${prefill?.created_by_user_id || ''}">
+                        <label>Natureza <span class="th-info-btn" data-th-title="NATUREZA" data-th-tooltip="Registro = interação já realizada. Tarefa = ação a ser realizada (aparece em Minhas Tarefas)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
+                        <select id="modal-act-nature" class="input-control">
+                            <option value="registro" ${(prefill?.nature||'registro')==='registro'?'selected':''}>Registro (histórico)</option>
+                            <option value="tarefa" ${prefill?.nature==='tarefa'?'selected':''}>Tarefa (a fazer)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom:1rem;">
+                    <div class="input-group">
+                        <label>Prioridade <span class="th-info-btn" data-th-title="PRIORIDADE" data-th-tooltip="Nível de urgência: Urgente = requer atenção imediata, Alta = hoje, Média = esta semana, Baixa = quando possível."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
+                        <select id="modal-act-priority" class="input-control">
+                            <option value="">Sem prioridade</option>
+                            ${ACTIVITY_PRIORITIES.map(p => `<option value="${p}" ${prefill?.priority===p?'selected':''}>${PRIORITY_CONFIG[p]?.label||p}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Google Meet Link  <i class="ph ph-video" style="color:#6366f1;"></i></label>
+                        <input type="url" id="modal-act-meet-link" class="input-control" placeholder="https://meet.google.com/xxx" value="${prefill?.google_meet_link||''}">
                     </div>
                 </div>
 
@@ -556,7 +594,39 @@ function _showModal({ title, submitLabel, prefill }) {
                     </div>
                 </div>
 
-                <!-- Actions -->
+                <!-- Lembrete -->
+                <div class="glass-panel" style="padding:1rem;margin-bottom:1rem;border:1px solid var(--dark-border);">
+                    <div style="font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-bell" style="color:#f59e0b;"></i> Lembrete</div>
+                    <div class="grid-2" style="margin-bottom:0.5rem;">
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label style="font-size:0.78rem;">Data e hora do lembrete</label>
+                            <input type="datetime-local" id="modal-act-reminder-at" class="input-control" value="${prefill?.reminder_at ? new Date(prefill.reminder_at).toISOString().slice(0,16) : ''}">
+                        </div>
+                        <div class="input-group" style="margin-bottom:0;display:flex;flex-direction:column;justify-content:flex-end;gap:0.4rem;">
+                            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.85rem;">
+                                <input type="checkbox" id="modal-act-reminder-email" ${prefill?.reminder_email?'checked':''}> Por e-mail
+                            </label>
+                            <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.85rem;">
+                                <input type="checkbox" id="modal-act-reminder-wpp" ${prefill?.reminder_whatsapp?'checked':''}> Por WhatsApp
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anexos -->
+                <div class="glass-panel" style="padding:1rem;margin-bottom:1.5rem;border:1px solid var(--dark-border);">
+                    <div style="font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-paperclip" style="color:var(--primary);"></i> Anexos</div>
+                    <div id="act-dropzone" style="border:2px dashed var(--dark-border);border-radius:8px;padding:1.25rem;text-align:center;cursor:pointer;transition:border-color 0.2s;color:var(--text-muted);font-size:0.85rem;"
+                        ondragover="event.preventDefault(); this.style.borderColor='var(--primary)';"
+                        ondragleave="this.style.borderColor='var(--dark-border)';"
+                        ondrop="event.preventDefault(); this.style.borderColor='var(--dark-border)'; [...event.dataTransfer.files].forEach(f => activities._addFile(f));">
+                        <i class="ph ph-upload-simple" style="font-size:1.5rem;display:block;margin-bottom:0.4rem;"></i>
+                        Arraste arquivos ou <label for="act-file-input" style="color:var(--primary);cursor:pointer;">clique aqui</label>
+                        <input type="file" id="act-file-input" multiple style="display:none;" onchange="[...this.files].forEach(f => activities._addFile(f)); this.value=''">
+                    </div>
+                    <div id="pending-attachments-list" style="margin-top:0.5rem;display:flex;flex-direction:column;gap:0.3rem;"></div>
+                </div>
+                <!-- Ações -->
                 <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
                     <button type="button" class="btn btn-secondary" onclick="document.getElementById('activity-modal-overlay').remove(); activities.resetTimer();">
                         Cancelar
@@ -571,7 +641,14 @@ function _showModal({ title, submitLabel, prefill }) {
 
     document.body.appendChild(overlay);
 
-    // Se havia tempo gravado no prefill, pré-preencher display
+    // Inicializar @mention autocomplete
+    const descTA = document.getElementById('modal-act-desc');
+    if (descTA) _initMentionAutocomplete(descTA);
+
+    // Reset pending attachments
+    _pendingAttachments = [];
+
+    // Se tinha tempo gravado
     if (prefill?.time_spent_minutes) {
         _timerSeconds = prefill.time_spent_minutes * 60;
         _updateTimerDisplay();
@@ -601,45 +678,152 @@ async function _handleModalSubmit() {
     }
 
     const status = document.getElementById('modal-act-status')?.value || null;
-    const createdBy = document.getElementById('modal-act-created-by')?.value?.trim() || null;
+    const nature = document.getElementById('modal-act-nature')?.value || 'registro';
+    const priority = document.getElementById('modal-act-priority')?.value || null;
     const timeMinInput = parseInt(document.getElementById('modal-act-time-min')?.value || '0');
     const timeMin = timeMinInput > 0 ? timeMinInput : (_timerSeconds > 0 ? Math.ceil(_timerSeconds / 60) : null);
     const nextTitle = document.getElementById('modal-act-next-title')?.value?.trim() || null;
     const nextDate = document.getElementById('modal-act-next-date')?.value || null;
     const nextResp = document.getElementById('modal-act-next-resp')?.value?.trim() || null;
+    const reminderAt = document.getElementById('modal-act-reminder-at')?.value || null;
+    const reminderEmail = document.getElementById('modal-act-reminder-email')?.checked || false;
+    const reminderWhatsapp = document.getElementById('modal-act-reminder-wpp')?.checked || false;
+    const googleMeetLink = document.getElementById('modal-act-meet-link')?.value?.trim() || null;
 
     const assigneeList = assignees.split(',').map(s => s.trim()).filter(Boolean);
     const nextRespList = nextResp ? nextResp.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const mentions = _extractMentions(desc);
 
     const payload = {
         activity_type: type,
         title,
         description: desc,
         department: dept,
-        created_by_user_id: createdBy,
         activity_datetime: datetime ? new Date(datetime).toISOString() : null,
         status,
+        nature,
+        priority,
         time_spent_minutes: timeMin,
         next_step_title: nextTitle,
         next_step_date: nextDate ? new Date(nextDate).toISOString() : null,
         assignees: assigneeList,
         next_step_responsibles: nextRespList,
+        mentions,
+        reminder_at: reminderAt ? new Date(reminderAt).toISOString() : null,
+        reminder_email: reminderEmail,
+        reminder_whatsapp: reminderWhatsapp,
+        google_meet_link: googleMeetLink,
     };
 
     try {
+        let savedActivity;
         if (_editingActivityId) {
-            await updateActivity(_editingActivityId, payload);
+            savedActivity = await updateActivity(_editingActivityId, payload);
             utils.showToast('Atividade atualizada!', 'success');
         } else {
-            await createActivity(_currentCompanyId, payload);
+            savedActivity = await createActivity(_currentCompanyId, payload);
             utils.showToast('Atividade criada!', 'success');
+        }
+
+        // Upload de anexos pendentes
+        if (_pendingAttachments.length > 0) {
+            await _uploadPendingAttachments(savedActivity.id);
         }
 
         document.getElementById('activity-modal-overlay')?.remove();
         resetTimer();
+        _pendingAttachments = [];
         await _reloadActivities();
     } catch (err) {
         utils.showToast(err.message, 'error');
+    }
+}
+
+// ── Mentions ──────────────────────────────────────────────────────────────────
+function _extractMentions(text) {
+    const re = /@\[([^:]+):([^\]]+)\]/g;
+    const ids = [];
+    let m;
+    while ((m = re.exec(text)) !== null) ids.push(m[1]);
+    return [...new Set(ids)];
+}
+
+function _initMentionAutocomplete(textarea) {
+    let dropEl = null;
+    textarea.addEventListener('input', () => {
+        const val = textarea.value;
+        const pos = textarea.selectionStart;
+        const before = val.slice(0, pos);
+        const atIdx = before.lastIndexOf('@');
+        if (atIdx === -1 || before.slice(atIdx).includes(' ')) { _hideMention(dropEl); return; }
+        const query = before.slice(atIdx + 1).toLowerCase();
+        const matches = _usuarios.filter(u => u.nome.toLowerCase().includes(query)).slice(0, 6);
+        if (!matches.length) { _hideMention(dropEl); return; }
+        if (!dropEl) {
+            dropEl = document.createElement('div');
+            dropEl.className = 'mention-dropdown';
+            dropEl.style.cssText = 'position:absolute;background:var(--glass-bg,#1e293b);border:1px solid var(--dark-border);border-radius:8px;z-index:9999;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,0.4);';
+            textarea.parentElement.style.position = 'relative';
+            textarea.parentElement.appendChild(dropEl);
+        }
+        dropEl.innerHTML = matches.map(u =>
+            `<div class="mention-item" style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.5rem;" data-uid="${u.id}" data-nome="${u.nome}">
+                <span style="width:28px;height:28px;border-radius:50%;background:var(--primary,#6366f1);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;flex-shrink:0;">${u.avatar || u.nome[0]}</span>
+                ${u.nome}
+            </div>`
+        ).join('');
+        dropEl.style.display = 'block';
+        dropEl.querySelectorAll('.mention-item').forEach(item => {
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                _insertMention(textarea, atIdx, pos, item.dataset.uid, item.dataset.nome);
+                _hideMention(dropEl); dropEl = null;
+            });
+            item.addEventListener('mouseover', () => item.style.background = 'rgba(255,255,255,0.07)');
+            item.addEventListener('mouseout', () => item.style.background = '');
+        });
+    });
+    textarea.addEventListener('blur', () => setTimeout(() => { _hideMention(dropEl); dropEl = null; }, 150));
+}
+
+function _hideMention(el) { if (el) el.style.display = 'none'; }
+
+function _insertMention(textarea, atIdx, pos, uid, nome) {
+    const val = textarea.value;
+    textarea.value = val.slice(0, atIdx) + `@[${uid}:${nome}]` + val.slice(pos);
+}
+
+// ── Attachments ───────────────────────────────────────────────────────────────
+function _addPendingAttachment(file) {
+    _pendingAttachments.push(file);
+    _renderPendingAttachments();
+}
+
+function _renderPendingAttachments() {
+    const container = document.getElementById('pending-attachments-list');
+    if (!container) return;
+    if (!_pendingAttachments.length) { container.innerHTML = ''; return; }
+    container.innerHTML = _pendingAttachments.map((f, i) =>
+        `<div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.6rem;background:rgba(255,255,255,0.05);border-radius:6px;font-size:0.8rem;">
+            <i class="ph ph-file" style="color:var(--primary);"></i>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
+            <span style="color:var(--text-muted);flex-shrink:0;">${(f.size/1024).toFixed(0)}KB</span>
+            <button type="button" onclick="activities._removePendingAttachment(${i})" style="background:none;border:none;cursor:pointer;color:var(--danger);padding:0;"><i class="ph ph-x"></i></button>
+        </div>`
+    ).join('');
+}
+
+export function _removePendingAttachment(i) {
+    _pendingAttachments.splice(i, 1);
+    _renderPendingAttachments();
+}
+
+async function _uploadPendingAttachments(activityId) {
+    for (const file of _pendingAttachments) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch(`/api/activities/${activityId}/attachments`, { method: 'POST', body: fd });
+        if (!res.ok) console.warn('[Attachment upload] Falhou para', file.name);
     }
 }
 
@@ -769,3 +953,6 @@ export async function deleteActivity(activityId) {
         utils.showToast(e.message, 'error');
     }
 }
+
+// Expor _addFile para o dropzone inline
+export function _addFile(file) { _addPendingAttachment(file); }
