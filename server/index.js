@@ -12,6 +12,7 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 import usersRouter from './routes/users.js';
 import membershipsRouter from './routes/memberships.js';
+import webhookClerkRouter from './routes/webhook-clerk.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -48,6 +49,18 @@ app.use(cors({
         : ['http://localhost:3000', 'http://localhost:8000', 'http://127.0.0.1:8000'],
     credentials: true,
 }));
+
+// ─── Webhook Clerk — ANTES do json parser (Svix precisa do body raw) ───────────────────
+// express.raw converte o body para Buffer, preservando os bytes originais
+// necessário para validar a assinatura HMAC do Svix
+app.use('/webhook/clerk', express.raw({ type: 'application/json' }), (req, res, next) => {
+    // Converte Buffer para objeto JS antes de passar para o router
+    if (Buffer.isBuffer(req.body)) {
+        req.rawBody = req.body;
+        req.body = JSON.parse(req.body.toString());
+    }
+    next();
+}, webhookClerkRouter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
