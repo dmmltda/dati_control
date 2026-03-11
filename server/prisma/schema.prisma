@@ -45,6 +45,20 @@ model companies {
   NPS                             String?
   Qual_ERP_                       String?              @map("Qual_ERP?")
   Site                            String?
+
+  // ── HIERARQUIA MÃE/FILHA ──────────────────────────────────────────────────
+  // "mom"        → empresa mãe (contratante da plataforma = 1 Clerk Organization)
+  // "son"        → empresa filha (filial ou cliente gerenciado pela mãe)
+  // "standalone" → empresa independente (compatibilidade com dados existentes)
+  company_type                    String               @default("standalone")
+  mom_id                          String?              // null = é mãe ou standalone
+  clerk_org_id                    String?              @unique // ID da Organization no Clerk (só para company_mom)
+
+  // relações de hierarquia (autorreferente)
+  company_mom                     companies?           @relation("MomSon", fields: [mom_id], references: [id])
+  company_sons                    companies[]          @relation("MomSon")
+
+  // relações existentes
   company_dashboards              company_dashboards[]
   company_followups               company_followups[]
   company_meetings                company_meetings[]
@@ -55,6 +69,10 @@ model companies {
   contacts                        contacts[]
   test_logs                       test_logs[]
   activities                      activities[]
+
+  // relações de usuários
+  user_memberships                user_memberships[]
+  user_invites                    user_invites[]
 }
 
 model company_dashboards {
@@ -344,14 +362,81 @@ model activity_mentions {
 // O id é o Clerk User ID (ex: "user_2abc123...")
 // ══════════════════════════════════════════════════════════════════════════════
 model users {
-  id        String   @id              // Clerk User ID — string literal, não UUID gerado localmente
-  nome      String
-  email     String   @unique
-  avatar    String?                   // Iniciais (ex: "DS") — gerado a partir do nome
-  role      String   @default("member") // "admin" | "cs" | "comercial" | "member"
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id              // Clerk User ID — string literal, não UUID gerado localmente
+  nome       String
+  email      String   @unique
+  avatar     String?                   // Iniciais (ex: "DS") — gerado a partir do nome
+  role       String   @default("member") // legado — mantido para compatibilidade
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // ── TIPO DE USUÁRIO (novo modelo) ─────────────────────────────────────────
+  // "master"   → acesso total à company_mom e TODAS as company_sons
+  //              pode convidar, editar e remover usuários
+  // "standard" → acesso SOMENTE às company_sons vinculadas via user_memberships
+  //              permissões (criar/editar/deletar/exportar) definidas pelo master
+  user_type  String   @default("standard")
+
+  // ── METADATA ──────────────────────────────────────────────────────────────
+  phone      String?                   // telefone/WhatsApp do usuário
+  department String?                   // área: "CS" | "Comercial" | "Produto" | "Suporte"
+  timezone   String?  @default("America/Sao_Paulo")
+
+  // ── RELAÇÕES ──────────────────────────────────────────────────────────────
+  user_memberships user_memberships[]
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VÍNCULO USUÁRIO ↔ EMPRESA FILHA
+// Registra quais company_sons o usuário standard pode acessar.
+// Para usuários master, o acesso é implícito (não precisa de membership por filha).
+// ══════════════════════════════════════════════════════════════════════════════
+model user_memberships {
+  id          String   @id @default(uuid())
+  user_id     String
+  company_id  String   // sempre uma company_son (filha)
+
+  // permissões que o master concedeu a este standard nesta filha
+  can_create  Boolean  @default(true)   // pode criar registros?
+  can_edit    Boolean  @default(true)   // pode editar registros?
+  can_delete  Boolean  @default(false)  // pode deletar registros?
+  can_export  Boolean  @default(false)  // pode exportar dados?
+
+  invited_by  String?                   // user_id (master) que convidou
+  joined_at   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  company     companies @relation(fields: [company_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, company_id])
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// CONVITES PENDENTES
+// Rastreamento de convites enviados via Clerk Organizations.
+// ══════════════════════════════════════════════════════════════════════════════
+model user_invites {
+  id              String    @id @default(uuid())
+  email           String
+  company_mom_id  String                        // qual company_mom (org) este convite pertence
+  user_type       String    @default("standard") // "master" | "standard"
+
+  // se standard, quais filhas pré-atribuídas ao aceitar o convite?
+  companies_json  String?                       // JSON: ["son_id_1", "son_id_2"] — null para master
+
+  clerk_invite_id String?   @unique             // ID do convite no Clerk Organizations
+  invited_by      String                        // user_id do master que convidou
+  status          String    @default("pending") // "pending" | "accepted" | "expired" | "revoked"
+
+  expires_at      DateTime?
+  accepted_at     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company         companies @relation(fields: [company_mom_id], references: [id], onDelete: Cascade)
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

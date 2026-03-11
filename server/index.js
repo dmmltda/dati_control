@@ -10,6 +10,9 @@ import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express';
 import cron from 'node-cron';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import usersRouter from './routes/users.js';
+import membershipsRouter from './routes/memberships.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +51,16 @@ app.use(cors({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// ─── Forçar no-cache para index.html (evita sidebar desatualizada no browser)
+app.get(['/', '/index.html'], (req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+    });
+    res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
 
 // ─── Servir arquivos estáticos do frontend ───────────────────────────────────
 // Em desenvolvimento: serve tudo da raiz do projeto
@@ -157,10 +170,12 @@ async function extractUsuario(req, res, next) {
                     email,
                     avatar: iniciais,
                     role: 'member',
+                    user_type: 'standard', // novo campo — padrão para usuários criados pelo Clerk
                     ativo: true,
                 }
             });
             console.log(`[Auth] ✅ Novo usuário sincronizado: ${nomeCompleto} (${userId})`);
+
         }
 
         req.usuarioAtual = usuario;
@@ -173,12 +188,56 @@ async function extractUsuario(req, res, next) {
 
 // ─── Endpoints de Usuário ────────────────────────────────────────────────────
 
-// Retorna dados do usuário logado (usado pelo frontend após inicializar Clerk)
-app.get('/api/me', extractUsuario, (req, res) => {
-    res.json(req.usuarioAtual);
+// Retorna dados do usuário logado + empresas acessíveis com permissões
+app.get('/api/me', extractUsuario, async (req, res) => {
+    const usuario = req.usuarioAtual;
+    try {
+        let accessible_companies = [];
+
+        if (usuario.user_type === 'master') {
+            // master vê todas as empresas
+            const companies = await prisma.companies.findMany({
+                orderBy: { Nome_da_empresa: 'asc' },
+                select: { id: true, Nome_da_empresa: true, company_type: true, mom_id: true, Status: true }
+            });
+            accessible_companies = companies.map(c => ({
+                ...c,
+                permissions: { can_create: true, can_edit: true, can_delete: true, can_export: true }
+            }));
+        } else {
+            // standard → somente as vinculadas
+            const memberships = await prisma.user_memberships.findMany({
+                where: { user_id: usuario.id },
+                include: {
+                    company: {
+                        select: { id: true, Nome_da_empresa: true, company_type: true, mom_id: true, Status: true }
+                    }
+                }
+            });
+            accessible_companies = memberships.map(m => ({
+                ...m.company,
+                permissions: {
+                    can_create: m.can_create,
+                    can_edit: m.can_edit,
+                    can_delete: m.can_delete,
+                    can_export: m.can_export,
+                }
+            }));
+        }
+
+        res.json({
+            ...usuario,
+            accessible_companies,
+        });
+    } catch (err) {
+        console.error('[GET /api/me] Erro ao buscar empresas acessíveis:', err);
+        // fallback: retorna dados básicos sem empresas
+        res.json({ ...usuario, accessible_companies: [] });
+    }
 });
 
-// Lista todos os usuários ativos (para dropdowns, filtros, etc.)
+
+// Lista todos os usuários ativos (para dropdowns, filtros, etc.) — legado
 app.get('/api/usuarios', extractUsuario, async (req, res) => {
     try {
         const usuarios = await prisma.users.findMany({
@@ -190,6 +249,11 @@ app.get('/api/usuarios', extractUsuario, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// ─── Novas rotas de usuários e memberships ───────────────────────────────────────────────────
+app.use('/api/users', extractUsuario, usersRouter);
+app.use('/api/memberships', extractUsuario, membershipsRouter);
+
 
 // =============================================================================
 // CAMADA DE SANITIZAÇÃO — garante que nenhum campo inválido chega ao Prisma
