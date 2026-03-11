@@ -8,13 +8,14 @@ import { colors, healthColors, card } from '../../theme/tokens.js';
 import { initTooltipSystem, showTooltip, hideTooltip, updateTooltipPosition } from './Tooltip.js';
 
 function calcularHealth(empresas) {
-  const ativos = empresas.filter(e => e.status === 'Cliente Ativo');
+  const s = (e) => (e.status || '').toLowerCase().trim();
+  const ativos = empresas.filter(e => s(e) === 'ativo' || s(e) === 'cliente ativo');
   const total = ativos.length || 1;
 
   const grupos = {
-    'Saudável': ativos.filter(e => e.healthScore === 'Saudável'),
+    'Saudável':   ativos.filter(e => e.healthScore === 'Saudável'),
     'Em Atenção': ativos.filter(e => e.healthScore === 'Em Atenção'),
-    'Em Risco': ativos.filter(e => e.healthScore === 'Em Risco'),
+    'Em Risco':   ativos.filter(e => e.healthScore === 'Em Risco'),
   };
 
   return { grupos, total, ativos };

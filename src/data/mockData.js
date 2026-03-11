@@ -34,9 +34,10 @@ function diasAFrente(dias) {
 // ─── Produtos DATI disponíveis ───────────────────────────────────────────────
 const PRODUTOS_DATI = [
     'DATI Import',
-    'Smart Read',
-    'Catálogo de Produtos',
     'DATI Export',
+    'Smart Read',
+    'Orkestra',
+    'Catálogo de Produtos',
 ];
 
 // ─── Empresas Mockadas ────────────────────────────────────────────────────────

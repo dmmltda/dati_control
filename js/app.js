@@ -206,6 +206,14 @@ function handleNavigation(target) {
             if (view === 'dashboard') mostrarJourneyDashboard();
             if (view === 'minhas-tarefas') tasksBoard.initTasksBoard();
             if (view === 'catalogo-produtos') catalogoProdutos.initCatalogoProdutos();
+            if (view === 'company-list') {
+                // Recarrega dados do servidor ao navegar para a lista de empresas
+                api.getCompanies().then(updated => {
+                    state.companies = updated;
+                    ui.renderDashboard();
+                    ui.renderCompanyList();
+                }).catch(err => console.warn('[Nav] Falha ao atualizar lista:', err));
+            }
         }
         return true;
     }
@@ -226,6 +234,12 @@ function handleNavigation(target) {
     }
 
     if (target.closest('.btn-back-list')) {
+        // Recarrega dados do servidor para garantir que empresa recém-criada apareça
+        api.getCompanies().then(updated => {
+            state.companies = updated;
+            ui.renderDashboard();
+            ui.renderCompanyList();
+        }).catch(err => console.warn('[Back List] Falha ao atualizar lista:', err));
         nav.switchView('company-list');
         return true;
     }

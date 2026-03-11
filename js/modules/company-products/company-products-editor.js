@@ -25,6 +25,7 @@ const PRODUTOS_DATI = [
     'DATI Export',
     'Smart Read',
     'Orkestra',
+    'Catálogo de Produtos',
 ];
 
 const BILLING_TYPES = [

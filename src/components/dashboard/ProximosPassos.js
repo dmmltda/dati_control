@@ -103,9 +103,12 @@ function buildPassos() {
                 .sort((a, b) => new Date(b.data) - new Date(a.data))[0]
                 || followUps.sort((a, b) => new Date(b.data) - new Date(a.data))[0];
 
-            const dataVencimento = ultimoFU?.proximoContato
-                || (typeof passObj === 'string' && passObj.includes('/') ? null : passObj)
-                || null;
+            // Só aceita data se for formato ISO (YYYY-MM-DD)
+            const isISODate = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v);
+
+            const dataVencimento = isISODate(ultimoFU?.proximoContato)
+                ? ultimoFU.proximoContato
+                : null;
 
             const titulo = ultimoFU?.conteudo || '—';
             const responsavel = ultimoFU?.usuario || e.responsavel?.nome || null;

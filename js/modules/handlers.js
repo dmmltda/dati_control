@@ -70,8 +70,20 @@ export function removeTempContato(id) {
 }
 
 // --- Company Form Submit ---
+let _isSaving = false; // guarda contra duplo submit
 export async function handleCompanySubmit(e) {
     if (e) e.preventDefault();
+
+    // Impede duplo clique / duplo submit
+    if (_isSaving) return;
+    _isSaving = true;
+
+    const saveBtn = document.getElementById('btn-save-company');
+    const _savedLabel = saveBtn ? saveBtn.innerHTML : null;
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite"></i> Salvando...';
+    }
 
     console.log('💾 Iniciando salvamento 10/10...');
     utils.showToast('Salvando dados...', 'info');
@@ -308,10 +320,22 @@ export async function handleCompanySubmit(e) {
             utils.showToast(isUpdate ? 'Empresa atualizada com sucesso!' : 'Empresa criada com sucesso!', 'success');
         }
 
-
     } catch (error) {
         console.error('❌ Erro fatal ao salvar:', error);
         utils.showToast('Erro ao salvar no banco: ' + error.message, 'error');
+    } finally {
+        // Sempre reabilita o botão ao terminar (sucesso ou erro)
+        _isSaving = false;
+        const btn = document.getElementById('btn-save-company');
+        if (btn && _savedLabel) {
+            btn.disabled = false;
+            // Restaura o label correto: se já tem ID agora (empresa criada), usa "Salvar"
+            if (state.currentEditingId) {
+                btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar';
+            } else if (_savedLabel) {
+                btn.innerHTML = _savedLabel;
+            }
+        }
     }
 }
 

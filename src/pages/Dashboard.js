@@ -103,7 +103,6 @@ function injetarCSS() {
   style.id = 'journey-dashboard-css';
   style.textContent = `
     #journey-dashboard-root {
-      font-size: 14px;
       background: transparent;
       padding: 0;
       font-family: 'Plus Jakarta Sans', 'DM Sans', 'Inter', sans-serif;
@@ -193,7 +192,7 @@ function injetarCSS() {
     #painel-proximos-passos table td,
     #painel-proximos-passos table th {
       padding: 7px 10px !important;
-      font-size: 12px !important;
+
       line-height: 1.4 !important;
     }
 
@@ -201,14 +200,12 @@ function injetarCSS() {
     #painel-proximos-passos span[style*="border-radius: 9999px"],
     #painel-proximos-passos span[style*="border-radius:9999px"] {
       padding: 2px 7px !important;
-      font-size: 11px !important;
     }
 
     /* Filtros (tabs + select) */
     #painel-proximos-passos button[onclick*="setTab"],
     #painel-proximos-passos button[onclick*="irPagina"] {
       padding: 4px 10px !important;
-      font-size: 11px !important;
     }
 
     /* Filtro de responsável — select dark */
@@ -218,19 +215,11 @@ function injetarCSS() {
       color: #e2e8f0 !important;
     }
 
-    /* Contadores de resumo */
-    #painel-proximos-passos > section > div:nth-child(3) span {
-      font-size: 11px !important;
-      padding: 3px 9px !important;
-    }
-
     /* Título do painel */
     #painel-proximos-passos h2 {
-      font-size: 14px !important;
       color: #e2e8f0 !important;
     }
     #painel-proximos-passos p {
-      font-size: 11px !important;
       margin: 0 !important;
     }
 
@@ -238,23 +227,14 @@ function injetarCSS() {
     #painel-kpi article {
       padding: 14px 16px !important;
     }
-    #painel-kpi [style*="font-size: 2"] {
-      font-size: 22px !important;
-      line-height: 1.1 !important;
-      color: #e2e8f0 !important;
-    }
-    #painel-kpi [style*="font-size: 0.8"] { font-size: 11px !important; }
-    #painel-kpi [style*="font-size: 0.75"] { font-size: 11px !important; color: #8b98b4 !important; }
 
-    /* Demais painéis — título e subtítulo compactos */
+    /* Demais painéis — cor dos títulos e subтítulos */
     #painel-funil h2, #painel-health h2,
     #painel-helpdesk h2, #painel-onboarding h2 {
-      font-size: 14px !important;
       color: #e2e8f0 !important;
     }
     #painel-funil p, #painel-health p,
     #painel-helpdesk p, #painel-onboarding p {
-      font-size: 11px !important;
       margin-bottom: 0 !important;
       color: #8b98b4 !important;
     }

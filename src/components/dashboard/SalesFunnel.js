@@ -8,16 +8,25 @@ import { initTooltipSystem, showTooltip, hideTooltip, updateTooltipPosition } fr
 
 // ─── Configuração das etapas do funil ─────────────────────────────────────────
 const ETAPAS_FUNIL = [
-  { label: 'Prospects', status: ['Prospect'], emoji: '🎯' },
-  { label: 'Leads Qualificados', status: ['Lead'], emoji: '🔍' },
-  { label: 'Em Reunião', status: ['Reunião'], emoji: '📅' },
-  { label: 'Proposta Enviada', status: ['Proposta | Andamento'], emoji: '📄' },
-  { label: 'Clientes Ativos', status: ['Cliente Ativo'], emoji: '✅' },
+  { label: 'Prospects',        status: ['Prospect'],                      emoji: '🎯' },
+  { label: 'Leads Qualificados', status: ['Lead'],                         emoji: '🔍' },
+  { label: 'Em Reunião',        status: ['Reunião'],                       emoji: '📅' },
+  { label: 'Proposta Enviada',  status: ['Proposta | Andamento'],          emoji: '📄' },
+  { label: 'Clientes Ativos',   status: ['Cliente Ativo', 'Ativo'],       emoji: '✅' },
 ];
+
+// Compara status ignorando o prefixo 'Cliente '
+function matchStatus(empresaStatus, listaStatus) {
+  const s = (empresaStatus || '').toLowerCase().trim();
+  return listaStatus.some(v => {
+    const vl = v.toLowerCase().trim();
+    return s === vl || s === `cliente ${vl}` || `cliente ${s}` === vl;
+  });
+}
 
 function calcularFunil(empresas) {
   const etapas = ETAPAS_FUNIL.map((etapa) => {
-    const empresasDaEtapa = empresas.filter(e => etapa.status.includes(e.status));
+    const empresasDaEtapa = empresas.filter(e => matchStatus(e.status, etapa.status));
     const quantidade = empresasDaEtapa.length;
     const valorTotal = empresasDaEtapa.reduce((acc, e) => acc + (e.valorEstimadoMensal || 0), 0);
     return { ...etapa, quantidade, valorTotal, empresas: empresasDaEtapa };

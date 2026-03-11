@@ -27,20 +27,38 @@ const icons = {
  * @param {Array} empresas
  * @returns {Object} métricas calculadas
  */
+// ─── Helper: aceita ambos os formatos de status ───────────────────────────────
+// BD real: 'Ativo', 'Inativo', 'Suspenso', 'Prospect', etc.
+// Mock:    'Cliente Ativo', 'Cliente Inativo', 'Cliente Suspenso', etc.
+function isStatus(empresa, ...valores) {
+  const s = (empresa.status || '').toLowerCase().trim();
+  return valores.some(v => {
+    const vl = v.toLowerCase().trim();
+    return s === vl || s === `cliente ${vl}` || s.endsWith(vl);
+  });
+}
+
+/**
+ * Calcula as métricas a partir da lista de empresas
+ * @param {Array} empresas
+ * @returns {Object} métricas calculadas
+ */
 function calcularMetricas(empresas) {
-  const hoje = new Date('2026-03-10');
+  const hoje = new Date();
   const mesAtual = hoje.getMonth();
   const anoAtual = hoje.getFullYear();
 
-  const total = empresas.length;
-  const ativos = empresas.filter(e => e.status === 'Cliente Ativo').length;
-  const inativos = empresas.filter(e =>
-    e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso'
+  const total     = empresas.length;
+  const ativos    = empresas.filter(e => isStatus(e, 'ativo')).length;
+  const inativos  = empresas.filter(e => isStatus(e, 'inativo', 'suspenso')).length;
+  const leads     = empresas.filter(e =>
+    isStatus(e, 'prospect', 'lead', 'reunião', 'reuniao') ||
+    (empresa => {
+      const s = (empresa.status || '').toLowerCase();
+      return s.includes('proposta') || s.includes('qualificado');
+    })(e)
   ).length;
-  const leads = empresas.filter(e =>
-    ['Prospect', 'Lead', 'Reunião', 'Proposta | Andamento'].includes(e.status)
-  ).length;
-  const novosMes = empresas.filter(e => {
+  const novosMes  = empresas.filter(e => {
     const d = new Date(e.createdAt);
     return d.getMonth() === mesAtual && d.getFullYear() === anoAtual;
   }).length;
@@ -57,7 +75,6 @@ function renderCard({ label, value, variacao, cor, destaque }) {
   const varCor   = positivo ? colors.success : colors.danger;
   const varSinal  = positivo ? '↑' : '↓';
   const varTexto  = `${Math.abs(variacao)}%`;
-  // destaque: quando true, o número usa a cor do KPI (ex: Leads)
   const numColor  = destaque ? cor : colors.textMain;
 
   return `
@@ -65,21 +82,21 @@ function renderCard({ label, value, variacao, cor, destaque }) {
       background: ${colors.bgCard};
       border-radius: ${card.borderRadius};
       box-shadow: ${card.boxShadow};
-      padding: 1rem 1.1rem;
+      padding: 14px 16px;
       border: 1px solid ${colors.border};
       border-top: 2px solid ${cor};
       transition: ${card.transition};
       cursor: default;
       display: flex;
       flex-direction: column;
-      gap: 0.45rem;
+      gap: 6px;
     " data-kpi-key="${label.toLowerCase().replace(/ /g, '-')}"
        onmouseenter="this.style.transform='${card.hoverTransform}';this.style.boxShadow='0 8px 28px rgba(0,0,0,0.5)';this.style.borderTopColor='${cor}'"
        onmouseleave="this.style.transform='translateY(0)';this.style.boxShadow='${card.boxShadow}';this.style.borderTopColor='${cor}'">
 
       <!-- Label -->
       <span style="
-        font-size: 0.65rem;
+        font-size: 11px;
         font-weight: 700;
         color: ${colors.textMuted};
         text-transform: uppercase;
@@ -87,9 +104,9 @@ function renderCard({ label, value, variacao, cor, destaque }) {
       ">${label}</span>
 
       <!-- Número + variação inline -->
-      <div style="display:flex; align-items:baseline; gap:0.5rem;">
+      <div style="display:flex; align-items:baseline; gap:8px;">
         <span style="
-          font-size: 2rem;
+          font-size: 28px;
           font-weight: 800;
           color: ${numColor};
           line-height: 1;
@@ -97,7 +114,7 @@ function renderCard({ label, value, variacao, cor, destaque }) {
         " aria-label="${label}: ${value}">${value}</span>
         <span style="
           display:inline-flex; align-items:center; gap:2px;
-          font-size: 0.72rem; font-weight: 700;
+          font-size: 12px; font-weight: 700;
           color: ${varCor};
         " title="Variação vs mês anterior">
           ${varSinal}${varTexto}
