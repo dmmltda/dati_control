@@ -2187,11 +2187,10 @@ app.delete('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
 
 // ─── SPA Fallback (produção) — qualquer rota não-API retorna o index.html ────
 // DEVE vir DEPOIS de todas as rotas /api e dos statics.
+// Nota: Express moderno (path-to-regexp v8+) não aceita '*' — usamos regex.
 if (IS_PROD) {
-    app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api')) {
-            res.sendFile(path.join(__dirname, '..', 'index.html'));
-        }
+    app.get(/^(?!\/api).*/, (req, res) => {
+        res.sendFile(path.join(__dirname, '..', 'index.html'));
     });
 }
 
