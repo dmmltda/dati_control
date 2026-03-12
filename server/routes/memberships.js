@@ -12,6 +12,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireMaster } from '../middleware/checkAccess.js';
+import * as audit from '../services/audit.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -105,6 +106,19 @@ router.post('/', requireMaster, async (req, res) => {
         });
 
         console.log(`[POST /api/memberships] ✅ Vínculo criado: ${membership.user.nome} ↔ ${membership.company.Nome_da_empresa}`);
+
+        audit.log(prisma, {
+            actor: master,
+            action: 'MEMBERSHIP',
+            entity_type: 'membership',
+            entity_id: membership.id,
+            entity_name: `${membership.user.nome} ↔ ${membership.company.Nome_da_empresa}`,
+            description: `Vinculou ${membership.user.nome} à empresa ${membership.company.Nome_da_empresa}`,
+            meta: { user_id, company_id, can_create, can_edit, can_delete, can_export },
+            company_id,
+            ip_address: req.ip,
+        });
+
         res.status(201).json(membership);
     } catch (err) {
         if (err.code === 'P2002') {
@@ -120,8 +134,16 @@ router.post('/', requireMaster, async (req, res) => {
 router.put('/:id', requireMaster, async (req, res) => {
     const { id } = req.params;
     const { can_create, can_edit, can_delete, can_export } = req.body;
+    const master = req.usuarioAtual;
 
     try {
+        // Snapshot anterior para diff
+        const before = await prisma.user_memberships.findUnique({
+            where: { id },
+            select: { can_create: true, can_edit: true, can_delete: true, can_export: true,
+                      user_id: true, company_id: true }
+        });
+
         const updated = await prisma.user_memberships.update({
             where: { id },
             data: {
@@ -138,6 +160,24 @@ router.put('/:id', requireMaster, async (req, res) => {
         });
 
         console.log(`[PUT /api/memberships/${id}] ✅ Permissões atualizadas`);
+
+        if (before) {
+            const newPerms = { can_create, can_edit, can_delete, can_export };
+            const { description, meta } = audit.diff(before, newPerms, 'membership',
+                `${updated.user.nome} em ${updated.company.Nome_da_empresa}`);
+            audit.log(prisma, {
+                actor: master,
+                action: 'UPDATE',
+                entity_type: 'membership',
+                entity_id: id,
+                entity_name: `${updated.user.nome} em ${updated.company.Nome_da_empresa}`,
+                description,
+                meta,
+                company_id: updated.company.id,
+                ip_address: req.ip,
+            });
+        }
+
         res.json(updated);
     } catch (err) {
         if (err.code === 'P2025') {
@@ -152,9 +192,33 @@ router.put('/:id', requireMaster, async (req, res) => {
 // Remove vínculo de um usuário com uma empresa filha (somente master)
 router.delete('/:id', requireMaster, async (req, res) => {
     const { id } = req.params;
+    const master = req.usuarioAtual;
     try {
+        // Snapshot antes de deletar
+        const before = await prisma.user_memberships.findUnique({
+            where: { id },
+            include: {
+                user: { select: { nome: true } },
+                company: { select: { id: true, Nome_da_empresa: true } },
+            }
+        });
+
         await prisma.user_memberships.delete({ where: { id } });
         console.log(`[DELETE /api/memberships/${id}] ✅ Vínculo removido`);
+
+        if (before) {
+            audit.log(prisma, {
+                actor: master,
+                action: 'DELETE',
+                entity_type: 'membership',
+                entity_id: id,
+                entity_name: `${before.user.nome} em ${before.company.Nome_da_empresa}`,
+                description: `Desvinculou ${before.user.nome} da empresa ${before.company.Nome_da_empresa}`,
+                company_id: before.company.id,
+                ip_address: req.ip,
+            });
+        }
+
         res.json({ success: true, message: 'Vínculo removido com sucesso.' });
     } catch (err) {
         if (err.code === 'P2025') {

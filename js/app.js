@@ -23,7 +23,17 @@ import { initImportModule } from './modules/importer/import-manager.js';
 import * as activities from './modules/activities.js';
 import * as tasksBoard from './modules/tasks-board.js';
 import { initTooltipSystem } from './core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
-import * as catalogoProdutos from './modules/catalogo-produtos.js';
+import { initGlobalTimer } from './core/global-timer.js'; // ⏱ Timer persistente — UX 10/10
+
+import { initSettingsUsers } from './modules/settings-users.js';
+import { initGabi } from './modules/gabi.js';
+import { initSettingsGabi } from './modules/settings-gabi.js';
+import * as logTestes from './modules/log-testes.js';
+import * as logAgendamento from './modules/log-agendamento.js';
+import * as reports from './modules/reports.js';
+import * as auditLog from './modules/audit-log.js';
+
+
 
 // ─── Journey Dashboard (novo módulo) ────────────────────────────────────────
 import { initDashboard } from '../src/pages/Dashboard.js';
@@ -65,7 +75,30 @@ document.addEventListener('dati:app-ready', () => {
     if (viewDash && viewDash.style.display !== 'none') {
         mostrarJourneyDashboard();
     }
+
+    // Preenche o perfil do usuário na sidebar com dados reais
+    const me = window.__usuarioAtual;
+    if (me) {
+        const elNome   = document.getElementById('sidebar-user-name');
+        const elRole   = document.getElementById('sidebar-user-role');
+        const elAvatar = document.getElementById('sidebar-user-avatar');
+
+        if (elNome)   elNome.textContent   = me.nome   || me.email || 'Usuário';
+        if (elRole)   elRole.textContent   = me.user_type === 'master' ? 'Master' : 'Standard';
+        if (elAvatar) elAvatar.textContent = me.avatar
+            || (me.nome ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
+
+        // Mostra o menu Configurações na sidebar apenas para usuários master
+        if (me.user_type === 'master') {
+            const navConfig = document.getElementById('nav-group-config');
+            if (navConfig) navConfig.style.display = 'block';
+        }
+    }
+
+    // Inicializa a Gabi AI
+    initGabi();
 });
+
 
 // ─── Lógica do Dropdown de Usuário (menu geral do dashboard) ─────────────────
 // Todas as funções window._ são expostas globalmente para os onclick do HTML.
@@ -191,6 +224,7 @@ window.handlers = handlers;
 window.utils = utils;
 window.state = state;
 window.activities = activities;
+window.tasksBoard = tasksBoard; // Exposto para a Gabi abrir atividades via link
 
 // =============================================================================
 // SECTION 1: Click Event Handler Functions (Delegation pattern)
@@ -205,8 +239,12 @@ function handleNavigation(target) {
             if (view === 'import') initImportModule();
             if (view === 'dashboard') mostrarJourneyDashboard();
             if (view === 'minhas-tarefas') tasksBoard.initTasksBoard();
-            if (view === 'catalogo-produtos') catalogoProdutos.initCatalogoProdutos();
+            if (view === 'reports') reports.initReports();
+
+            if (view === 'config-usuarios') initSettingsUsers();
+            if (view === 'config-gabi')     initSettingsGabi();
             if (view === 'company-list') {
+
                 // Recarrega dados do servidor ao navegar para a lista de empresas
                 api.getCompanies().then(updated => {
                     state.companies = updated;
@@ -224,7 +262,10 @@ function handleNavigation(target) {
         subItem.classList.add('active');
         const view = subItem.getAttribute('data-view');
         if (view) nav.switchView(view);
-        if (view === 'log') ui.renderLogTestes();
+        if (view === 'log') logTestes.initLogTestes();
+        if (view === 'audit-log') auditLog.init();
+        if (view === 'config-usuarios') initSettingsUsers();
+        if (view === 'config-gabi')     initSettingsGabi();
         return true;
     }
 
@@ -494,6 +535,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 🎯 Inicializa o sistema global de tooltips (data-th-tooltip)
     initTooltipSystem();
+
+    // ⏱ Restaura timer que estava rodando antes de um refresh da página
+    initGlobalTimer();
+
+    // Ao clicar no indicador flutuante do timer, abre o drawer da atividade
+    window.addEventListener('journey:timer-open-activity', async (e) => {
+        const { activityId, tab = 'tempo' } = e.detail || {};
+        if (!activityId) return;
+        // Navega para a view de minhas-tarefas e abre o drawer
+        nav.switchView('minhas-tarefas');
+        await tasksBoard.initTasksBoard();
+        setTimeout(() => tasksBoard.openActivityDetail(activityId, tab), 350);
+    });
 
     // Register global click delegation
     document.addEventListener('click', handleGlobalClick);
@@ -804,6 +858,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         );
     });
+
+    // ── Empresas: Importar em Massa ──────────────────────────────────────────
+    document.getElementById('btn-importar-em-massa')?.addEventListener('click', () => {
+        nav.switchView('import');
+        initImportModule();
+    });
 });
 
 // =============================================================================
@@ -821,3 +881,188 @@ window.toggleNavGroup = (groupId) => {
 
 // Make UI available globally for sorting/filtering in index.html
 window.ui = ui;
+
+// ─── Audit Log — Histórico de Alterações ────────────────────────────────────
+window.auditLog = {
+    init:              auditLog.init,
+    refresh:           auditLog.refresh,
+    notifyChange:      auditLog.notifyChange,
+    handleSearch:      auditLog.handleSearch,
+    handleSort:        auditLog.handleSort,
+    handleActionFilter: auditLog.handleActionFilter,
+    handleDateFrom:    auditLog.handleDateFrom,
+    handleDateTo:      auditLog.handleDateTo,
+    clearFilters:      auditLog.clearFilters,
+};
+
+// ─── Interceptor global de fetch — auto-refresh do Histórico ─────────────────
+// Monitora QUALQUER chamada mutante (POST/PUT/PATCH/DELETE) às APIs do sistema
+// e aciona auditLog.notifyChange() após a resposta para atualizar o Histórico.
+(function _setupFetchInterceptor() {
+    const _originalFetch = window.fetch;
+    window.fetch = async function (url, options = {}) {
+        const response = await _originalFetch(url, options);
+        const method = (options.method || 'GET').toUpperCase();
+        const urlStr = String(url);
+
+        // Só monitora chamadas à nossa API (não CDNs, Clerk, Gemini, etc.)
+        if (
+            response.ok &&
+            ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+            urlStr.startsWith('/api/')
+        ) {
+            // Disparo 1: após 2s — cobre saves simples (empresa, usuário, atividade)
+            setTimeout(() => window.auditLog?.notifyChange?.(), 2000);
+            // Disparo 2: após 5s — cobre operações lentas (Gabi ~2s de modelo + tool exec)
+            setTimeout(() => window.auditLog?.notifyChange?.(), 5000);
+        }
+        return response;
+    };
+})();
+
+// ─── LOG Testes — expõe funções para uso inline no HTML ─────────────────────
+window.logTestes = {
+    handleSearch: logTestes.handleLogSearch,
+    handleSort:   logTestes.handleLogSort,
+    clearFilters: logTestes.clearLogFilters,
+    refresh:      logTestes.refreshLogTestes,
+    init:         logTestes.initLogTestes,
+};
+
+// ── Aliases para o HTML inline que ainda usa window._logTesteSearch etc. ──────
+window._logTesteSearch  = logTestes.handleLogSearch;
+window._logTestesClearFilters = logTestes.clearLogFilters;
+
+// ── Agendamento de Testes ───────────────────────────────────────────
+window.agendamento = {
+    init:                  logAgendamento.initAgendamento,
+    saveConfig:            logAgendamento.saveScheduleConfig,
+    runNow:                logAgendamento.runTestsNow,
+    handleFrequencyChange: logAgendamento.handleFrequencyChange,
+    handleToggleChange:    logAgendamento.handleToggleChange,
+
+    // ─── Modal Agendamento (configuração) ─────────────────────────
+    openModal() {
+        const overlay = document.getElementById('agendamento-modal-overlay');
+        if (overlay) {
+            // Limpa mensagens de erro de sessões anteriores
+            const msg = document.getElementById('sched-msg');
+            if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+            overlay.classList.add('visible');
+            logAgendamento.initAgendamento();
+        }
+    },
+    closeModal() {
+        const overlay = document.getElementById('agendamento-modal-overlay');
+        if (overlay) overlay.classList.remove('visible');
+    },
+
+    // ─── Modal Rodar Testes ────────────────────────────────────────
+    openRunModal() {
+        const overlay = document.getElementById('run-tests-modal-overlay');
+        if (!overlay) return;
+        // Reset estado
+        document.getElementById('run-tests-form').style.display     = 'block';
+        document.getElementById('run-tests-progress').style.display = 'none';
+        document.getElementById('run-tests-result').style.display   = 'none';
+        document.getElementById('run-tests-msg').style.display      = 'none';
+        const execBtn = document.getElementById('btn-run-tests-execute');
+        if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<i class="ph ph-play"></i> Executar'; }
+        overlay.classList.add('visible');
+    },
+    closeRunModal() {
+        const overlay = document.getElementById('run-tests-modal-overlay');
+        if (overlay) overlay.classList.remove('visible');
+    },
+    async executeTests() {
+        const types = [];
+        if (document.getElementById('run-type-unit')?.checked)       types.push('UNITÁRIO');
+        if (document.getElementById('run-type-functional')?.checked) types.push('FUNCIONAL');
+        if (document.getElementById('run-type-e2e')?.checked)        types.push('E2E');
+
+        if (types.length === 0) {
+            const msg = document.getElementById('run-tests-msg');
+            if (msg) { msg.textContent = 'Selecione ao menos um tipo de teste.'; msg.className = 'sched-msg sched-msg-error'; msg.style.display = 'block'; }
+            return;
+        }
+
+        const env     = document.getElementById('run-tests-env')?.value || 'local';
+        const execBtn = document.getElementById('btn-run-tests-execute');
+        const progress = document.getElementById('run-tests-progress');
+        const progressText = document.getElementById('run-tests-progress-text');
+        const result  = document.getElementById('run-tests-result');
+        const form    = document.getElementById('run-tests-form');
+
+        if (execBtn)  { execBtn.disabled = true; execBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Executando...'; }
+        if (form)     form.style.display     = 'none';
+        if (progress) progress.style.display = 'flex';
+        if (result)   result.style.display   = 'none';
+
+        try {
+            const res  = await fetch('/api/test-schedule/trigger', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ types, environment: env }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Erro ao disparar testes');
+
+            // Poll status
+            const runId = data.runId;
+            let attempts = 0;
+            const poll = setInterval(async () => {
+                attempts++;
+                try {
+                    const sr = await fetch(`/api/test-schedule/trigger/status/${runId}`);
+                    if (!sr.ok) { clearInterval(poll); return; }
+                    const job = await sr.json();
+                    const done = job.results?.length || 0;
+                    const total = job.types?.length || types.length;
+                    if (progressText) progressText.textContent = `Executando ${done}/${total} suítes...`;
+                    if (job.done || attempts > 120) {
+                        clearInterval(poll);
+                        if (progress) progress.style.display = 'none';
+                        if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<i class="ph ph-play"></i> Executar'; }
+                        // Render resultado
+                        const allOk = job.results?.every(r => r.status === 'passed');
+                        const rows  = (job.results || []).map(r => {
+                            const ok = r.status === 'passed';
+                            return `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span style="font-size:1.1rem;">${ok ? '✅' : '❌'}</span>
+                                <span style="font-weight:600;flex:1;">${r.type}</span>
+                                <span style="font-size:0.82rem;color:${ok?'#10b981':'#ef4444'};text-transform:uppercase;">${r.status}</span>
+                            </div>`;
+                        }).join('');
+                        if (result) {
+                            result.innerHTML = `<div style="padding:1rem;background:rgba(${allOk?'16,185,129':'239,68,68'},0.08);border:1px solid rgba(${allOk?'16,185,129':'239,68,68'},0.2);border-radius:10px;">
+                                <div style="font-weight:700;font-size:1rem;margin-bottom:0.75rem;">${allOk?'✅ Todos os testes passaram!':'❌ Há falhas nos testes'}</div>
+                                ${rows}
+                            </div>`;
+                            result.style.display = 'block';
+                        }
+                        // Recarrega log
+                        setTimeout(() => { if (window.logTestes?.refresh) window.logTestes.refresh(); }, 1500);
+                    }
+                } catch (_) { /* silencia erros de poll */ }
+            }, 3000);
+
+        } catch (err) {
+            if (progress) progress.style.display = 'none';
+            if (form)     form.style.display     = 'block';
+            if (execBtn)  { execBtn.disabled = false; execBtn.innerHTML = '<i class="ph ph-play"></i> Executar'; }
+            const msg = document.getElementById('run-tests-msg');
+            if (msg) { msg.textContent = `❌ ${err.message}`; msg.className = 'sched-msg sched-msg-error'; msg.style.display = 'block'; }
+        }
+    },
+
+    // Compat: abrir modal e executar (mantido para retrocompat.)
+    openModalAndRun() { this.openRunModal(); },
+};
+
+
+
+
+// ── Relatórios — Metabase Embedded ────────────────────────────────────────────
+window.openDashboard      = reports.openDashboard;
+window.refreshDashboard   = reports.refreshDashboard;
+window.openMetabaseEditor = reports.openMetabaseEditor;

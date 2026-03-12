@@ -86,13 +86,10 @@ export function openCompanyForm(id = null) {
     switchFormTab('tab-dados');
     
     // Reset specific fields
-    ['emp-health-score', 'emp-nps', 'qual-tem-comex', 'qual-qual-comex', 'qual-tem-erp', 'qual-qual-erp', 'qual-objetivo', 'qual-dores', 'qual-expectativa', 'emp-cnpj'].forEach(id => {
+    ['emp-health-score', 'emp-nps', 'emp-cnpj'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
-    
-    document.getElementById('group-qual-comex').style.display = 'none';
-    document.getElementById('group-qual-erp').style.display = 'none';
     
     const cidadeInput = document.getElementById('emp-cidade');
     cidadeInput.disabled = true;
@@ -130,17 +127,7 @@ export function openCompanyForm(id = null) {
             state.tempNotes = [...(comp.csNotes || [])];
             state.tempReunioes = [...(comp.reunioes || [])];
             state.tempFollowUps = [...(comp.followUps || [])];
-            document.getElementById('qual-tem-comex').value = comp.qualificacao?.temComex || '';
-            document.getElementById('qual-qual-comex').value = comp.qualificacao?.qualComex || '';
-            document.getElementById('group-qual-comex').style.display = comp.qualificacao?.temComex === 'Sim' ? 'block' : 'none';
-            
-            document.getElementById('qual-tem-erp').value = comp.qualificacao?.temERP || '';
-            document.getElementById('qual-qual-erp').value = comp.qualificacao?.qualERP || '';
-            document.getElementById('group-qual-erp').style.display = comp.qualificacao?.temERP === 'Sim' ? 'block' : 'none';
-            
-            document.getElementById('qual-objetivo').value = comp.qualificacao?.objetivo || '';
-            document.getElementById('qual-dores').value = comp.qualificacao?.dores || '';
-            document.getElementById('qual-expectativa').value = comp.qualificacao?.expectativa || '';
+
         }
     } else {
         document.getElementById('form-title').innerText = "Nova Empresa";

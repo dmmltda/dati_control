@@ -1,6 +1,6 @@
-/* Font Scale: base 20px ≈ +30% sobre o padrão de 16px */
+/* Font Scale: base 14px — padrão para dashboards de dados (Linear, Vercel) */
 html {
-    font-size: 20px;
+    font-size: 14px;
 }
 
 * {

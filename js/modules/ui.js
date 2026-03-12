@@ -151,6 +151,7 @@ export function renderCompanyList() {
             data: state.companies,
             columns: [
                 { key: 'nome', label: 'Empresa', type: 'string', searchable: true, sortable: true },
+                { key: 'tipo', label: 'Tipo', type: 'string', searchable: true, filterable: true },
                 { key: 'status', label: 'Status', type: 'string', searchable: true, filterable: true },
                 { key: 'healthScore', label: 'Saúde', type: 'string', searchable: true },
                 { key: 'nps', label: 'NPS', type: 'number', sortable: true },
@@ -488,6 +489,16 @@ export function updateBulkSelectionUI() {
     if (deleteBtn) deleteBtn.disabled = !hasAny;
     if (clearBtn) clearBtn.disabled = !hasAny;
     if (editBtn) editBtn.disabled = !hasAny;
+
+    // "Importar em Massa" — habilitado exceto quando mais de 1 empresa selecionada
+    const importBtn = document.getElementById('btn-importar-em-massa');
+    if (importBtn) {
+        const moreThanOne = count > 1;
+        importBtn.disabled = moreThanOne;
+        importBtn.title = moreThanOne
+            ? 'Desabilite a seleção múltipla para usar a importação em massa'
+            : 'Importe empresas e contatos em massa via planilha';
+    }
 
     // Estado do checkbox "selecionar todos"
     const selectAllCb = document.getElementById('select-all-companies');
@@ -1319,11 +1330,15 @@ document.addEventListener('click', (e) => {
 });
 export function initGlobalPickers() {
     // Aplicar Flatpickr em todos os inputs de data do sistema
-    flatpickr("input[type='date'], .datepicker", {
-        dateFormat: "Y-m-d", // Formato para o DB continuar funcionando
-        altInput: true,
-        altFormat: "d/m/Y", // Formato visual 10/10
-        locale: "pt"
+    // Exceto os marcados com .no-flatpickr (ex: audit-log, que usam color-scheme:dark nativo)
+    const dateInputs = document.querySelectorAll("input[type='date']:not(.no-flatpickr), .datepicker:not(.no-flatpickr)");
+    dateInputs.forEach(el => {
+        flatpickr(el, {
+            dateFormat: "Y-m-d", // Formato para o DB continuar funcionando
+            altInput: true,
+            altFormat: "d/m/Y", // Formato visual 10/10
+            locale: "pt"
+        });
     });
 }
 export function switchProdTab(event, tabId) {

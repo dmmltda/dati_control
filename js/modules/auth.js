@@ -129,9 +129,27 @@ async function _bootstrapApp() {
         window.__usuarioAtual = me;
         console.log(`[Auth] ✅ Sincronizado: ${me.nome} (${me.role})`);
 
+        // ── Atualiza sidebar com dados reais do usuário ──────────────────
+        const elNome   = document.getElementById('sidebar-user-name');
+        const elRole   = document.getElementById('sidebar-user-role');
+        const elAvatar = document.getElementById('sidebar-user-avatar');
+        if (elNome)   elNome.textContent   = me.nome  || me.email || 'Usuário';
+        if (elRole)   elRole.textContent   = me.user_type === 'master' ? 'Master' : 'Standard';
+        if (elAvatar) elAvatar.textContent = me.avatar
+            || (me.nome ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
+
+        // Mostra menu Configurações só para master
+        if (me.user_type === 'master') {
+            const navConfig = document.getElementById('nav-group-config');
+            if (navConfig) navConfig.style.display = 'block';
+        }
+
         try {
+            // Limpa cache local antes de carregar — garante que standard users não vejam dados antigos
+            localStorage.removeItem('dati_control_companies');
             const companies = await api.getCompanies();
             state.companies = companies;
+            localStorage.setItem('dati_control_companies', JSON.stringify(companies)); // atualiza cache
             console.log(`[Auth] ✅ ${companies.length} empresas carregadas.`);
         } catch (err) {
             console.warn('[Auth] Erro ao carregar empresas:', err.message);

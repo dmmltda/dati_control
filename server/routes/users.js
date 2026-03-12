@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireMaster } from '../middleware/checkAccess.js';
+import * as audit from '../services/audit.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -195,6 +196,12 @@ router.put('/:id', requireMaster, async (req, res) => {
     }
 
     try {
+        // Snapshot antes para diff
+        const before = await prisma.users.findUnique({
+            where: { id },
+            select: { nome: true, user_type: true, phone: true, department: true, ativo: true }
+        });
+
         const updated = await prisma.users.update({
             where: { id },
             data: {
@@ -205,6 +212,26 @@ router.put('/:id', requireMaster, async (req, res) => {
                 updatedAt: new Date(),
             }
         });
+
+        // ── Audit log: edição de usuário ────────────────────────────────────
+        if (before) {
+            const changes = {};
+            if (user_type !== undefined) changes.user_type = user_type;
+            if (phone !== undefined) changes.phone = phone;
+            if (department !== undefined) changes.department = department;
+            if (ativo !== undefined) changes.ativo = ativo;
+            const { description, meta } = audit.diff(before, changes, 'user', before.nome);
+            audit.log(prisma, {
+                actor:       req.usuarioAtual,
+                action:      'UPDATE',
+                entity_type: 'user',
+                entity_id:   id,
+                entity_name: before.nome,
+                description,
+                meta,
+                ip_address:  req.ip,
+            });
+        }
 
         console.log(`[PUT /api/users/${id}] ✅ Usuário atualizado: ${updated.nome}`);
         res.json(updated);

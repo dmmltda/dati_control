@@ -78,8 +78,9 @@ function iniciarPaineis() {
   try { renderKPICards('painel-kpi', empresas, statsVars); }
   catch (e) { console.error('[Dashboard] KPI Cards:', e); }
 
-  try { renderProximosPassos('painel-proximos-passos', empresas, usuarios); }
-  catch (e) { console.error('[Dashboard] Próximos Passos:', e); }
+  // renderProximosPassos é agora assíncrona — busca atividades reais via API
+  renderProximosPassos('painel-proximos-passos', empresas, usuarios)
+    .catch(e => console.error('[Dashboard] Minhas Atividades:', e));
 
   try { renderSalesFunnel('painel-funil', empresas); }
   catch (e) { console.error('[Dashboard] Funil de Vendas:', e); }
@@ -168,7 +169,7 @@ function injetarCSS() {
     }
 
     /* ─── Thead Sticky — fundo dark para evitar ver linhas atrás ─────────────── */
-    #pp-table-wrap thead tr {
+    #ma-table-wrap thead tr {
       position: sticky !important;
       top: 0 !important;
       background: #1d2642 !important;
@@ -179,43 +180,36 @@ function injetarCSS() {
     }
 
     /* ─── Tabela: Scrollbar Dark ─────────────────────────────────────────────── */
-    #pp-table-wrap::-webkit-scrollbar { height: 5px; width: 5px; }
-    #pp-table-wrap::-webkit-scrollbar-track { background: #1d2642; border-radius: 3px; }
-    #pp-table-wrap::-webkit-scrollbar-thumb { background: #26314a; border-radius: 3px; }
-    #pp-table-wrap::-webkit-scrollbar-thumb:hover { background: #5b52f6; }
+    #ma-table-wrap::-webkit-scrollbar { height: 5px; width: 5px; }
+    #ma-table-wrap::-webkit-scrollbar-track { background: #1d2642; border-radius: 3px; }
+    #ma-table-wrap::-webkit-scrollbar-thumb { background: #26314a; border-radius: 3px; }
+    #ma-table-wrap::-webkit-scrollbar-thumb:hover { background: #5b52f6; }
 
     /* Suaviza transições de hover nos cards */
     article[style*="transition"] { will-change: transform; }
 
     /* ─── COMPACTAÇÃO GERAL ─────────────────────────────────────────────────── */
-    /* Painel Próximos Passos — tabela compacta */
+    /* Painel Minhas Atividades — tabela compacta */
     #painel-proximos-passos table td,
     #painel-proximos-passos table th {
       padding: 7px 10px !important;
-
       line-height: 1.4 !important;
     }
 
-    /* Badges de status e estágio na tabela */
+    /* Badges de status na tabela */
     #painel-proximos-passos span[style*="border-radius: 9999px"],
     #painel-proximos-passos span[style*="border-radius:9999px"] {
       padding: 2px 7px !important;
     }
 
-    /* Filtros (tabs + select) */
-    #painel-proximos-passos button[onclick*="setTab"],
-    #painel-proximos-passos button[onclick*="irPagina"] {
-      padding: 4px 10px !important;
-    }
-
-    /* Filtro de responsável — select dark */
+    /* Selects dark */
     #painel-proximos-passos select {
       background: #1d2642 !important;
       border-color: #26314a !important;
       color: #e2e8f0 !important;
     }
 
-    /* Título do painel */
+    /* Título e paragráfo do painel */
     #painel-proximos-passos h2 {
       color: #e2e8f0 !important;
     }
@@ -258,8 +252,8 @@ function injetarCSS() {
     #painel-kpi { margin-bottom: 0.75rem !important; }
     #painel-proximos-passos { margin-bottom: 0.75rem !important; }
 
-    /* Altura máxima da tabela Próximos Passos */
-    #pp-table-wrap {
+    /* Altura máxima da tabela Minhas Atividades */
+    #ma-table-wrap {
       max-height: 36vh !important;
       overflow-y: auto !important;
       overflow-x: auto !important;
@@ -291,10 +285,15 @@ function injetarCSS() {
     }
   
 
-    /* @keyframes do painel Próximos Passos */
-    @keyframes pp-fade-in {
+    /* @keyframes do painel Minhas Atividades */
+    @keyframes ma-fade-in {
       from { opacity: 0; transform: scale(0.88); }
       to   { opacity: 1; transform: scale(1); }
+    }
+    /* Spinner */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
     }
   `;
   // Remove e reinjecta (garante que atualizações do CSS sejam aplicadas)

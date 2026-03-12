@@ -10,9 +10,23 @@ import { clerkMiddleware, requireAuth, getAuth } from '@clerk/express';
 import cron from 'node-cron';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, isEmailConfigured } from './services/email.js';
+import { initQueue, boss } from './services/job-queue.js';
+
 import usersRouter from './routes/users.js';
 import membershipsRouter from './routes/memberships.js';
+import invitesRouter from './routes/invites.js';
 import webhookClerkRouter from './routes/webhook-clerk.js';
+import gabiRouter from './routes/gabi.js';
+import testRunsRouter from './routes/test-runs.js';
+import testScheduleRouter from './routes/test-schedule.js';
+import reportsRouter from './routes/reports.js';
+import auditRouter from './routes/audit.js';
+import googleMeetRouter, { syncPendingRecordings } from './routes/google-meet.js';
+import * as audit from './services/audit.js';
+import { init as initScheduler } from './services/test-scheduler.js';
+
+
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,11 +45,6 @@ const prisma = new PrismaClient({
 });
 const PORT = process.env.PORT || 8000;
 const IS_PROD = process.env.NODE_ENV === 'production';
-
-// ─── Resend (email) ──────────────────────────────────────────────────────────
-const resend = process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY)
-    : null;
 
 // ─── Supabase Storage ────────────────────────────────────────────────────────
 const supabase = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
@@ -78,7 +87,14 @@ app.get(['/', '/index.html'], (req, res) => {
 // ─── Servir arquivos estáticos do frontend ───────────────────────────────────
 // Em desenvolvimento: serve tudo da raiz do projeto
 // Em produção (Railway): serve a partir da raiz também (index.html + css/ + js/)
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '..'), {
+    setHeaders: (res, filePath) => {
+        // Em dev: desabilita cache de JS/CSS para refletir mudanças imediatamente
+        if (!IS_PROD && (filePath.endsWith('.js') || filePath.endsWith('.css'))) {
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+        }
+    },
+}));
 
 // ─── Clerk Middleware ────────────────────────────────────────────────────────
 // Injeta req.auth em todas as requisições. Não bloqueia por si só.
@@ -92,19 +108,22 @@ app.get('/health', (req, res) => {
 
 // ─── Scheduler de Lembretes (node-cron) ────────────────────────────────────
 // Roda a cada minuto e envia alertas de atividades com lembrete vencido
-cron.schedule('* * * * *', async () => {
+// ─── Scheduler de Notificações (pg-boss + node-cron) ────────────────────────
+// Roda a cada 5 minutos para escanear atividades que precisam de disparo
+cron.schedule('*/5 * * * *', async () => {
     try {
         const agora = new Date();
+        const amanha = new Date(agora);
+        amanha.setDate(amanha.getDate() + 1);
+
+        // Scan A — Lembretes agendados (substitui cron atual)
         const lembretes = await prisma.activities.findMany({
             where: {
                 reminder_at: { lte: agora },
                 reminder_sent: false,
-                OR: [{ reminder_email: true }, { reminder_whatsapp: true }],
+                reminder_email: true,
             },
-            include: {
-                activity_assignees: true,
-                companies: { select: { id: true, Nome_da_empresa: true } },
-            },
+            include: { activity_assignees: true },
         });
 
         for (const act of lembretes) {
@@ -113,40 +132,97 @@ cron.schedule('* * * * *', async () => {
                 ...act.activity_assignees.map(a => a.user_id),
             ].filter(Boolean))];
 
-            const usuarios = userIds.length > 0 ? await prisma.users.findMany({
-                where: { id: { in: userIds }, ativo: true },
-            }) : [];
-
-            if (act.reminder_email && process.env.RESEND_API_KEY) {
-                for (const u of usuarios) {
-                    await resend.emails.send({
-                        from: 'DATI Journey <noreply@dati.com.br>',
-                        to: u.email,
-                        subject: `🔔 Lembrete: ${act.title}`,
-                        html: `
-                            <h2>Lembrete de Atividade</h2>
-                            <p><strong>${act.title}</strong></p>
-                            <p>${act.description || ''}</p>
-                            <p>Empresa: ${act.companies?.Nome_da_empresa || 'Nenhuma'}</p>
-                            <p>Tipo: ${act.activity_type} | Status: ${act.status || '—'}</p>
-                        `,
-                    }).catch(e => console.error('[Resend]', e.message));
-                }
+            for (const userId of userIds) {
+                await boss.send('send-notification', 
+                    { type: 'reminder', activityId: act.id, userId },
+                    { singletonKey: `reminder-${act.id}-${userId}` }
+                );
             }
+        }
 
-            if (act.reminder_whatsapp) {
-                // Fase 2: integração Z-API
-                console.log(`[WhatsApp PENDENTE] Lembrete para atividade ${act.id}: ${act.title}`);
-            }
-
-            await prisma.activities.update({
-                where: { id: act.id },
+        if (lembretes.length > 0) {
+            await prisma.activities.updateMany({
+                where: { id: { in: lembretes.map(a => a.id) } },
                 data: { reminder_sent: true },
             });
-            console.log(`[Scheduler] ✅ Lembrete disparado: ${act.title}`);
+            console.log(`[Scan A] Enfileirados ${lembretes.length} lembretes.`);
         }
+
+        // Scan B — Próximo passo (1 dia antes)
+        const proximosPassos = await prisma.activities.findMany({
+            where: {
+                next_step_date: { lte: amanha },
+                next_step_reminder_sent: false,
+                next_step_reminder_email: true,
+            },
+            include: { activity_next_step_responsibles: true },
+        });
+
+        for (const act of proximosPassos) {
+            for (const resp of act.activity_next_step_responsibles) {
+                await boss.send('send-notification',
+                    { type: 'next-step', activityId: act.id, userId: resp.user_id },
+                    { singletonKey: `nextstep-${act.id}-${resp.user_id}` }
+                );
+            }
+        }
+
+        if (proximosPassos.length > 0) {
+            await prisma.activities.updateMany({
+                where: { id: { in: proximosPassos.map(a => a.id) } },
+                data: { next_step_reminder_sent: true },
+            });
+            console.log(`[Scan B] Enfileirados ${proximosPassos.length} próximos passos.`);
+        }
+
+        // Scan C — Gravações não notificadas
+        const gravacoes = await prisma.activities.findMany({
+            where: {
+                recording_url: { not: null },
+                recording_sent: false,
+                send_recording_email: true,
+            },
+            include: { activity_assignees: true },
+        });
+
+        for (const act of gravacoes) {
+            const userIds = [...new Set([
+                act.created_by_user_id,
+                ...act.activity_assignees.map(a => a.user_id),
+            ].filter(Boolean))];
+
+            for (const userId of userIds) {
+                await boss.send('send-notification',
+                    { type: 'recording', activityId: act.id, userId },
+                    { singletonKey: `recording-${act.id}-${userId}` }
+                );
+            }
+        }
+
+        if (gravacoes.length > 0) {
+            await prisma.activities.updateMany({
+                where: { id: { in: gravacoes.map(a => a.id) } },
+                data: { recording_sent: true },
+            });
+            console.log(`[Scan C] Enfileiradas ${gravacoes.length} gravações.`);
+        }
+
     } catch (e) {
-        console.error('[Scheduler] Erro no cron de lembretes:', e.message);
+        console.error('[Scheduler] Erro no scan de notificações:', e.message);
+    }
+});
+
+// ─── Cron: Sync de gravações Google Meet (a cada 5 minutos) ─────────────────
+// Busca gravações de reuniões encerradas há mais de 10 min e vincula à atividade
+cron.schedule('*/5 * * * *', async () => {
+    try {
+        if (!process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return; // Google não configurado — sai silenciosamente
+        const { synced } = await syncPendingRecordings(prisma, supabase);
+        if (synced > 0) {
+            console.log(`[Meet Sync Cron] ✅ ${synced} gravação(ões) vinculada(s)`);
+        }
+    } catch (err) {
+        console.error('[Meet Sync Cron] ❌ Erro:', err.message);
     }
 });
 
@@ -266,6 +342,17 @@ app.get('/api/usuarios', extractUsuario, async (req, res) => {
 // ─── Novas rotas de usuários e memberships ───────────────────────────────────────────────────
 app.use('/api/users', extractUsuario, usersRouter);
 app.use('/api/memberships', extractUsuario, membershipsRouter);
+app.use('/api/invites', extractUsuario, invitesRouter);
+app.use('/api/gabi', gabiRouter);
+// test-runs: POST é sem auth (script ingestor local); GET/PUT protegidos via extractUsuario
+app.use('/api/test-runs', testRunsRouter);
+// test-schedule: agendamento e trigger manual (master only via rota)
+app.use('/api/test-schedule', extractUsuario, testScheduleRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/audit-logs', extractUsuario, auditRouter);
+app.use('/api/google-meet', extractUsuario, googleMeetRouter);
+
+
 
 
 // =============================================================================
@@ -278,7 +365,8 @@ app.use('/api/memberships', extractUsuario, membershipsRouter);
  */
 const COMPANY_RELATIONS = new Set([
     'contacts', 'company_products', 'company_meetings', 'company_dashboards',
-    'company_nps', 'company_notes', 'company_followups', 'company_tickets', 'test_logs'
+    'company_nps', 'company_notes', 'company_followups', 'company_tickets',
+    'test_logs', 'test_runs', 'test_runs_triggered'  // legado + novos modelos
 ]);
 
 /**
@@ -380,13 +468,45 @@ function sanitizeCompanyScalars(raw) {
 // GET all companies with relations
 app.get('/api/companies', extractUsuario, async (req, res) => {
     try {
+        const usuario = req.usuarioAtual;
+        console.log(`[GET /api/companies] user: ${usuario?.email} | type: ${usuario?.user_type}`);
+
+        // ── standard: retorna apenas as empresas com membership ──────────────
+        if (usuario?.user_type === 'standard') {
+            const memberships = await prisma.user_memberships.findMany({
+                where: { user_id: usuario.id },
+                select: { company_id: true }
+            });
+            const allowedIds = memberships.map(m => m.company_id);
+
+            if (allowedIds.length === 0) {
+                return res.json([]); // sem empresas vinculadas → lista vazia
+            }
+
+            const companies = await prisma.companies.findMany({
+                where: { id: { in: allowedIds } },
+                include: {
+                    company_products: { include: { product_historico: true } },
+                    contacts: true,
+                    company_meetings: true,
+                    company_dashboards: true,
+                    company_nps: true,
+                    company_tickets: true,
+                    company_notes: true,
+                    company_followups: true
+                },
+                orderBy: { Nome_da_empresa: 'asc' }
+            });
+            return res.json(companies);
+        }
+
+        // ── master: retorna todas ────────────────────────────────────────────
         const companies = await prisma.companies.findMany({
             include: {
                 company_products: {
                     include: { product_historico: true }
                 },
                 contacts: true,
-                test_logs: true,
                 company_meetings: true,
                 company_dashboards: true,
                 company_nps: true,
@@ -404,7 +524,29 @@ app.get('/api/companies', extractUsuario, async (req, res) => {
     }
 });
 
+
+// GET /api/companies/search — busca leve para autocomplete (sem relações)
+// DEVE vir antes de /api/companies/:id para não ser capturada como parâmetro
+app.get('/api/companies/search', extractUsuario, async (req, res) => {
+    try {
+        const { q = '', limit = 20 } = req.query;
+        const where = q.trim()
+            ? { Nome_da_empresa: { contains: q.trim(), mode: 'insensitive' } }
+            : {};
+        const companies = await prisma.companies.findMany({
+            where,
+            select: { id: true, Nome_da_empresa: true, Status: true },
+            orderBy: { Nome_da_empresa: 'asc' },
+            take: parseInt(limit),
+        });
+        res.json(companies);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET single company
+
 app.get('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
@@ -415,7 +557,6 @@ app.get('/api/companies/:id', extractUsuario, async (req, res) => {
                     include: { product_historico: true }
                 },
                 contacts: true,
-                test_logs: true,
                 company_meetings: true,
                 company_dashboards: true,
                 company_nps: true,
@@ -634,26 +775,12 @@ app.post('/api/companies', extractUsuario, async (req, res) => {
             });
         }
 
-        // test_logs
-        const testLogsPayload = Log_de_Testes ?? test_logs;
-        if (testLogsPayload && testLogsPayload.length > 0) {
-            await prisma.test_logs.createMany({
-                data: testLogsPayload.map(t => ({
-                    ...t,
-                    id: randomUUID(),
-                    companyId: companyId,
-                    updatedAt: new Date()
-                }))
-            });
-        }
-
         // ── PASSO 5: Retornar empresa completa com todas as relações ──────────────
         const fullCompany = await prisma.companies.findUnique({
             where: { id: companyId },
             include: {
                 company_products: { include: { product_historico: true } },
                 contacts: true,
-                test_logs: true,
                 company_meetings: true,
                 company_dashboards: true,
                 company_nps: true,
@@ -664,6 +791,19 @@ app.post('/api/companies', extractUsuario, async (req, res) => {
         });
 
         console.log(`[POST] ✅ Empresa criada: ${companyId}\n`);
+
+        audit.log(prisma, {
+            actor: req.usuarioAtual,
+            action: 'CREATE',
+            entity_type: 'company',
+            entity_id: companyId,
+            entity_name: scalarData.Nome_da_empresa ?? companyId,
+            description: `Criou a empresa "${scalarData.Nome_da_empresa ?? companyId}"`,
+            meta: { fields: Object.keys(scalarData) },
+            company_id: companyId,
+            ip_address: req.ip,
+        });
+
         res.status(201).json(fullCompany);
     } catch (error) {
         console.error('❌ [POST /api/companies] Erro:', error.message);
@@ -677,6 +817,19 @@ app.put('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const { id } = req.params;
         const payload = req.body;
+
+        // Snapshot antes da alteração (para diff no audit log)
+        const companyBefore = await prisma.companies.findUnique({
+            where: { id },
+            select: {
+                Nome_da_empresa: true, Status: true, Health_Score: true, NPS: true,
+                CNPJ_da_empresa: true, Segmento_da_empresa: true, Tipo_de_empresa: true,
+                Cidade: true, Estado: true, Site: true, ERP: true, Lead: true,
+                Modo_da_empresa: true, Nome_do_CS: true, In_cio_com_CS: true,
+                Data_de_churn: true, Motivo_do_churn: true, Data_de_follow_up: true,
+                Principal_Objetivo: true, Expectativa_da_DATI: true,
+            }
+        });
 
         console.log(`\n🔄 [PUT /api/companies/${id}] Iniciando update...`);
         console.log(`[PUT] Chaves recebidas no payload:`, Object.keys(payload).join(', '));
@@ -928,31 +1081,12 @@ app.put('/api/companies/:id', extractUsuario, async (req, res) => {
             console.log(`[PUT] ✅ company_followups sincronizado.`);
         }
 
-        // test_logs
-        const testLogsPayload = Log_de_Testes ?? test_logs;
-        if (testLogsPayload !== undefined) {
-            console.log(`[PUT] Sincronizando test_logs (${(testLogsPayload || []).length} itens)...`);
-            await prisma.test_logs.deleteMany({ where: { companyId: id } });
-            if ((testLogsPayload || []).length > 0) {
-                await prisma.test_logs.createMany({
-                    data: testLogsPayload.map(t => ({
-                        ...t,
-                        id: randomUUID(),
-                        companyId: id,
-                        updatedAt: new Date()
-                    }))
-                });
-            }
-            console.log(`[PUT] ✅ test_logs sincronizado.`);
-        }
-
         // ── PASSO 5: Retornar dados completos atualizados ────────────────────────
         const updatedCompany = await prisma.companies.findUnique({
             where: { id },
             include: {
                 company_products: { include: { product_historico: true } },
                 contacts: true,
-                test_logs: true,
                 company_meetings: true,
                 company_dashboards: true,
                 company_nps: true,
@@ -963,6 +1097,25 @@ app.put('/api/companies/:id', extractUsuario, async (req, res) => {
         });
 
         console.log(`[PUT] ✅ Update completo para empresa ${id}.\n`);
+
+        if (companyBefore) {
+            const { description, meta } = audit.diff(
+                companyBefore, scalarData, 'company',
+                companyBefore.Nome_da_empresa ?? id
+            );
+            audit.log(prisma, {
+                actor: req.usuarioAtual,
+                action: 'UPDATE',
+                entity_type: 'company',
+                entity_id: id,
+                entity_name: companyBefore.Nome_da_empresa ?? id,
+                description,
+                meta,
+                company_id: id,
+                ip_address: req.ip,
+            });
+        }
+
         res.json(updatedCompany);
     } catch (error) {
         console.error(`❌ [PUT /api/companies/${req.params.id}] Erro:`, error.message);
@@ -976,7 +1129,26 @@ app.delete('/api/companies/:id', extractUsuario, async (req, res) => {
     try {
         const id = req.params.id;
         if (!id) return res.status(400).json({ error: 'ID obrigatório' });
+
+        // Snapshot antes de deletar
+        const companyBefore = await prisma.companies.findUnique({
+            where: { id },
+            select: { Nome_da_empresa: true, Status: true, CNPJ_da_empresa: true }
+        });
+
         await prisma.companies.delete({ where: { id } });
+
+        audit.log(prisma, {
+            actor: req.usuarioAtual,
+            action: 'DELETE',
+            entity_type: 'company',
+            entity_id: id,
+            entity_name: companyBefore?.Nome_da_empresa ?? id,
+            description: `Removeu a empresa "${companyBefore?.Nome_da_empresa ?? id}"`,
+            meta: companyBefore ?? undefined,
+            ip_address: req.ip,
+        });
+
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -1697,6 +1869,17 @@ app.post('/api/import/:id/execute', extractUsuario, async (req, res) => {
             data: { status: 'done' },
         });
 
+        // ── Audit log: importação em massa concluída ─────────────────────────
+        audit.log(prisma, {
+            actor:       req.usuarioAtual,
+            action:      'IMPORT',
+            entity_type: 'import',
+            entity_id:   id,
+            entity_name: `Importação #${id.slice(0, 8)}`,
+            description: `Importação em massa concluída: ${companies_created} empresa(s) criada(s), ${contacts_created} contato(s), ${errors} erro(s)${cnpj_conflicts > 0 ? `, ${cnpj_conflicts} conflito(s) de CNPJ ignorado(s)` : ''}`,
+            meta:        { companies_created, contacts_created, errors, cnpj_conflicts, import_id: id },
+        });
+
         res.json({ import_id: id, companies_created, contacts_created, errors, cnpj_conflicts, status: 'done' });
     } catch (err) {
         console.error('[import/execute]', err);
@@ -1733,12 +1916,51 @@ const ACTIVITY_INCLUDE = {
     companies: { select: { id: true, Nome_da_empresa: true } },
 };
 
+/**
+ * Enriquece uma lista de atividades com o nome dos usuários responsáveis e do criador.
+ * Faz um único lookup em lote na tabela `users` para todos os IDs envolvidos.
+ */
+async function enrichActivitiesWithUserNames(activities) {
+    if (!activities || activities.length === 0) return activities;
+
+    // Coletar todos os user_ids únicos presentes nas atividades
+    const userIds = new Set();
+    for (const act of activities) {
+        if (act.created_by_user_id) userIds.add(act.created_by_user_id);
+        (act.activity_assignees || []).forEach(r => userIds.add(r.user_id));
+        (act.activity_next_step_responsibles || []).forEach(r => userIds.add(r.user_id));
+    }
+
+    if (userIds.size === 0) return activities;
+
+    // Buscar todos os nomes de uma vez
+    const users = await prisma.users.findMany({
+        where: { id: { in: [...userIds] } },
+        select: { id: true, nome: true, avatar: true },
+    });
+    const userMap = Object.fromEntries(users.map(u => [u.id, u]));
+
+    // Enriquecer cada atividade
+    return activities.map(act => ({
+        ...act,
+        created_by_user: userMap[act.created_by_user_id] || null,
+        activity_assignees: (act.activity_assignees || []).map(r => ({
+            ...r,
+            user_nome: userMap[r.user_id]?.nome || r.user_id,
+            user_avatar: userMap[r.user_id]?.avatar || null,
+        })),
+        activity_next_step_responsibles: (act.activity_next_step_responsibles || []).map(r => ({
+            ...r,
+            user_nome: userMap[r.user_id]?.nome || r.user_id,
+        })),
+    }));
+}
+
 // ── GET /api/activities (GLOBAL — para "Minhas Tarefas") ─────────────────────
 app.get('/api/activities', extractUsuario, async (req, res) => {
     try {
-        const { nature, assignee, status, priority, company_id, page = 1, pageSize = 50 } = req.query;
+        const { assignee, status, priority, company_id, page = 1, pageSize = 50 } = req.query;
         const where = {};
-        if (nature) where.nature = nature;
         if (status) where.status = status;
         if (priority) where.priority = priority;
         if (company_id) where.company_id = company_id;
@@ -1760,9 +1982,148 @@ app.get('/api/activities', extractUsuario, async (req, res) => {
             skip,
             take: parseInt(pageSize),
         });
-        res.json(activities);
+        const enrichedActivities = await enrichActivitiesWithUserNames(activities);
+        res.json(enrichedActivities);
     } catch (error) {
         console.error('[GET /api/activities]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── POST /api/activities (GLOBAL — criação sem empresa vinculada) ─────────────
+app.post('/api/activities', extractUsuario, async (req, res) => {
+    try {
+        const {
+            activity_type,
+            title,
+            description,
+            department,
+            activity_datetime,
+            status,
+            time_spent_minutes,
+            next_step_title,
+            next_step_date,
+            priority,
+            reminder_at,
+            reminder_email = false,
+            reminder_whatsapp = false,
+            google_meet_link,
+            company_id = null,
+            assignees = [],
+            next_step_responsibles = [],
+            mentions = [],
+            // Novos campos
+            notify_on_assign = false,
+            send_invite_email = false,
+            send_summary_email = false,
+            send_recording_email = false,
+            recording_url = null,
+            next_step_reminder_email = false,
+        } = req.body;
+
+        if (!activity_type || !ACTIVITY_TYPES.includes(activity_type)) {
+            return res.status(400).json({ error: `activity_type inválido. Valores aceitos: ${ACTIVITY_TYPES.join(', ')}` });
+        }
+        if (!title?.trim()) return res.status(400).json({ error: 'title é obrigatório' });
+
+        const activityId = randomUUID();
+
+        await prisma.activities.create({
+            data: {
+                id: activityId,
+                company_id: company_id || null,
+                activity_type,
+                title: title.trim(),
+                description: description?.trim() || null,
+                department: department || null,
+                created_by_user_id: req.usuarioAtual.id,
+                activity_datetime: activity_datetime ? new Date(activity_datetime) : null,
+                status: status || null,
+                time_spent_minutes: time_spent_minutes ? parseInt(time_spent_minutes) : null,
+                next_step_title: next_step_title?.trim() || null,
+                next_step_date: next_step_date ? new Date(next_step_date) : null,
+                priority: priority || null,
+                reminder_at: reminder_at ? new Date(reminder_at) : null,
+                reminder_email: !!reminder_email,
+                reminder_whatsapp: !!reminder_whatsapp,
+                google_meet_link: google_meet_link || null,
+                // Novos campos
+                notify_on_assign: !!notify_on_assign,
+                send_invite_email: !!send_invite_email,
+                send_summary_email: !!send_summary_email,
+                send_recording_email: !!send_recording_email,
+                recording_url: recording_url || null,
+                next_step_reminder_email: !!next_step_reminder_email,
+            }
+        });
+
+        if (assignees.length > 0) {
+            await prisma.activity_assignees.createMany({
+                data: assignees.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+        }
+        if (next_step_responsibles.length > 0) {
+            await prisma.activity_next_step_responsibles.createMany({
+                data: next_step_responsibles.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+        }
+        if (mentions.length > 0) {
+            await prisma.activity_mentions.createMany({
+                data: mentions.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
+            });
+        }
+
+        // ── Gatilhos de Notificação Imediata ──────────────────────────────────
+        const createdBy = req.usuarioAtual.id;
+
+        // 1. Notificar ao atribuir
+        if (notify_on_assign && assignees.length > 0) {
+            for (const uid of assignees) {
+                if (uid === createdBy) continue;
+                await boss.send('send-notification', {
+                    type: 'task-assigned',
+                    activityId,
+                    userId: uid,
+                    extra: { atribuidoPorId: createdBy }
+                }, { singletonKey: `assigned-${activityId}-${uid}` });
+            }
+        }
+
+        // 2. Convite de Reunião
+        const isMeeting = activity_type === 'Reunião';
+        const isFuture = activity_datetime && new Date(activity_datetime) > new Date();
+        if (isMeeting && send_invite_email && isFuture && assignees.length > 0) {
+            for (const uid of assignees) {
+                await boss.send('send-notification', {
+                    type: 'meeting-invite',
+                    activityId,
+                    userId: uid
+                }, { singletonKey: `invite-${activityId}-${uid}` });
+            }
+            await prisma.activities.update({
+                where: { id: activityId },
+                data: { invite_sent: true }
+            });
+        }
+
+        const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
+
+        // ── Audit log: criação de atividade global (Minhas Atividades) ──────────
+        audit.log(prisma, {
+            actor:       req.usuarioAtual,
+            action:      'CREATE',
+            entity_type: 'activity',
+            entity_id:   activityId,
+            entity_name: title.trim(),
+            description: `Criou a atividade "${title.trim()}"`,
+            company_id:  company_id || null,
+        });
+
+        console.log(`[POST /api/activities] ✅ Atividade global criada: ${activityId}`);
+        const fullEnriched = (await enrichActivitiesWithUserNames([full]))[0];
+        res.status(201).json(fullEnriched);
+    } catch (error) {
+        console.error('[POST /api/activities]', error.message);
         res.status(500).json({ error: error.message });
     }
 });
@@ -1795,7 +2156,8 @@ app.get('/api/companies/:id/activities', extractUsuario, async (req, res) => {
             take: parseInt(pageSize),
         });
 
-        res.json(activities);
+        const enrichedActivities = await enrichActivitiesWithUserNames(activities);
+        res.json(enrichedActivities);
     } catch (error) {
         console.error('[GET /activities]', error.message);
         res.status(500).json({ error: error.message });
@@ -1816,7 +2178,6 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
             time_spent_minutes,
             next_step_title,
             next_step_date,
-            nature = 'registro',
             priority,
             reminder_at,
             reminder_email = false,
@@ -1825,6 +2186,13 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
             assignees = [],
             next_step_responsibles = [],
             mentions = [],
+            // Novos campos
+            notify_on_assign = false,
+            send_invite_email = false,
+            send_summary_email = false,
+            send_recording_email = false,
+            recording_url = null,
+            next_step_reminder_email = false,
         } = req.body;
 
         if (!activity_type || !ACTIVITY_TYPES.includes(activity_type)) {
@@ -1851,12 +2219,18 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
                 time_spent_minutes: time_spent_minutes ? parseInt(time_spent_minutes) : null,
                 next_step_title: next_step_title?.trim() || null,
                 next_step_date: next_step_date ? new Date(next_step_date) : null,
-                nature,
                 priority: priority || null,
                 reminder_at: reminder_at ? new Date(reminder_at) : null,
                 reminder_email: !!reminder_email,
                 reminder_whatsapp: !!reminder_whatsapp,
                 google_meet_link: google_meet_link || null,
+                // Novos campos
+                notify_on_assign: !!notify_on_assign,
+                send_invite_email: !!send_invite_email,
+                send_summary_email: !!send_summary_email,
+                send_recording_email: !!send_recording_email,
+                recording_url: recording_url || null,
+                next_step_reminder_email: !!next_step_reminder_email,
             }
         });
 
@@ -1875,22 +2249,69 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
                 data: mentions.map(uid => ({ id: randomUUID(), activity_id: activityId, user_id: String(uid) }))
             });
             // Enviar email imediato a cada mencionado
-            if (process.env.RESEND_API_KEY) {
+            if (isEmailConfigured()) {
                 const mencionados = await prisma.users.findMany({ where: { id: { in: mentions }, ativo: true } });
                 for (const u of mencionados) {
-                    await resend.emails.send({
-                        from: 'DATI Journey <noreply@dati.com.br>',
-                        to: u.email,
-                        subject: `📣 Você foi mencionado: ${title.trim()}`,
-                        html: `<h2>Você foi mencionado em uma atividade</h2><p><strong>${title.trim()}</strong></p><p>${description || ''}</p>`,
-                    }).catch(e => console.error('[Resend mention]', e.message));
+                    await sendEmail({
+                        to:       u.email,
+                        template: 'mention',
+                        data:     { activity: { title, description }, mencionadoPor: req.usuarioAtual },
+                        tag:      `mencao-${activityId}-${u.id}`,
+                        dedupKey: `mencao-${activityId}-${u.id}`,
+                    });
                 }
             }
         }
 
+        // ── Gatilhos de Notificação Imediata ──────────────────────────────────
+        const createdBy = req.usuarioAtual.id;
+
+        // 1. Notificar ao atribuir
+        if (notify_on_assign && assignees.length > 0) {
+            for (const uid of assignees) {
+                if (uid === createdBy) continue;
+                await boss.send('send-notification', {
+                    type: 'task-assigned',
+                    activityId,
+                    userId: uid,
+                    extra: { atribuidoPorId: createdBy }
+                }, { singletonKey: `assigned-${activityId}-${uid}` });
+            }
+        }
+
+        // 2. Convite de Reunião
+        const isMeeting = activity_type === 'Reunião';
+        const isFuture = activity_datetime && new Date(activity_datetime) > new Date();
+        if (isMeeting && send_invite_email && isFuture && assignees.length > 0) {
+            for (const uid of assignees) {
+                await boss.send('send-notification', {
+                    type: 'meeting-invite',
+                    activityId,
+                    userId: uid
+                }, { singletonKey: `invite-${activityId}-${uid}` });
+            }
+            await prisma.activities.update({
+                where: { id: activityId },
+                data: { invite_sent: true }
+            });
+        }
+
         const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
+
+        // ── Audit log: criação de atividade vinculada à empresa ──────────────────
+        audit.log(prisma, {
+            actor:       req.usuarioAtual,
+            action:      'CREATE',
+            entity_type: 'activity',
+            entity_id:   activityId,
+            entity_name: title.trim(),
+            description: `Criou a atividade "${title.trim()}"`,
+            company_id:  companyId,
+        });
+
         console.log(`[POST /activities] ✅ Atividade criada: ${activityId}`);
-        res.status(201).json(full);
+        const fullEnriched = (await enrichActivitiesWithUserNames([full]))[0];
+        res.status(201).json(fullEnriched);
     } catch (error) {
         console.error('[POST /activities]', error.message);
         res.status(500).json({ error: error.message });
@@ -1911,7 +2332,6 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
             time_spent_minutes,
             next_step_title,
             next_step_date,
-            nature,
             priority,
             reminder_at,
             reminder_email,
@@ -1920,9 +2340,19 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
             assignees,
             next_step_responsibles,
             mentions,
+            // Novos campos
+            notify_on_assign,
+            send_invite_email,
+            send_summary_email,
+            send_recording_email,
+            recording_url,
+            next_step_reminder_email,
         } = req.body;
 
-        const existing = await prisma.activities.findUnique({ where: { id: activityId } });
+        const existing = await prisma.activities.findUnique({ 
+            where: { id: activityId },
+            include: { activity_assignees: true }
+        });
         if (!existing) return res.status(404).json({ error: 'Atividade não encontrada' });
 
         if (activity_type && !ACTIVITY_TYPES.includes(activity_type)) {
@@ -1945,13 +2375,19 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
                 time_spent_minutes: time_spent_minutes !== undefined ? (time_spent_minutes ? parseInt(time_spent_minutes) : null) : existing.time_spent_minutes,
                 next_step_title: next_step_title !== undefined ? next_step_title?.trim() || null : existing.next_step_title,
                 next_step_date: next_step_date !== undefined ? (next_step_date ? new Date(next_step_date) : null) : existing.next_step_date,
-                nature: nature !== undefined ? nature : existing.nature,
                 priority: priority !== undefined ? priority || null : existing.priority,
                 reminder_at: newReminderAt,
                 reminder_email: reminder_email !== undefined ? !!reminder_email : existing.reminder_email,
                 reminder_whatsapp: reminder_whatsapp !== undefined ? !!reminder_whatsapp : existing.reminder_whatsapp,
                 reminder_sent: reminderChanged ? false : existing.reminder_sent,
                 google_meet_link: google_meet_link !== undefined ? google_meet_link || null : existing.google_meet_link,
+                // Novos campos
+                notify_on_assign: notify_on_assign !== undefined ? !!notify_on_assign : existing.notify_on_assign,
+                send_invite_email: send_invite_email !== undefined ? !!send_invite_email : existing.send_invite_email,
+                send_summary_email: send_summary_email !== undefined ? !!send_summary_email : existing.send_summary_email,
+                send_recording_email: send_recording_email !== undefined ? !!send_recording_email : existing.send_recording_email,
+                recording_url: recording_url !== undefined ? recording_url || null : existing.recording_url,
+                next_step_reminder_email: next_step_reminder_email !== undefined ? !!next_step_reminder_email : existing.next_step_reminder_email,
             }
         });
 
@@ -1980,9 +2416,73 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
             }
         }
 
+        // ── Gatilhos de Notificação no Update ────────────────────────────────
+        const currentAssignees = assignees || existing.activity_assignees.map(a => a.user_id);
+        const userIds = [...new Set([existing.created_by_user_id, ...currentAssignees].filter(Boolean))];
+
+        // 1. Resumo pós-conclusão
+        const isConcluida = status === 'Concluída';
+        const wasNotConcluida = existing.status !== 'Concluída';
+        if (isConcluida && wasNotConcluida && (send_summary_email || existing.send_summary_email) && !existing.summary_sent) {
+            for (const uid of userIds) {
+                await boss.send('send-notification', {
+                    type: 'meeting-summary',
+                    activityId,
+                    userId: uid
+                }, { singletonKey: `summary-${activityId}-${uid}` });
+            }
+            await prisma.activities.update({
+                where: { id: activityId },
+                data: { summary_sent: true }
+            });
+        }
+
+        // 2. Gravação disponível
+        const recordingNowAvailable = recording_url && !existing.recording_url;
+        if (recordingNowAvailable && (send_recording_email || existing.send_recording_email)) {
+            for (const uid of userIds) {
+                await boss.send('send-notification', {
+                    type: 'recording',
+                    activityId,
+                    userId: uid
+                }, { singletonKey: `recording-${activityId}-${uid}` });
+            }
+            await prisma.activities.update({
+                where: { id: activityId },
+                data: { recording_sent: true }
+            });
+        }
+
         const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
+
+        // ── Audit log: atualização de atividade (kanban drag-drop, drawer, modal) ─
+        const { description: auditDesc, meta: auditMeta } = audit.diff(
+            existing,
+            {
+                activity_type: activity_type ?? existing.activity_type,
+                title:         title?.trim() ?? existing.title,
+                description:   description !== undefined ? description?.trim() || null : existing.description,
+                department:    department !== undefined ? department || null : existing.department,
+                status:        status !== undefined ? status || null : existing.status,
+                priority:      priority !== undefined ? priority || null : existing.priority,
+            },
+            'activity',
+            existing.title,
+        );
+        audit.log(prisma, {
+            actor:       req.usuarioAtual,
+            action:      'UPDATE',
+            entity_type: 'activity',
+            entity_id:   activityId,
+            entity_name: existing.title,
+            description: auditDesc,
+            meta:        auditMeta,
+            company_id:  existing.company_id || null,
+        });
+
         console.log(`[PUT /activities/${activityId}] ✅ Atividade atualizada`);
-        res.json(full);
+        const fullEnriched = (await enrichActivitiesWithUserNames([full]))[0];
+        res.json(fullEnriched);
     } catch (error) {
         console.error('[PUT /activities]', error.message);
         res.status(500).json({ error: error.message });
@@ -1993,7 +2493,23 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
 app.delete('/api/activities/:activityId', extractUsuario, async (req, res) => {
     try {
         const { activityId } = req.params;
+
+        // Busca antes de deletar para registrar no audit
+        const toDelete = await prisma.activities.findUnique({ where: { id: activityId }, select: { title: true, company_id: true } });
+
         await prisma.activities.delete({ where: { id: activityId } });
+
+        // ── Audit log: exclusão de atividade ────────────────────────────────────
+        audit.log(prisma, {
+            actor:       req.usuarioAtual,
+            action:      'DELETE',
+            entity_type: 'activity',
+            entity_id:   activityId,
+            entity_name: toDelete?.title || activityId,
+            description: `Excluiu a atividade "${toDelete?.title || activityId}"`,
+            company_id:  toDelete?.company_id || null,
+        });
+
         console.log(`[DELETE /activities/${activityId}] ✅ Atividade excluída`);
         res.status(204).send();
     } catch (error) {
@@ -2078,125 +2594,7 @@ app.delete('/api/activities/attachments/:attachmentId', extractUsuario, async (r
     }
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// CATÁLOGO DE PRODUTOS DATI — CRUD Completo
-// Rotas para gerenciar o portfólio de produtos DATI (independente de empresas)
-// ══════════════════════════════════════════════════════════════════════════════
 
-// GET /api/catalogo-produtos — lista todos os produtos do catálogo
-app.get('/api/catalogo-produtos', extractUsuario, async (req, res) => {
-    try {
-        const produtos = await prisma.product_catalog.findMany({
-            orderBy: [{ ordem: 'asc' }, { nome: 'asc' }],
-        });
-        res.json(produtos);
-    } catch (error) {
-        console.error('[Catálogo] GET:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// GET /api/catalogo-produtos/:id — busca produto específico
-app.get('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
-    try {
-        const produto = await prisma.product_catalog.findUnique({
-            where: { id: req.params.id },
-        });
-        if (!produto) return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
-        res.json(produto);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// POST /api/catalogo-produtos — cria novo produto no catálogo
-app.post('/api/catalogo-produtos', extractUsuario, async (req, res) => {
-    try {
-        const {
-            nome, descricao, categoria, status, icone,
-            cor_badge, ordem, site_url, video_url, beneficios, publico_alvo
-        } = req.body;
-
-        if (!nome || !nome.trim()) {
-            return res.status(400).json({ error: 'Nome do produto é obrigatório' });
-        }
-
-        const produto = await prisma.product_catalog.create({
-            data: {
-                nome: nome.trim(),
-                descricao: descricao?.trim() || null,
-                categoria: categoria?.trim() || null,
-                status: status || 'Ativo',
-                icone: icone || 'ph-cube',
-                cor_badge: cor_badge || '#5b52f6',
-                ordem: typeof ordem === 'number' ? ordem : 0,
-                site_url: site_url?.trim() || null,
-                video_url: video_url?.trim() || null,
-                beneficios: beneficios?.trim() || null,
-                publico_alvo: publico_alvo?.trim() || null,
-            },
-        });
-
-        console.log(`[Catálogo] ✅ Produto criado: ${produto.nome} (${produto.id})`);
-        res.status(201).json(produto);
-    } catch (error) {
-        console.error('[Catálogo] POST:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// PUT /api/catalogo-produtos/:id — atualiza produto do catálogo
-app.put('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
-    try {
-        const { id } = req.params;
-        const {
-            nome, descricao, categoria, status, icone,
-            cor_badge, ordem, site_url, video_url, beneficios, publico_alvo
-        } = req.body;
-
-        if (!nome || !nome.trim()) {
-            return res.status(400).json({ error: 'Nome do produto é obrigatório' });
-        }
-
-        const produto = await prisma.product_catalog.update({
-            where: { id },
-            data: {
-                nome: nome.trim(),
-                descricao: descricao?.trim() || null,
-                categoria: categoria?.trim() || null,
-                status: status || 'Ativo',
-                icone: icone || 'ph-cube',
-                cor_badge: cor_badge || '#5b52f6',
-                ordem: typeof ordem === 'number' ? ordem : 0,
-                site_url: site_url?.trim() || null,
-                video_url: video_url?.trim() || null,
-                beneficios: beneficios?.trim() || null,
-                publico_alvo: publico_alvo?.trim() || null,
-            },
-        });
-
-        console.log(`[Catálogo] ✅ Produto atualizado: ${produto.nome} (${id})`);
-        res.json(produto);
-    } catch (error) {
-        if (error.code === 'P2025') return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
-        console.error('[Catálogo] PUT:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// DELETE /api/catalogo-produtos/:id — remove produto do catálogo
-app.delete('/api/catalogo-produtos/:id', extractUsuario, async (req, res) => {
-    try {
-        const { id } = req.params;
-        await prisma.product_catalog.delete({ where: { id } });
-        console.log(`[Catálogo] ✅ Produto removido: ${id}`);
-        res.status(204).send();
-    } catch (error) {
-        if (error.code === 'P2025') return res.status(404).json({ error: 'Produto não encontrado no catálogo' });
-        console.error('[Catálogo] DELETE:', error.message);
-        res.status(500).json({ error: error.message });
-    }
-});
 
 // ─── SPA Fallback (produção) — qualquer rota não-API retorna o index.html ────
 // DEVE vir DEPOIS de todas as rotas /api e dos statics.
@@ -2207,7 +2605,7 @@ if (IS_PROD) {
     });
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     const env = process.env.NODE_ENV || 'development';
     console.log(`\n🚀 Journey rodando na porta ${PORT} — ${env}`);
     if (IS_PROD) {
@@ -2216,4 +2614,19 @@ app.listen(PORT, () => {
         console.log(`📍 Local: http://localhost:${PORT}`);
     }
     console.log(`📌 Banco de Dados: ${IS_PROD ? 'PostgreSQL Railway' : 'PostgreSQL Local'}\n`);
+
+    // Inicia o scheduler de testes (node-cron)
+    try {
+        await initScheduler();
+    } catch (err) {
+        console.warn('⚠️  Scheduler não inicializado:', err.message);
+    }
+
+    // Inicia a fila de jobs pg-boss
+    try {
+        await initQueue();
+    } catch (err) {
+        console.warn('⚠️  pg-boss não inicializado:', err.message);
+    }
 });
+

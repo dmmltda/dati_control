@@ -103,15 +103,6 @@ export async function handleCompanySubmit(e) {
             Health_Score: document.getElementById('emp-health-score').value || null,
             NPS: document.getElementById('emp-nps').value || null,
 
-            // Qualificação
-            Tem_algum_comex: document.getElementById('qual-tem-comex').value || null,
-            Qual_comex: document.getElementById('qual-qual-comex').value || null,
-            ERP: document.getElementById('qual-tem-erp').value || null,
-            Dores_Gargalos: document.getElementById('qual-dores').value || null,
-            Principal_Objetivo: document.getElementById('qual-objetivo').value || null,
-            Expectativa_da_DATI: document.getElementById('qual-expectativa').value || null,
-            Qual_ERP: document.getElementById('qual-qual-erp').value.trim() || null,
-
             Produtos: (state.tempProdutos || []).map(p => ({
                 nome: p.nome,
                 tipoCobranca: p.tipoCobranca,
@@ -207,11 +198,6 @@ export async function handleCompanySubmit(e) {
                 Site: document.getElementById('emp-site')?.value?.trim(),
                 Health_Score: document.getElementById('emp-health-score')?.value,
                 NPS: document.getElementById('emp-nps')?.value,
-                Tem_algum_comex: document.getElementById('qual-tem-comex')?.value,
-                ERP: document.getElementById('qual-tem-erp')?.value,
-                Dores_Gargalos: document.getElementById('qual-dores')?.value?.trim(),
-                Principal_Objetivo: document.getElementById('qual-objetivo')?.value?.trim(),
-                Expectativa_da_DATI: document.getElementById('qual-expectativa')?.value?.trim(),
             };
 
             // Inclui somente campos com valor preenchido

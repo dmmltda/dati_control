@@ -1,0 +1,7 @@
+# Artefatos gerados durante execução dos E2E — não commitar
+results/
+report/
+.auth/*.json
+
+# Arquivo de env local (com senhas reais)
+.env.e2e.local

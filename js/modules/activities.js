@@ -37,8 +37,8 @@ export const ACTIVITY_DEPARTMENTS = [
 ];
 
 export const ACTIVITY_STATUSES = [
-    'Aberta',
-    'Em andamento',
+    'A Fazer',
+    'Em Andamento',
     'Concluída',
     'Cancelada',
 ];
@@ -157,12 +157,12 @@ function _buildManager(data) {
             { key: 'title', label: 'Título', type: 'string', searchable: true },
             { key: 'description', label: 'Descrição', type: 'string', searchable: true },
             { key: 'department', label: 'Departamento', type: 'string', searchable: true, filterable: true },
+            { key: 'status', label: 'Fase da Atividade', type: 'string', filterable: true },
             { key: 'assignees', label: 'Responsáveis', type: 'string', searchable: true },
             { key: 'created_by', label: 'Criado por', type: 'string', searchable: true },
             { key: 'activity_date', label: 'Data', type: 'date', sortable: true },
             { key: 'time_spent', label: 'Tempo', type: 'string' },
             { key: 'next_step', label: 'Próximo Passo', type: 'string', searchable: true },
-            { key: 'status', label: 'Status', type: 'string', filterable: true },
         ],
         pageSize: 10,
         tableId: 'activities-table',
@@ -189,10 +189,9 @@ function _mapActivities(data) {
         ...a,
         activity_date: a.activity_datetime ? new Date(a.activity_datetime).toLocaleDateString('pt-BR') : '-',
         time_spent: a.time_spent_minutes ? _formatMinutes(a.time_spent_minutes) : '-',
-        assignees: (a.activity_assignees || []).map(r => r.user_id).join(', ') || '-',
-        created_by: a.created_by_user_id || '-',
+        assignees: (a.activity_assignees || []).map(r => r.user_nome || r.user_id).join(', ') || '-',
+        created_by: a.created_by_user?.nome || a.created_by_user_id || '-',
         next_step: a.next_step_title ? `${a.next_step_title}${a.next_step_date ? ' · ' + new Date(a.next_step_date).toLocaleDateString('pt-BR') : ''}` : '-',
-        nature: a.nature || 'registro',
         priority: a.priority || null,
     }));
 }
@@ -236,6 +235,13 @@ function _renderRows(rows) {
             : '-';
 
         const tr = document.createElement('tr');
+        tr.style.cssText = 'cursor:pointer;transition:background 0.15s;';
+        tr.addEventListener('mouseenter', () => tr.style.background = 'rgba(99,102,241,0.06)');
+        tr.addEventListener('mouseleave', () => tr.style.background = '');
+        tr.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return; // don't open card if clicking action buttons
+            activities.openActivityCard(act.id);
+        });
         tr.innerHTML = `
             <td>
                 <span class="badge" style="background:${cfg.color}18;color:${cfg.color};border:1px solid ${cfg.color}44;white-space:nowrap;gap:0.3rem;">
@@ -261,8 +267,8 @@ function _renderRows(rows) {
             <td style="text-align:center;">${statusBadge}</td>
             <td style="text-align:right;">
                 <div class="actions">
-                    <button type="button" class="btn btn-secondary btn-icon" onclick="activities.openEditModal('${act.id}')" title="Editar">
-                        <i class="ph ph-pencil-simple"></i>
+                    <button type="button" class="btn btn-secondary btn-icon" onclick="activities.openActivityCard('${act.id}')" title="Ver detalhes">
+                        <i class="ph ph-arrow-square-out"></i>
                     </button>
                     <button type="button" class="btn btn-danger btn-icon" onclick="activities.deleteActivity('${act.id}')" title="Excluir">
                         <i class="ph ph-trash"></i>
@@ -275,11 +281,11 @@ function _renderRows(rows) {
 }
 
 function _statusBg(s) {
-    const m = { 'Aberta': 'rgba(99,102,241,0.12)', 'Em andamento': 'rgba(245,158,11,0.12)', 'Concluída': 'rgba(16,185,129,0.12)', 'Cancelada': 'rgba(239,68,68,0.12)' };
+    const m = { 'A Fazer': 'rgba(99,102,241,0.12)', 'Em Andamento': 'rgba(245,158,11,0.12)', 'Concluída': 'rgba(16,185,129,0.12)', 'Cancelada': 'rgba(239,68,68,0.12)' };
     return m[s] || 'rgba(255,255,255,0.05)';
 }
 function _statusColor(s) {
-    const m = { 'Aberta': '#818cf8', 'Em andamento': '#f59e0b', 'Concluída': '#10b981', 'Cancelada': '#ef4444' };
+    const m = { 'A Fazer': '#818cf8', 'Em Andamento': '#f59e0b', 'Concluída': '#10b981', 'Cancelada': '#ef4444' };
     return m[s] || 'var(--text-muted)';
 }
 
@@ -369,7 +375,7 @@ function _renderFiltersBar() {
             </select>
 
             <select id="filter-act-status" class="input-control" style="min-width:140px;max-width:170px;" onchange="activities.applyFilter('status', this.value)">
-                <option value="">Status: todos</option>
+                <option value="">Fase: todas</option>
                 ${ACTIVITY_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
 
@@ -447,9 +453,10 @@ function _showModal({ title, submitLabel, prefill }) {
     const existing = document.getElementById('activity-modal-overlay');
     if (existing) existing.remove();
 
-    const assigneesValue = prefill ? (prefill.activity_assignees || []).map(r => r.user_id).join(', ') : '';
+    const assigneesValue = prefill ? (prefill.activity_assignees || []).map(r => r.user_nome || r.user_id).join(', ') : '';
     const nextStepResp = prefill ? (prefill.activity_next_step_responsibles || []).map(r => r.user_id).join(', ') : '';
-    const dtValue = prefill?.activity_datetime ? new Date(prefill.activity_datetime).toISOString().slice(0, 16) : '';
+    const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const dtValue = prefill?.activity_datetime ? new Date(prefill.activity_datetime).toISOString().slice(0, 16) : nowLocal;
     const nextDtValue = prefill?.next_step_date ? new Date(prefill.next_step_date).toISOString().slice(0, 10) : '';
 
     const overlay = document.createElement('div');
@@ -503,7 +510,13 @@ function _showModal({ title, submitLabel, prefill }) {
                     <div class="input-group">
                         <label>Responsáveis * <span class="th-info-btn" data-th-title="RESPONSÁVEIS" data-th-tooltip="Colaboradores DATI que participaram ou são responsáveis. Separe vários nomes por vírgula."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <input type="text" id="modal-act-assignees" class="input-control" required placeholder="Nome dos responsáveis" value="${assigneesValue}">
-                        <span style="font-size:0.73rem;color:var(--text-muted);margin-top:0.25rem;display:block;">Separe por vírgula</span>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.35rem;">
+                            <span style="font-size:0.73rem;color:var(--text-muted);">Separe por vírgula</span>
+                            <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;cursor:pointer;color:var(--primary);font-weight:600;">
+                                <input type="checkbox" id="modal-act-notify-assign" ${prefill?.notify_on_assign ? 'checked' : ''} style="width:13px;height:13px;accent-color:var(--primary);">
+                                Notificar por e-mail
+                            </label>
+                        </div>
                     </div>
                     <div class="input-group">
                         <label>Data e Horário * <span class="th-info-btn" data-th-title="DATA E HORÁRIO" data-th-tooltip="Quando a atividade ocorreu ou está agendada. Usado para ordenar a timeline cronologicamente."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
@@ -518,22 +531,12 @@ function _showModal({ title, submitLabel, prefill }) {
 
                 <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Status <span class="th-info-btn" data-th-title="STATUS" data-th-tooltip="Estado: Aberta (não iniciada), Em andamento, Concluída, Cancelada."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
+                        <label>Fase da Atividade <span class="th-info-btn" data-th-title="FASE DA ATIVIDADE" data-th-tooltip="Estado: A fazer, Em andamento, Concluída, Cancelada."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-status" class="input-control">
                             <option value="">Selecione...</option>
                             ${ACTIVITY_STATUSES.map(s => `<option value="${s}" ${prefill?.status === s ? 'selected' : ''}>${s}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="input-group">
-                        <label>Natureza <span class="th-info-btn" data-th-title="NATUREZA" data-th-tooltip="Registro = interação já realizada. Tarefa = ação a ser realizada (aparece em Minhas Tarefas)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
-                        <select id="modal-act-nature" class="input-control">
-                            <option value="registro" ${(prefill?.nature||'registro')==='registro'?'selected':''}>Registro (histórico)</option>
-                            <option value="tarefa" ${prefill?.nature==='tarefa'?'selected':''}>Tarefa (a fazer)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="grid-2" style="margin-bottom:1rem;">
                     <div class="input-group">
                         <label>Prioridade <span class="th-info-btn" data-th-title="PRIORIDADE" data-th-tooltip="Nível de urgência: Urgente = requer atenção imediata, Alta = hoje, Média = esta semana, Baixa = quando possível."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
                         <select id="modal-act-priority" class="input-control">
@@ -541,9 +544,39 @@ function _showModal({ title, submitLabel, prefill }) {
                             ${ACTIVITY_PRIORITIES.map(p => `<option value="${p}" ${prefill?.priority===p?'selected':''}>${PRIORITY_CONFIG[p]?.label||p}</option>`).join('')}
                         </select>
                     </div>
+                </div>
+
+                <div class="grid-1" style="margin-bottom:1rem;">
                     <div class="input-group">
-                        <label>Google Meet Link  <i class="ph ph-video" style="color:#6366f1;"></i></label>
+                        <label>Google Meet Link  <i class="ph ph-video" style="color:#6366f1;"></i></label>
                         <input type="url" id="modal-act-meet-link" class="input-control" placeholder="https://meet.google.com/xxx" value="${prefill?.google_meet_link||''}">
+                    </div>
+                </div>
+
+                <!-- Configurações de Reunião (Condicional) -->
+                <div id="modal-sec-meeting-opts" style="display:${prefill?.activity_type === 'Reunião' ? 'block' : 'none'}; background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.15); border-radius:12px; padding:1.25rem; margin-bottom:1rem;">
+                    <div style="font-weight:700; font-size:0.75rem; color:#818cf8; text-transform:uppercase; margin-bottom:0.85rem; letter-spacing:0.05em; display:flex; align-items:center; gap:0.4rem;">
+                        <i class="ph ph-video-camera"></i> Configurações de Reunião
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                        <div style="display:flex; flex-direction:column; gap:0.6rem;">
+                            <label style="display:flex; align-items:center; gap:0.45rem; cursor:pointer; font-size:0.8rem;">
+                                <input type="checkbox" id="modal-act-send-invite" ${prefill?.send_invite_email ? 'checked' : ''} style="accent-color:#6366f1;">
+                                Enviar Convite por e-mail
+                            </label>
+                            <label style="display:flex; align-items:center; gap:0.45rem; cursor:pointer; font-size:0.8rem;">
+                                <input type="checkbox" id="modal-act-send-summary" ${prefill?.send_summary_email ? 'checked' : ''} style="accent-color:#10b981;">
+                                Enviar Resumo ao concluir
+                            </label>
+                            <label style="display:flex; align-items:center; gap:0.45rem; cursor:pointer; font-size:0.8rem;">
+                                <input type="checkbox" id="modal-act-send-recording" ${prefill?.send_recording_email ? 'checked' : ''} style="accent-color:#ef4444;">
+                                Avisar sobre Gravação disponível
+                            </label>
+                        </div>
+                        <div class="input-group" style="margin-bottom:0;">
+                            <label style="font-size:0.75rem;">URL do Vídeo da Gravação</label>
+                            <input type="url" id="modal-act-recording-url" class="input-control" placeholder="Link da gravação (ex: cloud/drive)" value="${prefill?.recording_url || ''}">
+                        </div>
                     </div>
                 </div>
 
@@ -577,7 +610,13 @@ function _showModal({ title, submitLabel, prefill }) {
 
                 <!-- Próximo Passo -->
                 <div class="glass-panel" style="padding:1rem;margin-bottom:1.5rem;border:1px solid var(--dark-border);">
-                    <div style="font-weight:600;margin-bottom:0.75rem;"><i class="ph ph-arrow-right-dashed" style="color:var(--secondary);"></i> Próximo Passo</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                        <div style="font-weight:600;"><i class="ph ph-arrow-right-dashed" style="color:var(--secondary);"></i> Próximo Passo</div>
+                        <label id="modal-wrapper-next-reminder" style="display:${nextDtValue ? 'flex' : 'none'}; align-items:center; gap:0.35rem; font-size:0.75rem; cursor:pointer; color:var(--secondary); font-weight:600;">
+                            <input type="checkbox" id="modal-act-next-reminder" ${prefill?.next_step_reminder_email ? 'checked' : ''} style="width:13px;height:13px;accent-color:var(--secondary);">
+                            Lembrar por e-mail (1 dia antes)
+                        </label>
+                    </div>
                     <div class="grid-2" style="margin-bottom:0.75rem;">
                         <div class="input-group" style="margin-bottom:0;">
                             <label>Título do Próximo Passo <span class="th-info-btn" data-th-title="PRÓXIMO PASSO" data-th-tooltip="Ação concreta a ser realizada após esta atividade. Aparecerá na coluna 'Próximo Passo' na tabela de Empresas e de Atividades."><i class="ph ph-info"></i><span class="th-pulse"></span></span></label>
@@ -645,6 +684,17 @@ function _showModal({ title, submitLabel, prefill }) {
     const descTA = document.getElementById('modal-act-desc');
     if (descTA) _initMentionAutocomplete(descTA);
 
+    // Listeners condicionais
+    document.getElementById('modal-act-type').addEventListener('change', (e) => {
+        const sec = document.getElementById('modal-sec-meeting-opts');
+        if (sec) sec.style.display = e.target.value === 'Reunião' ? 'block' : 'none';
+    });
+
+    document.getElementById('modal-act-next-date').addEventListener('input', (e) => {
+        const wrapper = document.getElementById('modal-wrapper-next-reminder');
+        if (wrapper) wrapper.style.display = e.target.value ? 'flex' : 'none';
+    });
+
     // Reset pending attachments
     _pendingAttachments = [];
 
@@ -678,7 +728,6 @@ async function _handleModalSubmit() {
     }
 
     const status = document.getElementById('modal-act-status')?.value || null;
-    const nature = document.getElementById('modal-act-nature')?.value || 'registro';
     const priority = document.getElementById('modal-act-priority')?.value || null;
     const timeMinInput = parseInt(document.getElementById('modal-act-time-min')?.value || '0');
     const timeMin = timeMinInput > 0 ? timeMinInput : (_timerSeconds > 0 ? Math.ceil(_timerSeconds / 60) : null);
@@ -689,6 +738,14 @@ async function _handleModalSubmit() {
     const reminderEmail = document.getElementById('modal-act-reminder-email')?.checked || false;
     const reminderWhatsapp = document.getElementById('modal-act-reminder-wpp')?.checked || false;
     const googleMeetLink = document.getElementById('modal-act-meet-link')?.value?.trim() || null;
+
+    // Novos campos
+    const notifyOnAssign = document.getElementById('modal-act-notify-assign')?.checked || false;
+    const sendInviteEmail = document.getElementById('modal-act-send-invite')?.checked || false;
+    const sendSummaryEmail = document.getElementById('modal-act-send-summary')?.checked || false;
+    const sendRecordingEmail = document.getElementById('modal-act-send-recording')?.checked || false;
+    const recordingUrl = document.getElementById('modal-act-recording-url')?.value?.trim() || null;
+    const nextStepReminderEmail = document.getElementById('modal-act-next-reminder')?.checked || false;
 
     const assigneeList = assignees.split(',').map(s => s.trim()).filter(Boolean);
     const nextRespList = nextResp ? nextResp.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -701,7 +758,6 @@ async function _handleModalSubmit() {
         department: dept,
         activity_datetime: datetime ? new Date(datetime).toISOString() : null,
         status,
-        nature,
         priority,
         time_spent_minutes: timeMin,
         next_step_title: nextTitle,
@@ -713,6 +769,13 @@ async function _handleModalSubmit() {
         reminder_email: reminderEmail,
         reminder_whatsapp: reminderWhatsapp,
         google_meet_link: googleMeetLink,
+        // Novos campos
+        notify_on_assign: notifyOnAssign,
+        send_invite_email: sendInviteEmail,
+        send_summary_email: sendSummaryEmail,
+        send_recording_email: sendRecordingEmail,
+        recording_url: recordingUrl,
+        next_step_reminder_email: nextStepReminderEmail,
     };
 
     try {
@@ -724,6 +787,11 @@ async function _handleModalSubmit() {
             savedActivity = await createActivity(_currentCompanyId, payload);
             utils.showToast('Atividade criada!', 'success');
         }
+
+        // 🔔 Notifica outros painéis (Dashboard, Minhas Atividades) para atualizar em tempo real
+        window.dispatchEvent(new CustomEvent('journey:activity-changed', {
+            detail: { action: _editingActivityId ? 'update' : 'create', id: savedActivity?.id }
+        }));
 
         // Upload de anexos pendentes
         if (_pendingAttachments.length > 0) {
@@ -948,11 +1016,638 @@ export async function deleteActivity(activityId) {
     try {
         await _deleteActivityApi(activityId);
         utils.showToast('Atividade excluída!', 'success');
+        // Notifica outros painéis (Dashboard, Minhas Atividades) da exclusão
+        window.dispatchEvent(new CustomEvent('journey:activity-changed', {
+            detail: { action: 'delete', id: activityId }
+        }));
         await _reloadActivities();
     } catch (e) {
         utils.showToast(e.message, 'error');
     }
 }
 
+/**
+ * Inicia uma reunião Google Meet para a atividade informada.
+ * - Se Google Meet não estiver configurado no backend, exibe toast de erro amigável.
+ * - Se sucesso: abre o link em nova aba e atualiza o card sem reload da página.
+ *
+ * @param {string} activityId
+ */
+export async function startMeeting(activityId) {
+    try {
+        utils.showToast('Criando sala de reunião...', 'info');
+
+        const res = await fetch('/api/google-meet/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activityId }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            const msg = data.error || 'Erro ao criar reunião Google Meet.';
+            // Mensagem amigável para quem não configurou o Google
+            if (res.status === 503) {
+                utils.showToast('Integração Google Meet não configurada. Configure GOOGLE_SERVICE_ACCOUNT_JSON no servidor.', 'error');
+            } else {
+                utils.showToast(msg, 'error');
+            }
+            return;
+        }
+
+        const meetLink = data.meetLink;
+
+        // Abre o link em nova aba
+        window.open(meetLink, '_blank', 'noopener,noreferrer');
+
+        utils.showToast('Reunião criada! Sala aberta em nova aba.', 'success');
+
+        // Atualiza o botão no card aberto sem fechar o overlay
+        const initBtn = document.getElementById('adc-meet-start-btn');
+        const enterBtn = document.getElementById('adc-meet-enter-btn');
+        if (initBtn) {
+            initBtn.style.display = 'none';
+        }
+        if (enterBtn) {
+            enterBtn.style.display = 'inline-flex';
+            enterBtn.href = meetLink;
+        }
+
+        // Atualiza o chip no header do card
+        const meetChip = document.getElementById('adc-meet-chip');
+        if (meetChip) {
+            meetChip.href = meetLink;
+            meetChip.style.display = 'inline-flex';
+        }
+
+        // Atualiza os dados na memória do manager para refletir o novo link
+        if (_manager?._originalData) {
+            const act = _manager._originalData.find(a => a.id === activityId);
+            if (act) act.google_meet_link = meetLink;
+        }
+
+    } catch (err) {
+        utils.showToast('Erro ao comunicar com o servidor. Tente novamente.', 'error');
+        console.error('[startMeeting]', err);
+    }
+}
+
 // Expor _addFile para o dropzone inline
 export function _addFile(file) { _addPendingAttachment(file); }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// CARD DE DETALHES DA ATIVIDADE (abre ao clicar na linha)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export function openActivityCard(activityId) {
+    const act = _manager?._originalData?.find(a => a.id === activityId);
+    if (!act) { utils.showToast('Atividade não encontrada.', 'error'); return; }
+    _renderActivityDetailCard(act);
+}
+
+function _renderActivityDetailCard(a) {
+    document.getElementById('act-detail-card-overlay')?.remove();
+
+    const STATUS_COLORS = { 'A Fazer':'#6366f1','Em Andamento':'#f59e0b','Concluída':'#10b981','Cancelada':'#ef4444' };
+    const sc  = STATUS_COLORS[a.status] || '#6366f1';
+    const pc  = a.priority ? (PRIORITY_CONFIG[a.priority]?.color || '#64748b') : null;
+    const cfg = ACTIVITY_TYPE_CONFIG[a.activity_type] || { icon:'ph-activity', color:'#64748b' };
+    const isOverdue = a.activity_datetime && new Date(a.activity_datetime) < new Date() && a.status !== 'Concluída';
+
+    const dtLocal     = a.activity_datetime ? new Date(a.activity_datetime).toISOString().slice(0,16) : '';
+    const assigneesVal = (a.activity_assignees || []).map(r => r.user_nome || r.user_id).join(', ');
+    const nextStepResp = (a.activity_next_step_responsibles || []).map(r => r.user_id).join(', ');
+    const nextDt      = a.next_step_date ? new Date(a.next_step_date).toISOString().slice(0,10) : '';
+    const reminderAt  = a.reminder_at ? new Date(a.reminder_at).toISOString().slice(0,16) : '';
+    const timeMin     = a.time_spent_minutes || 0;
+
+    // timer local
+    let _tSec = timeMin * 60, _tState = 'idle', _tIv = null;
+    const _fmtT = s => `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+    const _fmtM = m => { if(!m) return '-'; const h=Math.floor(m/60),r=m%60; return h>0?`${h}h ${r}min`:`${r}min`; };
+
+    const overlay = document.createElement('div');
+    overlay.id = 'act-detail-card-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9100;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);overflow-y:auto;';
+
+    overlay.innerHTML = `
+    <style>
+      #act-detail-card { animation:actCardIn 0.32s cubic-bezier(0.34,1.56,0.64,1) both; }
+      @keyframes actCardIn { from{opacity:0;transform:translateY(22px) scale(0.96)} to{opacity:1;transform:none} }
+      .adc-tab { padding:0.5rem 1.05rem;border:none;background:none;cursor:pointer;font-size:0.81rem;font-weight:600;color:var(--text-muted);border-bottom:2px solid transparent;transition:all 0.18s;display:flex;align-items:center;gap:0.3rem;white-space:nowrap; }
+      .adc-tab.active { color:${sc};border-bottom-color:${sc}; }
+      .adc-tab:hover:not(.active) { color:var(--text-main); }
+      .adc-panel { display:none; }
+      .adc-panel.active { display:block;animation:adcFadeIn 0.2s ease; }
+      @keyframes adcFadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
+      .adc-sec { font-size:0.67rem;font-weight:700;letter-spacing:0.09em;color:var(--text-muted);text-transform:uppercase;margin:0 0 0.75rem;display:flex;align-items:center;gap:0.4rem; }
+      .adc-sec::after { content:'';flex:1;height:1px;background:rgba(255,255,255,0.07); }
+      .adc-chip { display:inline-flex;align-items:center;gap:0.3rem;padding:0.16rem 0.62rem;border-radius:6px;font-size:0.74rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text-muted); }
+      .adc-badge { display:inline-flex;align-items:center;gap:0.3rem;padding:0.18rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:700; }
+      #act-detail-card .input-group label { font-size:0.72rem;color:var(--text-muted);margin-bottom:0.3rem;font-weight:500;display:block; }
+      #adc-save-btn { transition:all 0.2s; }
+      #adc-save-btn:hover:not(:disabled) { transform:translateY(-1px);box-shadow:0 4px 20px rgba(99,102,241,0.5); }
+    </style>
+
+    <div id="act-detail-card" style="width:100%;max-width:820px;background:var(--glass-bg,#0c1220);border:1px solid ${sc}28;border-radius:18px;overflow:hidden;display:flex;flex-direction:column;max-height:94vh;box-shadow:0 40px 100px rgba(0,0,0,0.75),0 0 0 1px rgba(255,255,255,0.04);">
+
+      <!-- HEADER -->
+      <div style="background:linear-gradient(135deg,${sc}12 0%,transparent 60%);border-bottom:1px solid ${sc}20;padding:1.5rem 2rem 0;flex-shrink:0;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.65rem;">
+              <span class="adc-badge" style="background:${sc}18;color:${sc};border:1px solid ${sc}40;">
+                <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></span>${a.status||'A Fazer'}
+              </span>
+              ${pc ? `<span class="adc-badge" style="background:${pc}18;color:${pc};border:1px solid ${pc}40;">${PRIORITY_CONFIG[a.priority]?.label||a.priority}</span>` : ''}
+              ${isOverdue ? `<span class="adc-badge" style="background:#ef444415;color:#ef4444;border:1px solid #ef444438;"><i class="ph ph-warning-circle"></i> Atrasada</span>` : ''}
+              ${a.activity_type ? `<span class="adc-chip"><i class="ph ${cfg.icon}" style="color:${cfg.color};"></i>${a.activity_type}</span>` : ''}
+            </div>
+            <h2 style="margin:0 0 0.5rem;font-size:1.3rem;font-weight:800;line-height:1.35;word-break:break-word;">${(a.title||'').replace(/</g,'&lt;')}</h2>
+            <div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;">
+              ${a.department ? `<span class="adc-chip"><i class="ph ph-buildings"></i>${a.department}</span>` : ''}
+              ${a.activity_datetime ? `<span class="adc-chip" style="${isOverdue?'color:#ef4444;border-color:#ef444445;':''}"><i class="ph ph-calendar-blank"></i>${new Date(a.activity_datetime).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+              ${timeMin ? `<span class="adc-chip" style="color:#818cf8;border-color:rgba(99,102,241,0.3);"><i class="ph ph-clock"></i>${_fmtM(timeMin)}</span>` : ''}
+              ${a.google_meet_link ? `<a href="${a.google_meet_link}" target="_blank" style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.16rem 0.62rem;border-radius:6px;font-size:0.74rem;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:#818cf8;text-decoration:none;"><i class="ph ph-video"></i>Meet</a>` : ''}
+            </div>
+          </div>
+          <button id="adc-close" style="flex-shrink:0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);transition:all 0.18s;" onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
+            <i class="ph ph-x"></i>
+          </button>
+        </div>
+
+        <div style="display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid rgba(255,255,255,0.07);">
+          <button class="adc-tab active" data-tab="info"><i class="ph ph-list-dashes"></i>Informações</button>
+          <button class="adc-tab" data-tab="reuniao"><i class="ph ph-video-camera"></i>Reunião</button>
+          <button class="adc-tab" data-tab="tempo"><i class="ph ph-timer"></i>Tempo</button>
+          <button class="adc-tab" data-tab="proximo"><i class="ph ph-arrow-right-dashed"></i>Próximo Passo</button>
+          <button class="adc-tab" data-tab="lembrete"><i class="ph ph-bell"></i>Lembrete</button>
+          <button class="adc-tab" data-tab="anexos"><i class="ph ph-paperclip"></i>Anexos</button>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div style="flex:1;overflow-y:auto;padding:1.5rem 2rem;">
+
+        <!-- TAB: INFORMAÇÕES -->
+        <div class="adc-panel active" id="adc-tab-info">
+          <div class="adc-sec"><i class="ph ph-sliders" style="color:${sc};"></i>Configurações</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:1.25rem;">
+            <div class="input-group">
+              <label>Tipo de Atividade</label>
+              <select id="adc-type" class="input-control">
+                ${ACTIVITY_TYPES.map(t=>`<option value="${t}" ${a.activity_type===t?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Departamento</label>
+              <select id="adc-dept" class="input-control">
+                <option value="">—</option>
+                ${ACTIVITY_DEPARTMENTS.map(d=>`<option value="${d}" ${a.department===d?'selected':''}>${d}</option>`).join('')}
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Status</label>
+              <select id="adc-status" class="input-control">
+                ${ACTIVITY_STATUSES.map(s=>`<option value="${s}" ${(a.status||'A Fazer')===s?'selected':''}>${s}</option>`).join('')}
+              </select>
+            </div>
+            <div class="input-group">
+              <label>Prioridade</label>
+              <select id="adc-priority" class="input-control">
+                <option value="">Sem prioridade</option>
+                ${ACTIVITY_PRIORITIES.map(p=>`<option value="${p}" ${a.priority===p?'selected':''}>${PRIORITY_CONFIG[p]?.label||p}</option>`).join('')}
+              </select>
+            </div>
+            <div class="input-group">
+              <label><i class="ph ph-calendar" style="color:${sc};"></i> Data e Horário</label>
+              <input type="datetime-local" id="adc-datetime" class="input-control" value="${dtLocal}">
+            </div>
+          </div>
+
+          <div class="adc-sec"><i class="ph ph-text-align-left" style="color:${sc};"></i>Conteúdo</div>
+          <div class="input-group" style="margin-bottom:0.85rem;">
+            <label>Título</label>
+            <input type="text" id="adc-title" class="input-control" value="${(a.title||'').replace(/"/g,'&quot;')}" style="font-weight:600;font-size:1rem;">
+          </div>
+          <div class="input-group" style="margin-bottom:1.25rem;">
+            <label>Descrição</label>
+            <textarea id="adc-desc" class="input-control" rows="4" style="resize:vertical;">${a.description||''}</textarea>
+          </div>
+
+          <div class="adc-sec"><i class="ph ph-users" style="color:${sc};"></i>Pessoas</div>
+          <div class="input-group" style="margin-bottom:0.85rem;">
+            <label>Responsáveis pela Atividade</label>
+            <input type="text" id="adc-assignees" class="input-control" value="${assigneesVal.replace(/"/g,'&quot;')}" placeholder="Separados por vírgula">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.3rem;">
+              <span style="font-size:0.72rem;color:var(--text-muted);">Separe múltiplos nomes por vírgula</span>
+              <label style="display:flex;align-items:center;gap:0.35rem;font-size:0.75rem;cursor:pointer;color:var(--primary);font-weight:600;">
+                  <input type="checkbox" id="adc-notify-assign" ${a.notify_on_assign ? 'checked' : ''} style="width:13px;height:13px;accent-color:var(--primary);">
+                  Notificar responsáveis por e-mail
+              </label>
+            </div>
+          </div>
+
+          <div class="adc-sec"><i class="ph ph-link" style="color:${sc};"></i>Links</div>
+          <div class="input-group">
+            <label><i class="ph ph-video" style="color:#6366f1;"></i> Google Meet Link</label>
+            <input type="url" id="adc-meet-link" class="input-control" placeholder="https://meet.google.com/xxx" value="${a.google_meet_link||''}">
+          </div>
+        </div>
+
+        <!-- TAB: REUNIÃO -->
+        <div class="adc-panel" id="adc-tab-reuniao">
+          <div class="adc-sec"><i class="ph ph-video-camera" style="color:#6366f1;"></i>Google Meet</div>
+          <div style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(99,102,241,0.02));border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:1.5rem;margin-bottom:1.25rem;">
+            ${a.activity_type === 'Reunião' ? `
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.2rem;">
+              <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.7rem;">Sala de Reunião</div>
+                ${a.google_meet_link
+                  ? `<a id="adc-meet-enter-btn" href="${a.google_meet_link}" target="_blank" rel="noopener noreferrer"
+                       style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.3rem;border-radius:10px;background:rgba(99,102,241,0.14);border:1.5px solid rgba(99,102,241,0.4);color:#818cf8;font-weight:700;text-decoration:none;font-size:0.9rem;transition:all 0.2s;"
+                       onmouseover="this.style.background='rgba(99,102,241,0.25)'" onmouseout="this.style.background='rgba(99,102,241,0.14)'">
+                      <i class="ph ph-video-camera" style="font-size:1.1rem;"></i> Entrar na Reunião
+                    </a>
+                    <button id="adc-meet-start-btn" style="display:none;"></button>`
+                  : `<button id="adc-meet-start-btn" onclick="activities.startMeeting('${a.id}')"
+                       style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.65rem 1.3rem;border-radius:10px;background:rgba(99,102,241,0.14);border:1.5px solid rgba(99,102,241,0.4);color:#818cf8;font-weight:700;font-size:0.9rem;cursor:pointer;transition:all 0.2s;"
+                       onmouseover="this.style.background='rgba(99,102,241,0.25)'" onmouseout="this.style.background='rgba(99,102,241,0.14)'">
+                      <i class="ph ph-video-camera" style="font-size:1.1rem;"></i> Iniciar Reunião
+                    </button>
+                    <a id="adc-meet-enter-btn" href="#" target="_blank" rel="noopener noreferrer" style="display:none;"></a>`
+                }
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.5rem;">
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;">Notificações Automatizadas</div>
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;">
+                  <input type="checkbox" id="adc-send-invite" ${a.send_invite_email ? 'checked' : ''} style="accent-color:#6366f1;"> Convite por e-mail
+                </label>
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;">
+                  <input type="checkbox" id="adc-send-summary" ${a.send_summary_email ? 'checked' : ''} style="accent-color:#10b981;"> Resumo ao concluir
+                </label>
+                <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.78rem;">
+                  <input type="checkbox" id="adc-send-recording" ${a.send_recording_email ? 'checked' : ''} style="accent-color:#ef4444;"> Aviso de gravação
+                </label>
+              </div>
+            </div>
+            <div class="input-group" style="margin-bottom:1rem;">
+                <label style="font-size:0.75rem;">URL do Vídeo da Gravação</label>
+                <input type="url" id="adc-recording-url" class="input-control" placeholder="Link da gravação" value="${a.recording_url || ''}">
+            </div>
+            <div style="font-size:0.78rem;color:var(--text-muted);display:flex;align-items:flex-start;gap:0.45rem;">
+              <i class="ph ph-info" style="flex-shrink:0;margin-top:0.1rem;"></i>
+              ${a.google_meet_link
+                ? `Link ativo: <a href="${a.google_meet_link}" target="_blank" style="color:#818cf8;word-break:break-all;">${a.google_meet_link}</a>`
+                : 'Clique em <strong style="color:#818cf8;">Iniciar Reunião</strong> para criar uma sala. O link será salvo automaticamente nesta atividade.'}
+            </div>` : `
+            <div style="text-align:center;padding:2rem;color:var(--text-muted)">
+              <i class="ph ph-video-camera-slash" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;opacity:0.35;"></i>
+              Integração Google Meet disponível apenas para atividades do tipo <strong>Reunião</strong>.
+            </div>`}
+          </div>
+
+          ${(() => {
+            const recs = (a.activity_attachments || []).filter(att => att.file_type === 'meet_recording');
+            if (!recs.length) return '';
+            return `
+            <div class="adc-sec" style="margin-top:0.5rem;"><i class="ph ph-record" style="color:#ef4444;"></i>Gravações</div>
+            <div style="display:flex;flex-direction:column;gap:0.5rem;">
+              ${recs.map(rec => `
+              <div class="meet-recording-card" style="display:flex;align-items:center;gap:0.85rem;padding:0.85rem 1rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px;">
+                <i class="ph ph-record" style="font-size:1.4rem;color:#ef4444;flex-shrink:0;"></i>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:600;font-size:0.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.file_name}">${rec.file_name}</div>
+                  <div style="font-size:0.72rem;color:var(--text-muted);margin-top:0.15rem;">Gravação da Reunião${rec.file_size ? ' · ' + (rec.file_size/1024/1024).toFixed(1) + ' MB' : ''}</div>
+                </div>
+                <a href="${rec.file_url}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-primary" style="flex-shrink:0;display:inline-flex;align-items:center;gap:0.35rem;padding:0.35rem 0.85rem;font-size:0.78rem;">
+                  <i class="ph ph-play-circle"></i> Assistir
+                </a>
+              </div>`).join('')}
+            </div>`;
+          })()}
+        </div>
+
+        <!-- TAB: TEMPO -->
+        <div class="adc-panel" id="adc-tab-tempo">
+          <div class="adc-sec"><i class="ph ph-timer" style="color:#6366f1;"></i>Cronômetro</div>
+          <div style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(99,102,241,0.02));border:1px solid rgba(99,102,241,0.2);border-radius:12px;padding:1.5rem;margin-bottom:1.2rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+              <div>
+                <div style="font-size:0.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.35rem;">Tempo Trabalhado</div>
+                <div id="adc-timer-display" style="font-size:2.2rem;font-weight:800;font-family:monospace;letter-spacing:0.08em;color:#818cf8;">${_fmtT(_tSec)}</div>
+              </div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                <button type="button" id="adc-timer-start" class="btn btn-primary btn-sm" style="display:flex;align-items:center;gap:0.4rem;"><i class="ph ph-play"></i> Iniciar</button>
+                <button type="button" id="adc-timer-pause" class="btn btn-secondary btn-sm" style="display:none;align-items:center;gap:0.4rem;"><i class="ph ph-pause"></i> Pausar</button>
+                <button type="button" id="adc-timer-resume" class="btn btn-secondary btn-sm" style="display:none;align-items:center;gap:0.4rem;"><i class="ph ph-play"></i> Retomar</button>
+                <button type="button" id="adc-timer-stop" class="btn btn-danger btn-sm" style="display:none;align-items:center;gap:0.4rem;"><i class="ph ph-stop"></i> Finalizar</button>
+              </div>
+            </div>
+          </div>
+          <div class="adc-sec"><i class="ph ph-pencil-simple" style="color:#6366f1;"></i>Ou informe manualmente</div>
+          <div class="input-group">
+            <label>Tempo em minutos — ex: 90 = 1h30min</label>
+            <input type="number" id="adc-time-min" class="input-control" min="0" placeholder="ex: 30" value="${timeMin||''}">
+          </div>
+          ${timeMin ? `<div style="margin-top:0.6rem;padding:0.55rem 0.85rem;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:8px;font-size:0.82rem;color:#818cf8;display:flex;align-items:center;gap:0.4rem;"><i class="ph ph-clock"></i> Tempo salvo: <strong>${_fmtM(timeMin)}</strong></div>` : ''}
+        </div>
+
+        <!-- TAB: PRÓXIMO PASSO -->
+        <div class="adc-panel" id="adc-tab-proximo">
+          <div class="adc-sec"><i class="ph ph-arrow-right-dashed" style="color:#10b981;"></i>Próximo Passo</div>
+          <div style="background:linear-gradient(135deg,rgba(16,185,129,0.07),rgba(16,185,129,0.01));border:1px solid rgba(16,185,129,0.18);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:0.85rem;">
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Título do Próximo Passo</label>
+                <input type="text" id="adc-next-title" class="input-control" value="${(a.next_step_title||'').replace(/"/g,'&quot;')}" placeholder="O que fazer a seguir?">
+              </div>
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Data do Próximo Passo</label>
+                <input type="date" id="adc-next-date" class="input-control" value="${nextDt}">
+                <label id="adc-wrapper-next-reminder" style="display:${nextDt ? 'flex' : 'none'}; align-items:center; gap:0.35rem; font-size:0.72rem; cursor:pointer; color:#10b981; font-weight:600; margin-top:0.4rem;">
+                    <input type="checkbox" id="adc-next-reminder" ${a.next_step_reminder_email ? 'checked' : ''} style="width:13px;height:13px;accent-color:#10b981;">
+                    Lembrar por e-mail (1 dia antes)
+                </label>
+              </div>
+            </div>
+            <div class="input-group" style="margin-bottom:0;">
+              <label>Responsáveis do Próximo Passo</label>
+              <input type="text" id="adc-next-resp" class="input-control" value="${nextStepResp.replace(/"/g,'&quot;')}" placeholder="Nomes, separados por vírgula">
+            </div>
+          </div>
+          ${a.next_step_title ? `
+          <div style="padding:1rem;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:10px;">
+            <div style="font-weight:700;color:#10b981;margin-bottom:0.35rem;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Próximo passo atual</div>
+            <div style="color:var(--text-main);">${a.next_step_title}</div>
+            ${nextDt ? `<div style="color:var(--text-muted);margin-top:0.3rem;font-size:0.78rem;"><i class="ph ph-calendar"></i> Prazo: ${new Date(nextDt+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+            ${nextStepResp ? `<div style="color:var(--text-muted);margin-top:0.25rem;font-size:0.78rem;"><i class="ph ph-user"></i> ${nextStepResp}</div>` : ''}
+          </div>` : `
+          <div style="text-align:center;padding:2.5rem;color:var(--text-muted);border:1px dashed rgba(255,255,255,0.07);border-radius:10px;">
+            <i class="ph ph-arrow-right-dashed" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;opacity:0.35;"></i>
+            Nenhum próximo passo definido ainda
+          </div>`}
+        </div>
+
+        <!-- TAB: LEMBRETE -->
+        <div class="adc-panel" id="adc-tab-lembrete">
+          <div class="adc-sec"><i class="ph ph-bell" style="color:#f59e0b;"></i>Lembrete</div>
+          <div style="background:linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.01));border:1px solid rgba(245,158,11,0.18);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
+            <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:end;">
+              <div class="input-group" style="margin-bottom:0;">
+                <label>Data e Hora do Lembrete</label>
+                <input type="datetime-local" id="adc-reminder-at" class="input-control" value="${reminderAt}">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:0.65rem;padding-bottom:2px;">
+                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.86rem;white-space:nowrap;">
+                  <input type="checkbox" id="adc-reminder-email" ${a.reminder_email?'checked':''} style="width:15px;height:15px;accent-color:#6366f1;cursor:pointer;">
+                  <i class="ph ph-envelope" style="color:#6366f1;"></i> Por e-mail
+                </label>
+                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.86rem;white-space:nowrap;">
+                  <input type="checkbox" id="adc-reminder-wpp" ${a.reminder_whatsapp?'checked':''} style="width:15px;height:15px;accent-color:#25d366;cursor:pointer;">
+                  <i class="ph ph-whatsapp-logo" style="color:#25d366;"></i> Por WhatsApp
+                </label>
+              </div>
+            </div>
+          </div>
+          ${reminderAt ? `
+          <div style="padding:1rem 1.1rem;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:10px;display:flex;align-items:center;gap:0.85rem;">
+            <i class="ph ph-bell-ringing" style="font-size:1.7rem;color:#f59e0b;flex-shrink:0;"></i>
+            <div>
+              <div style="font-size:0.73rem;color:var(--text-muted);">Lembrete agendado para</div>
+              <div style="font-weight:700;color:#f59e0b;font-size:1rem;">${new Date(reminderAt).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.15rem;display:flex;gap:0.5rem;">
+                ${a.reminder_email ? '<span><i class="ph ph-envelope"></i> E-mail</span>' : ''}
+                ${a.reminder_whatsapp ? '<span><i class="ph ph-whatsapp-logo"></i> WhatsApp</span>' : ''}
+              </div>
+            </div>
+          </div>` : `
+          <div style="text-align:center;padding:2.5rem;color:var(--text-muted);border:1px dashed rgba(255,255,255,0.07);border-radius:10px;">
+            <i class="ph ph-bell-slash" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;opacity:0.35;"></i>
+            Nenhum lembrete configurado
+          </div>`}
+        </div>
+
+        <!-- TAB: ANEXOS -->
+        <div class="adc-panel" id="adc-tab-anexos">
+          <div class="adc-sec"><i class="ph ph-paperclip" style="color:var(--primary);"></i>Anexos</div>
+          ${(() => {
+            const atts = (a.activity_attachments || []).filter(att => att.file_type !== 'meet_recording');
+            const recs = (a.activity_attachments || []).filter(att => att.file_type === 'meet_recording');
+            let html = '';
+            // Gravações (tipo especial)
+            if (recs.length > 0) {
+              html += `<div style="margin-bottom:0.85rem;">
+                <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;color:#ef4444;text-transform:uppercase;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.35rem;"><i class="ph ph-record"></i>Gravações de Reunião</div>
+                <div style="display:flex;flex-direction:column;gap:0.4rem;">
+                  ${recs.map(rec => `
+                  <div class="meet-recording-card" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.85rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
+                    <i class="ph ph-record" style="font-size:1.25rem;color:#ef4444;flex-shrink:0;"></i>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-weight:600;font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.file_name}">${rec.file_name}</div>
+                      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem;">Gravação da Reunião${rec.file_size ? ' · ' + (rec.file_size/1024/1024).toFixed(1) + ' MB' : ''}</div>
+                    </div>
+                    <a href="${rec.file_url}" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:6px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:0.78rem;font-weight:600;text-decoration:none;">
+                      <i class="ph ph-play-circle"></i> Assistir
+                    </a>
+                  </div>`).join('')}
+                </div>
+              </div>`;
+            }
+            // Anexos comuns
+            if (atts.length > 0) {
+              html += `<div style="margin-bottom:0.85rem;">
+                <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Arquivos Salvos</div>
+                <div style="display:flex;flex-direction:column;gap:0.4rem;">
+                  ${atts.map(att => {
+                    const icon = att.file_type === 'video' ? 'ph-video' : att.file_type === 'image' ? 'ph-image' : 'ph-file';
+                    const sizeMb = att.file_size ? (att.file_size/1024/1024).toFixed(1) + ' MB' : '';
+                    return `
+                    <div style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.85rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
+                      <i class="ph ${icon}" style="font-size:1.2rem;color:var(--primary);flex-shrink:0;"></i>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="${att.file_name}">${att.file_name}</div>
+                        ${sizeMb ? `<div style="font-size:0.7rem;color:var(--text-muted);">${sizeMb}</div>` : ''}
+                      </div>
+                      <a href="${att.file_url}" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.7rem;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);color:#818cf8;font-size:0.78rem;text-decoration:none;">
+                        <i class="ph ph-download-simple"></i> Baixar
+                      </a>
+                    </div>`;
+                  }).join('')}
+                </div>
+              </div>`;
+            }
+            return html;
+          })()}
+          <div id="adc-dropzone" style="border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all 0.2s;color:var(--text-muted);font-size:0.86rem;background:rgba(255,255,255,0.02);"
+            ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='rgba(99,102,241,0.06)';"
+            ondragleave="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.02)';"
+            ondrop="event.preventDefault();this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.02)';[...event.dataTransfer.files].forEach(f=>window._adcAddFile(f));">
+            <i class="ph ph-upload-simple" style="font-size:1.8rem;display:block;margin-bottom:0.5rem;color:var(--primary);"></i>
+            Arraste arquivos ou <label for="adc-file-input" style="color:var(--primary);cursor:pointer;font-weight:600;">clique aqui</label>
+            <input type="file" id="adc-file-input" multiple style="display:none;" onchange="[...this.files].forEach(f=>window._adcAddFile(f));this.value=''">
+          </div>
+          <div id="adc-pending-files" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div style="padding:1rem 2rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;gap:0.75rem;background:rgba(0,0,0,0.2);flex-shrink:0;">
+        <button id="adc-delete-btn" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.22);border-radius:8px;padding:0.55rem 1rem;cursor:pointer;color:#ef4444;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.16)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">
+          <i class="ph ph-trash"></i> Excluir
+        </button>
+        <div style="display:flex;gap:0.6rem;align-items:center;">
+          <button id="adc-cancel-btn" class="btn btn-secondary">Cancelar</button>
+          <button id="adc-save-btn" class="btn btn-primary" style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 1.35rem;font-weight:700;">
+            <i class="ph ph-floppy-disk"></i> Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+
+    // ── pending attachments ────────────────────────────────────────────────────
+    let _adcFiles = [];
+    window._adcAddFile = (file) => {
+        _adcFiles.push(file);
+        const container = document.getElementById('adc-pending-files');
+        if (!container) return;
+        container.innerHTML = _adcFiles.map((f,i) => `
+            <div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.7rem;background:rgba(255,255,255,0.04);border-radius:8px;border:1px solid rgba(255,255,255,0.07);font-size:0.8rem;">
+                <i class="ph ph-file" style="color:var(--primary);"></i>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
+                <span style="color:var(--text-muted);flex-shrink:0;">${(f.size/1024).toFixed(0)}KB</span>
+                <button type="button" onclick="window._adcRemoveFile(${i})" style="background:none;border:none;cursor:pointer;color:var(--danger);padding:0;"><i class="ph ph-x"></i></button>
+            </div>`
+        ).join('');
+    };
+    window._adcRemoveFile = (i) => { _adcFiles.splice(i,1); window._adcAddFile.__refresh?.(); };
+
+    // ── tabs ──────────────────────────────────────────────────────────────────
+    overlay.querySelectorAll('.adc-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            overlay.querySelectorAll('.adc-tab').forEach(b => b.classList.remove('active'));
+            overlay.querySelectorAll('.adc-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            overlay.querySelector(`#adc-tab-${btn.dataset.tab}`)?.classList.add('active');
+        });
+    });
+
+    // Listeners condicionais no Card
+    document.getElementById('adc-next-date')?.addEventListener('input', (e) => {
+        const wrapper = document.getElementById('adc-wrapper-next-reminder');
+        if (wrapper) wrapper.style.display = e.target.value ? 'flex' : 'none';
+    });
+
+    // ── close ─────────────────────────────────────────────────────────────────
+    function _closeCard() {
+        clearInterval(_tIv);
+        delete window._adcAddFile;
+        delete window._adcRemoveFile;
+        overlay.style.opacity = '0'; overlay.style.transition = 'opacity 0.18s';
+        setTimeout(() => overlay.remove(), 200);
+    }
+    overlay.addEventListener('click', e => { if (e.target === overlay) _closeCard(); });
+    document.getElementById('adc-close').addEventListener('click', _closeCard);
+    document.getElementById('adc-cancel-btn').addEventListener('click', _closeCard);
+    function _onEsc(e) { if(e.key==='Escape'){_closeCard();document.removeEventListener('keydown',_onEsc);}}
+    document.addEventListener('keydown', _onEsc);
+
+    // ── timer ──────────────────────────────────────────────────────────────────
+    const _updT = () => { const el=document.getElementById('adc-timer-display'); if(el) el.textContent=_fmtT(_tSec); };
+    document.getElementById('adc-timer-start').addEventListener('click', () => {
+        if(_tState!=='idle') return; _tState='running';
+        _tIv = setInterval(()=>{ _tSec++; _updT(); },1000);
+        document.getElementById('adc-timer-start').style.display='none';
+        document.getElementById('adc-timer-pause').style.display='flex';
+        document.getElementById('adc-timer-stop').style.display='flex';
+    });
+    document.getElementById('adc-timer-pause').addEventListener('click', () => {
+        if(_tState!=='running') return; _tState='paused'; clearInterval(_tIv);
+        document.getElementById('adc-timer-pause').style.display='none';
+        document.getElementById('adc-timer-resume').style.display='flex';
+    });
+    document.getElementById('adc-timer-resume').addEventListener('click', () => {
+        if(_tState!=='paused') return; _tState='running';
+        _tIv=setInterval(()=>{ _tSec++; _updT(); },1000);
+        document.getElementById('adc-timer-resume').style.display='none';
+        document.getElementById('adc-timer-pause').style.display='flex';
+    });
+    document.getElementById('adc-timer-stop').addEventListener('click', () => {
+        clearInterval(_tIv); _tState='idle';
+        const el=document.getElementById('adc-time-min'); if(el) el.value=Math.ceil(_tSec/60);
+        ['adc-timer-start','adc-timer-pause','adc-timer-resume','adc-timer-stop'].forEach(id=>{ const e=document.getElementById(id);if(e)e.style.display='none'; });
+        utils.showToast(`Tempo registrado: ${_fmtM(Math.ceil(_tSec/60))}`, 'success');
+    });
+
+    // ── delete ────────────────────────────────────────────────────────────────
+    document.getElementById('adc-delete-btn').addEventListener('click', async () => {
+        if (!confirm(`Excluir "${a.title}"?`)) return;
+        try {
+            await _deleteActivityApi(a.id);
+            utils.showToast('Atividade excluída!', 'success');
+            _closeCard();
+            await _reloadActivities();
+        } catch(e) { utils.showToast(e.message, 'error'); }
+    });
+
+    // ── save ──────────────────────────────────────────────────────────────────
+    document.getElementById('adc-save-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('adc-save-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ph ph-spinner" style="animation:spin 1s linear infinite;"></i> Salvando...';
+
+        const tManual = parseInt(document.getElementById('adc-time-min')?.value||'0');
+        const timeSpent = tManual>0 ? tManual : (_tSec>0 ? Math.ceil(_tSec/60) : null);
+
+        const title = document.getElementById('adc-title')?.value?.trim();
+        if (!title) {
+            utils.showToast('O título é obrigatório.', 'error');
+            btn.disabled=false; btn.innerHTML='<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            return;
+        }
+
+        const payload = {
+            activity_type:     document.getElementById('adc-type').value,
+            department:        document.getElementById('adc-dept').value || null,
+            status:            document.getElementById('adc-status').value || null,
+            priority:          document.getElementById('adc-priority').value || null,
+            activity_datetime: document.getElementById('adc-datetime').value ? new Date(document.getElementById('adc-datetime').value).toISOString() : null,
+            title,
+            description:       document.getElementById('adc-desc').value.trim() || null,
+            assignees:         (document.getElementById('adc-assignees').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+            time_spent_minutes: timeSpent,
+            next_step_title:   document.getElementById('adc-next-title').value.trim() || null,
+            next_step_date:    document.getElementById('adc-next-date').value ? new Date(document.getElementById('adc-next-date').value).toISOString() : null,
+            next_step_responsibles: (document.getElementById('adc-next-resp').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+            google_meet_link:  document.getElementById('adc-meet-link')?.value?.trim() || null,
+            reminder_at:       document.getElementById('adc-reminder-at').value ? new Date(document.getElementById('adc-reminder-at').value).toISOString() : null,
+            reminder_email:    document.getElementById('adc-reminder-email').checked,
+            reminder_whatsapp: document.getElementById('adc-reminder-wpp').checked,
+            // Novos campos
+            notify_on_assign:  document.getElementById('adc-notify-assign')?.checked || false,
+            send_invite_email: document.getElementById('adc-send-invite')?.checked || false,
+            send_summary_email: document.getElementById('adc-send-summary')?.checked || false,
+            send_recording_email: document.getElementById('adc-send-recording')?.checked || false,
+            recording_url:     document.getElementById('adc-recording-url')?.value?.trim() || null,
+            next_step_reminder_email: document.getElementById('adc-next-reminder')?.checked || false,
+        };
+
+        try {
+            await updateActivity(a.id, payload);
+            // upload pending files
+            for (const file of _adcFiles) {
+                const fd = new FormData(); fd.append('file', file);
+                await fetch(`/api/activities/${a.id}/attachments`, { method:'POST', body:fd });
+            }
+            utils.showToast('Atividade atualizada!', 'success');
+            _closeCard();
+            await _reloadActivities();
+        } catch(e) {
+            utils.showToast(e.message, 'error');
+            btn.disabled=false; btn.innerHTML='<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+        }
+    });
+}

@@ -67,7 +67,7 @@ model companies {
   company_products                company_products[]
   company_tickets                 company_tickets[]
   contacts                        contacts[]
-  test_logs                       test_logs[]
+  test_runs_triggered              test_runs[]      // execuções manuais disparadas pela aba LOG
   activities                      activities[]
 
   // relações de usuários
@@ -204,19 +204,68 @@ model product_historico {
   company_products     company_products @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
-model test_logs {
-  id                String    @id
-  companyId         String
-  Data_teste        DateTime?
-  Hora_teste        String?
-  Tipo_teste        String?
-  M_dulo_teste      String?   @map("Módulo_teste")
-  O_que_foi_testado String?
-  Quem_foi_testado  String?
-  Status_teste      String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime
-  companies         companies @relation(fields: [companyId], references: [id], onDelete: Cascade)
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO DE TESTES — Independente de empresa (sistema)
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Uma execução de suite de testes (pode conter N casos individuais)
+model test_runs {
+  id              String       @id @default(uuid())
+  suite_type      String                          // "UNITÁRIO" | "FUNCIONAL" | "E2E"
+  triggered_by    String?                         // user_id Clerk de quem clicou "Rodar Testes"
+  triggered_at    DateTime     @default(now())
+  environment     String       @default("local")  // "local" | "staging" | "production"
+  status          String       @default("running")// "running" | "passed" | "failed" | "error"
+  total_tests     Int          @default(0)
+  passed_tests    Int          @default(0)
+  failed_tests    Int          @default(0)
+  error_tests     Int          @default(0)
+  duration_ms     Int?                            // duração total em ms
+  raw_output      String?                         // JSON bruto do reporter (Vitest/Playwright)
+  companies       companies?   @relation(fields: [company_id], references: [id])
+  company_id      String?                         // quem disparou (context only, sem cascade)
+  test_cases      test_cases[]
+}
+
+/// Um caso de teste individual, filho de test_runs
+model test_cases {
+  id              String     @id @default(uuid())
+  run_id          String
+  suite_file      String?                         // nome do arquivo (ex: "auth.test.js")
+  module          String?                         // módulo testado (ex: "api.js", "config.js")
+  test_name       String                          // nome do describe/it
+  suite_type      String                          // herda do run
+  status          String                          // "PASSOU" | "FALHOU" | "ERRO" | "SKIPADO"
+  duration_ms     Int?                            // duração em ms
+  error_message   String?                         // mensagem de erro se falhou
+  error_stack     String?                         // stack trace
+  screenshot_url  String?                         // screenshot (Playwright)
+  video_url       String?                         // vídeo (Playwright)
+  created_at      DateTime   @default(now())
+  test_run        test_runs  @relation(fields: [run_id], references: [id], onDelete: Cascade)
+}
+
+/// Configuração de agendamento de testes (global — um registro único)
+model test_schedule {
+  id                    String   @id @default(uuid())
+  enabled               Boolean  @default(false)
+  frequency             String   @default("manual")     // "manual" | "diario" | "semanal"
+  weekday               Int?                             // 0=domingo … 6=sábado (só para "semanal")
+  hour                  Int      @default(2)             // hora UTC de execução (0-23)
+  minute                Int      @default(0)             // minuto de execução (0-59)
+  run_time              String   @default("02:00")       // legado compatível: HH:MM
+  run_unit              Boolean  @default(true)
+  run_functional        Boolean  @default(true)
+  run_e2e               Boolean  @default(false)
+  notify_email          String?                          // email de destino (ex: "eng@dati.com")
+  notify_emails         String?                          // legado: CSV de emails
+  notify_on_failure_only Boolean @default(true)          // notificar só em falha?
+  environment           String   @default("local")
+  last_run_at           DateTime?                        // última execução
+  next_run_at           DateTime?                        // próxima execução calculada
+  updated_by            String?                          // user_id do último master que editou
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -308,7 +357,6 @@ model activities {
   next_step_title                 String?
   next_step_date                  DateTime?
   // ── NOVOS CAMPOS ──
-  nature                          String                           @default("registro") // "registro" | "tarefa"
   priority                        String?                          // "baixa" | "média" | "alta" | "urgente"
   reminder_at                     DateTime?
   reminder_email                  Boolean                          @default(false)
@@ -316,6 +364,17 @@ model activities {
   reminder_sent                   Boolean                          @default(false)
   google_meet_link                String?
   google_event_id                 String?
+  // ── CAMPOS DE NOTIFICAÇÃO ──
+  send_invite_email               Boolean                          @default(false)
+  invite_sent                     Boolean                          @default(false)
+  send_summary_email              Boolean                          @default(false)
+  summary_sent                    Boolean                          @default(false)
+  recording_url                   String?
+  send_recording_email            Boolean                          @default(false)
+  recording_sent                  Boolean                          @default(false)
+  next_step_reminder_email        Boolean                          @default(false)
+  next_step_reminder_sent         Boolean                          @default(false)
+  notify_on_assign                Boolean                          @default(false)
   // ── RELAÇÕES ──
   companies                       companies?                       @relation(fields: [company_id], references: [id], onDelete: Cascade)
   activity_assignees              activity_assignees[]
@@ -458,4 +517,60 @@ model product_catalog {
   publico_alvo String?                      // Público-alvo do produto
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUDIT LOG — Histórico de alterações do sistema
+// Registra QUEM fez O QUÊ e QUANDO em cada entidade relevante.
+// actor_label é denormalizado no momento da escrita para evitar JOINs e
+// preservar o nome mesmo se o usuário for deletado depois.
+// ══════════════════════════════════════════════════════════════════════════════
+model audit_logs {
+  id           String   @id @default(uuid())
+  created_at   DateTime @default(now())
+
+  // ── QUEM ──────────────────────────────────────────────────────────────────
+  actor_id     String?  // null = plataforma (Journey)
+  actor_label  String   // "Daniel Martins" | "Rafa via Daniel Martins" | "Journey"
+
+  // ── O QUÊ ─────────────────────────────────────────────────────────────────
+  action       String   // CREATE | UPDATE | DELETE | INVITE | MEMBERSHIP | IMPORT | SYSTEM
+  entity_type  String   // company | contact | user | membership | invite | activity | import
+  entity_id    String?  // ID do registro afetado (snapshot — pode ser deletado depois)
+  entity_name  String?  // nome legível: nome da empresa, email do usuário, etc.
+
+  // ── DESCRIÇÃO ─────────────────────────────────────────────────────────────
+  description  String   // "Criou a empresa Acme Ltda" | "Atualizou Status de 'Ativo' para 'Churned'"
+  meta         Json?    // { old: {}, new: {}, fields: ["Status", "Health_Score"] }
+
+  // ── CONTEXTO ──────────────────────────────────────────────────────────────
+  company_id   String?  // empresa relacionada (usado para filtros por contexto)
+  ip_address   String?  // req.ip — rastreabilidade
+}
+
+// ─── Gabi AI — Log de consumo da API Gemini ──────────────────────────────────
+model gabi_usage_logs {
+  id            String   @id @default(uuid())
+  user_id       String?                // ID Clerk do usuário que fez a chamada
+  input_tokens  Int      @default(0)   // Tokens de entrada (prompt)
+  output_tokens Int      @default(0)   // Tokens de saída (resposta)
+  cost_usd      Float    @default(0)   // Custo em USD desta chamada
+  created_at    DateTime @default(now())
+}
+
+// ─── E-mail — Deduplicação de envios ─────────────────────────────────────────
+// Garante que o mesmo e-mail nunca seja enviado mais de uma vez.
+// O UNIQUE em dedup_key é aplicado atomicamente pelo Postgres,
+// protegendo contra race conditions e múltiplas instâncias do servidor.
+model email_send_log {
+  id         String   @id @default(uuid())
+  dedup_key  String   @unique           // Chave única de negócio (ex: "lembrete-abc123-2026-03-01")
+  recipient  String                     // Destinatário(s) — para auditoria
+  subject    String                     // Assunto — para auditoria
+  template   String?                    // Nome do template usado (ex: "activityReminder")
+  tag        String?                    // Tag livre para logs (ex: "gabi-alert")
+  sent_at    DateTime @default(now())   // Quando foi enviado
+
+  @@index([sent_at])
+  @@map("email_send_log")
 }

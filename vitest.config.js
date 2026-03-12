@@ -7,9 +7,18 @@ export default defineConfig({
         coverage: {
             provider: 'v8',
             reporter: ['text', 'html'],
-            include: ['js/modules/**/*.js'],
-            exclude: ['js/app.js']
+            thresholds: {
+                lines: 40,       // Fase 1: threshold atual
+                functions: 40,
+                branches: 40,
+                statements: 40,
+            },
+            include: ['js/modules/**/*.js', 'js/core/**/*.js'],
+            exclude: ['js/app.js', 'js/modules/log-testes.js']
         },
-        include: ['js/tests/unit/**/*.test.js']
+        include: ['js/tests/unit/**/*.test.js'],
+        // Reporter padrão: verbose no terminal
+        reporter: ['verbose'],
     }
 });
+

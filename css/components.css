@@ -286,8 +286,8 @@ select.input-control {
 .header-content {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    justify-content: flex-start;
+    gap: 0.25rem;
 }
 
 .btn-filter-column {
@@ -1002,6 +1002,32 @@ span.flatpickr-weekday,
     font-size: 1rem;
 }
 
+/* "Importar em Massa" — sempre ativo (não depende de seleção),
+   exceto quando explicitamente disabled (2+ empresas marcadas) */
+#btn-importar-em-massa:not([disabled]) {
+    opacity: 1;
+    pointer-events: auto;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-main);
+}
+
+#btn-importar-em-massa:not([disabled]):hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+}
+
+/* Desabilitado quando 2+ empresas selecionadas — alta especificidade para garantir override */
+#btn-importar-em-massa[disabled] {
+    opacity: 0.35 !important;
+    pointer-events: none !important;
+    cursor: not-allowed !important;
+    color: var(--text-muted) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: transparent !important;
+    transform: none !important;
+}
+
 /* Habilitado quando has-selection */
 .bulk-toolbar.has-selection .bulk-action-btn {
     opacity: 1;
@@ -1014,6 +1040,19 @@ span.flatpickr-weekday,
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
+}
+
+/* Botão desabilitado (ex: Importar em Massa com 2+ selecionadas) —
+   sobrescreve o estado ativo do has-selection */
+.bulk-toolbar.has-selection .bulk-action-btn[disabled] {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: transparent;
+    color: var(--text-muted);
+    transform: none;
+    box-shadow: none;
 }
 
 /* Botão de perigo (excluir) */
@@ -2198,27 +2237,42 @@ span.flatpickr-weekday,
 
 .login-brand {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
 
-.login-brand img {
-    height: 48px;
-    margin-bottom: 0.5rem;
-}
-
-.login-brand h1 {
+.login-brand-logo {
     font-family: 'Plus Jakarta Sans', sans-serif;
     font-size: 1.75rem;
-    font-weight: 800;
-    color: #0F3460;
-    margin: 0.5rem 0 0.25rem;
-    text-align: center;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.login-brand-logo i {
+    font-size: 1.75rem;
+    /* Garante que o ícone herde o gradiente */
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .login-brand p {
-    font-size: 0.875rem;
-    color: #64748B;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 400;
+    color: #8b98b4;
     text-align: center;
     margin: 0;
+    letter-spacing: 0.01em;
 }
 
 /* Clerk monta um <div> com iframe interno — garante centralização */
