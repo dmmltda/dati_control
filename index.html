@@ -2138,6 +2138,32 @@
                     </div>
                 </div>
 
+                <!-- 🔑 API Key Card -->
+                <div id="gabi-apikey-card" class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(251,191,36,0.3); background:rgba(251,191,36,0.04);">
+                    <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.25rem;">
+                        <i class="ph ph-key" style="color:#f59e0b; font-size:1.1rem;"></i>
+                        <span style="font-weight:700; color:#e2e8f0;">Chave da API Gemini</span>
+                        <span id="gabi-apikey-badge" style="display:none; font-size:0.62rem; padding:0.1rem 0.5rem; border-radius:20px; font-weight:700;"></span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:1rem;">Necessária para a Gabi funcionar. Obtenha em <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#818cf8;">aistudio.google.com</a>.</div>
+                    <div style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+                        <input type="password" id="gabi-apikey-input"
+                            placeholder="AIzaSy... (cole a chave aqui)"
+                            autocomplete="new-password"
+                            style="flex:1; min-width:260px; background:rgba(255,255,255,0.05); border:1px solid rgba(251,191,36,0.3); border-radius:8px; padding:0.5rem 0.85rem; color:#e2e8f0; font-family:monospace; font-size:0.85rem; outline:none; transition:border-color 0.2s;"
+                            onfocus="this.style.borderColor='rgba(251,191,36,0.6)'"
+                            onblur="this.style.borderColor='rgba(251,191,36,0.3)'"
+                        >
+                        <button class="btn btn-primary" id="gabi-save-apikey-btn" style="font-size:0.85rem; background:linear-gradient(135deg,#f59e0b,#d97706); border:none;">
+                            <i class="ph ph-floppy-disk"></i> Salvar chave
+                        </button>
+                    </div>
+                    <div style="margin-top:0.65rem; font-size:0.72rem; color:#475569; display:flex; align-items:center; gap:0.35rem;">
+                        <i class="ph ph-lock" style="color:#64748b;"></i>
+                        A chave é armazenada de forma segura no banco de dados do servidor. Nunca é exposta no frontend.
+                    </div>
+                </div>
+
                 <!-- Configuração de Limite + Alerta -->
                 <div class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(99,102,241,0.15);">
                     <div style="font-weight:700; color:#e2e8f0; margin-bottom:0.2rem;">⚙️ Limite &amp; Alertas</div>
@@ -2258,9 +2284,9 @@
                 <div style="padding:1rem 1.25rem; background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.15); border-radius:12px; display:flex; align-items:flex-start; gap:0.75rem;">
                     <i class="ph ph-info" style="color:#6366f1; font-size:1.1rem; margin-top:0.05rem; flex-shrink:0;"></i>
                     <div style="font-size:0.8rem; color:#94a3b8; line-height:1.6;">
-                        <strong style="color:#e2e8f0;">Precificação Gemini 1.5 Flash:</strong>
+                        <strong style="color:#e2e8f0;">Precificação Gemini 2.0 Flash:</strong>
                         US$ 0,075 / 1M tokens entrada &nbsp;·&nbsp; US$ 0,30 / 1M tokens saída.<br>
-                        Configure <strong style="color:#e2e8f0;">GEMINI_API_KEY</strong> no <code style="background:rgba(99,102,241,0.15); padding:0.1rem 0.35rem; border-radius:4px; font-size:0.75rem;">.env</code> do servidor.
+                        Configure a <strong style="color:#fbbf24;">Chave da API Gemini</strong> acima para ativar a Gabi.
                         O limite também pode ser configurado no <a href="https://aistudio.google.com" target="_blank" style="color:#818cf8;">Google AI Studio</a>.
                     </div>
                 </div>

@@ -143,7 +143,22 @@ async function _verificarEstadoAtual(prismaInst = null, actor = null) {
 
 const router2 = router; // alias — mantém compatibilidade com export
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+// ── Helpers para configurações persistidas no banco ───────────────────────────
+// Lê um valor de app_settings (ou retorna o fallback)
+async function getSetting(key, fallback = null) {
+    try {
+        const row = await prisma.app_settings.findUnique({ where: { key } });
+        return row?.value || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+// Obtém a API key do Gemini: banco tem prioridade, depois env
+async function getGeminiApiKey() {
+    return getSetting('gemini_api_key', process.env.GEMINI_API_KEY || null);
+}
+
 // Modelos em ordem de preferência — tenta o próximo se 429 (quota), 404 (não disponível) ou timeout
 // Nota: gemini-2.0-flash e gemini-2.0-flash-001 retornam 404 para APIs keys novas ("no longer available")
 // Por isso começamos com gemini-2.5-flash que é o mais recente e estável
@@ -163,9 +178,10 @@ const PRICE_OUTPUT = 0.30  / 1_000_000;
 // FIX #1: AbortController com timeout de 10s por modelo — evita travar na espera de
 // models lentos/indisponíveis antes de fazer fallback para o próximo da lista.
 async function geminiGenerate(body) {
+    const apiKey = await getGeminiApiKey();
     let lastErr;
     for (const model of GEMINI_MODELS) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const controller = new AbortController();
         const timeoutId  = setTimeout(() => controller.abort(), 15_000); // 15s por modelo (modelos novos podem ser mais lentos)
         try {
@@ -1269,7 +1285,8 @@ router.post('/chat', requireAuth(), async (req, res) => {
     const { message, history = [] } = req.body;
 
     if (!message?.trim()) return res.status(400).json({ error: 'Mensagem vazia.' });
-    if (!GEMINI_API_KEY)  return res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' });
+    const apiKey = await getGeminiApiKey();
+    if (!apiKey)  return res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' });
 
     // Verifica limite
     const limitCheck = await checkLimit();
@@ -1493,9 +1510,10 @@ router.get('/usage', requireAuth(), async (req, res) => {
 
         res.json({
             monthly, daily,
-            limit:       parseFloat(process.env.GABI_MONTHLY_LIMIT_USD || '20'),
-            alert_pct:   parseFloat(process.env.GABI_ALERT_PCT || '80'),
-            alert_email: process.env.GABI_ALERT_EMAIL || '',
+            limit:              parseFloat(await getSetting('gabi_monthly_limit_usd', process.env.GABI_MONTHLY_LIMIT_USD || '20')),
+            alert_pct:          parseFloat(await getSetting('gabi_alert_pct',          process.env.GABI_ALERT_PCT         || '80')),
+            alert_email:        await getSetting('gabi_alert_email',  process.env.GABI_ALERT_EMAIL || ''),
+            api_key_configured: !!(await getGeminiApiKey()),
             currency: 'USD',
             model:    GEMINI_MODELS[0],
             pricing:  { inputPer1M: 0.075, outputPer1M: 0.30 },
@@ -1506,43 +1524,62 @@ router.get('/usage', requireAuth(), async (req, res) => {
 // ── PATCH /api/gabi/settings ──────────────────────────────────────────────────
 router.patch('/settings', requireAuth(), async (req, res) => {
     const clerkUserId = req.auth?.userId;
-    const { monthly_limit_usd, alert_pct, alert_email } = req.body;
+    const { monthly_limit_usd, alert_pct, alert_email, gemini_api_key } = req.body;
 
-    if (monthly_limit_usd === undefined && alert_pct === undefined && alert_email === undefined)
-        return res.status(400).json({ error: 'Informe monthly_limit_usd, alert_pct e/ou alert_email' });
+    if (monthly_limit_usd === undefined && alert_pct === undefined && alert_email === undefined && gemini_api_key === undefined)
+        return res.status(400).json({ error: 'Informe ao menos um campo para alterar.' });
 
-    // Snapshot dos valores anteriores (para o diff no audit log)
-    const before = {
-        monthly_limit_usd: process.env.GABI_MONTHLY_LIMIT_USD || '20',
-        alert_pct:         process.env.GABI_ALERT_PCT         || '80',
-        alert_email:       process.env.GABI_ALERT_EMAIL        || '',
+    // Busca o actor para validação de permissão
+    const actor = clerkUserId
+        ? await prisma.users.findUnique({ where: { id: clerkUserId }, select: { id: true, nome: true, email: true, user_type: true } }).catch(() => null)
+        : null;
+    if (actor?.user_type !== 'master')
+        return res.status(403).json({ error: 'Apenas masters podem alterar configurações da Gabi.' });
+
+    const changes = [];
+
+    // Helper: persiste no banco (upsert)
+    const upsertSetting = async (key, value) => {
+        await prisma.app_settings.upsert({
+            where:  { key },
+            update: { value: String(value), updated_by: clerkUserId },
+            create: { key,  value: String(value), updated_by: clerkUserId },
+        });
     };
 
-    if (monthly_limit_usd !== undefined) process.env.GABI_MONTHLY_LIMIT_USD = String(monthly_limit_usd);
-    if (alert_pct         !== undefined) process.env.GABI_ALERT_PCT          = String(alert_pct);
-    if (alert_email       !== undefined) process.env.GABI_ALERT_EMAIL        = String(alert_email).trim();
+    if (gemini_api_key !== undefined && String(gemini_api_key).trim() !== '') {
+        await upsertSetting('gemini_api_key', String(gemini_api_key).trim());
+        changes.push('GEMINI_API_KEY atualizada');
+    }
+    if (monthly_limit_usd !== undefined) {
+        const before = await getSetting('gabi_monthly_limit_usd', process.env.GABI_MONTHLY_LIMIT_USD || '20');
+        await upsertSetting('gabi_monthly_limit_usd', monthly_limit_usd);
+        process.env.GABI_MONTHLY_LIMIT_USD = String(monthly_limit_usd);
+        if (String(monthly_limit_usd) !== before) changes.push(`Limite mensal: $${before} → $${monthly_limit_usd}`);
+    }
+    if (alert_pct !== undefined) {
+        const before = await getSetting('gabi_alert_pct', process.env.GABI_ALERT_PCT || '80');
+        await upsertSetting('gabi_alert_pct', alert_pct);
+        process.env.GABI_ALERT_PCT = String(alert_pct);
+        if (String(alert_pct) !== before) changes.push(`Alerta: ${before}% → ${alert_pct}%`);
+    }
+    if (alert_email !== undefined) {
+        const before = await getSetting('gabi_alert_email', process.env.GABI_ALERT_EMAIL || '');
+        await upsertSetting('gabi_alert_email', String(alert_email).trim());
+        process.env.GABI_ALERT_EMAIL = String(alert_email).trim();
+        if (String(alert_email).trim() !== before) changes.push(`E-mail de alerta: "${before}" → "${alert_email}"`);
+    }
 
     res.json({
-        success: true,
-        monthly_limit_usd: process.env.GABI_MONTHLY_LIMIT_USD,
-        alert_pct:         process.env.GABI_ALERT_PCT,
-        alert_email:       process.env.GABI_ALERT_EMAIL || '',
+        success:            true,
+        api_key_configured: !!(await getGeminiApiKey()),
+        monthly_limit_usd:  await getSetting('gabi_monthly_limit_usd', '20'),
+        alert_pct:          await getSetting('gabi_alert_pct', '80'),
+        alert_email:        await getSetting('gabi_alert_email', ''),
     });
 
-    // ── Audit log: configurações da Gabi alteradas ─────────────────────────
+    // Audit log
     try {
-        const actor = clerkUserId
-            ? await prisma.users.findUnique({ where: { id: clerkUserId }, select: { id: true, nome: true, email: true, user_type: true } }).catch(() => null)
-            : null;
-
-        const changes = [];
-        if (monthly_limit_usd !== undefined && String(monthly_limit_usd) !== before.monthly_limit_usd)
-            changes.push(`Limite mensal: $${before.monthly_limit_usd} → $${monthly_limit_usd}`);
-        if (alert_pct !== undefined && String(alert_pct) !== before.alert_pct)
-            changes.push(`Alerta: ${before.alert_pct}% → ${alert_pct}%`);
-        if (alert_email !== undefined && String(alert_email).trim() !== before.alert_email)
-            changes.push(`E-mail de alerta: "${before.alert_email}" → "${alert_email}"`);
-
         if (changes.length > 0) {
             audit.log(prisma, {
                 actor,
@@ -1551,12 +1588,9 @@ router.patch('/settings', requireAuth(), async (req, res) => {
                 entity_id:   'gabi',
                 entity_name: 'Configurações da Gabi AI',
                 description: `Alterou configurações da Gabi: ${changes.join(' | ')}`,
-                meta:        { before, after: { monthly_limit_usd: process.env.GABI_MONTHLY_LIMIT_USD, alert_pct: process.env.GABI_ALERT_PCT, alert_email: process.env.GABI_ALERT_EMAIL }, changes },
+                meta:        { changes },
             });
         }
-
-        // Verifica se o gasto atual já ultrapassa os novos thresholds e envia alerta se necessário.
-        // Passa prisma e actor para que o envio do e-mail também seja registrado no histórico.
         if (monthly_limit_usd !== undefined || alert_pct !== undefined) {
             _verificarEstadoAtual(prisma, actor).catch(err =>
                 console.warn('[Gabi Alert] Erro na verificação pós-settings:', err.message)
@@ -1566,6 +1600,7 @@ router.patch('/settings', requireAuth(), async (req, res) => {
         console.warn('[Gabi Settings] Erro no audit:', auditErr.message);
     }
 });
+
 
 // ── POST /api/gabi/send-email ────────────────────────────────────────────────
 // Envia um resumo gerado pela Gabi por e-mail (enfileira no pg-boss)

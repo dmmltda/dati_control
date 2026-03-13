@@ -613,6 +613,19 @@ model notifications {
   @@index([created_at])
 }
 
+// ─── Configurações Gerais da Plataforma ──────────────────────────────────────
+// Chave-valor para armazenar configurações do sistema que precisam persistir
+// mesmo sem variáveis de ambiente (ex: GEMINI_API_KEY configurada via UI).
+// valores sensíveis (API keys) são armazenados aqui e nunca expostos no front.
+model app_settings {
+  key        String   @id                      // ex: "gemini_api_key", "gabi_monthly_limit_usd"
+  value      String                            // valor em texto
+  updated_at DateTime @updatedAt
+  updated_by String?                           // user_id do master que alterou
+
+  @@map("app_settings")
+}
+
 // ─── E-mail — Deduplicação de envios ─────────────────────────────────────────
 // Garante que o mesmo e-mail nunca seja enviado mais de uma vez.
 // O UNIQUE em dedup_key é aplicado atomicamente pelo Postgres,

@@ -134,7 +134,28 @@ window.gabiSaveEmails = async function() {
     }
 };
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Init ────────────────────────────────────────────────────────────────────────────
+function _renderApiKeyBadge(configured) {
+    const badge = document.getElementById('gabi-apikey-badge');
+    const card  = document.getElementById('gabi-apikey-card');
+    if (!badge) return;
+    if (configured) {
+        badge.textContent = '✅ Configurada';
+        badge.style.display = 'inline-block';
+        badge.style.background = 'rgba(16,185,129,0.15)';
+        badge.style.color = '#10b981';
+        badge.style.border = '1px solid rgba(16,185,129,0.3)';
+        if (card) card.style.borderColor = 'rgba(16,185,129,0.3)';
+    } else {
+        badge.textContent = '⚠️ Não configurada';
+        badge.style.display = 'inline-block';
+        badge.style.background = 'rgba(239,68,68,0.12)';
+        badge.style.color = '#f87171';
+        badge.style.border = '1px solid rgba(239,68,68,0.3)';
+        if (card) card.style.borderColor = 'rgba(239,68,68,0.4)';
+    }
+}
+
 export async function initSettingsGabi() {
     _renderSkeleton();
     await _carregarDados();
@@ -232,6 +253,9 @@ function _renderBarra(data) {
     const spent = parseFloat(data.monthly?.cost || 0);
     const limit = parseFloat(data.limit || 20);
     const pct   = Math.min(100, (spent / limit) * 100);
+
+    // Badge da API key
+    _renderApiKeyBadge(!!data.api_key_configured);
 
     // Cor da barra baseada no percentual
     let barColor;
@@ -347,6 +371,32 @@ function _formatTokens(n) {
 
 // ── Wire buttons ──────────────────────────────────────────────────────────────
 function _wireButtons() {
+    // Botão Salvar chave API
+    document.getElementById('gabi-save-apikey-btn')?.addEventListener('click', async () => {
+        const keyVal = document.getElementById('gabi-apikey-input')?.value?.trim();
+        if (!keyVal) return showToast('Cole a chave da API antes de salvar.', 'error');
+        const btn = document.getElementById('gabi-save-apikey-btn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
+        try {
+            const token = await getAuthToken();
+            const res = await fetch('/api/gabi/settings', {
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gemini_api_key: keyVal }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            document.getElementById('gabi-apikey-input').value = '';
+            document.getElementById('gabi-apikey-input').placeholder = 'Chave salva — cole uma nova para substituir';
+            _renderApiKeyBadge(!!data.api_key_configured);
+            showToast('✅ Chave da API salva com sucesso! A Gabi já está ativada.', 'success');
+        } catch (err) {
+            showToast('Erro ao salvar chave: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar chave'; }
+        }
+    });
+
     // Botão Atualizar
     document.getElementById('gabi-cfg-refresh-btn')?.addEventListener('click', () => _carregarDados());
 
