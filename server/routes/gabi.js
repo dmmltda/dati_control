@@ -422,7 +422,6 @@ const GABI_TOOLS = [{
                 properties: {
                     title:         { type: 'string', description: 'Título da atividade (obrigatório)' },
                     activity_type: { type: 'string', description: 'Comentário | Reunião | Chamados HD | Chamados CS | Ação necessária (obrigatório)' },
-                    department:    { type: 'string', description: 'CS | Comercial | Produto | Financeiro | TI (obrigatório)' },
                     description:   { type: 'string' },
                     company_name:  { type: 'string', description: 'Nome da empresa (para buscar o ID)' },
                     company_id:    { type: 'string' },
@@ -433,7 +432,7 @@ const GABI_TOOLS = [{
                     next_step_title: { type: 'string', description: 'Próximo passo' },
                     next_step_date:  { type: 'string', description: 'Data do próximo passo (ISO 8601)' },
                 },
-                required: ['title', 'activity_type', 'department']
+                required: ['title', 'activity_type']
             }
         },
         {
@@ -930,12 +929,14 @@ async function execTool(name, args = {}) {
             company_id = c?.id || null;
         }
         const actId = randomUUID();
+        // Usa department do args; se não informado, usa o do usuário logado automaticamente
+        const actDepartment = args.department || _currentUser?.department || null;
         const activity = await prisma.activities.create({
             data: {
                 id:                actId,
                 title:             args.title,
                 activity_type:     args.activity_type,
-                department:        args.department,
+                department:        actDepartment,
                 description:       args.description    || null,
                 company_id:        company_id,
                 activity_datetime: args.activity_datetime ? new Date(args.activity_datetime) : new Date(),
@@ -1489,19 +1490,19 @@ router.post('/chat', requireAuth(), async (req, res) => {
     try { user = await prisma.users.findUnique({ where: { id: clerkUserId } }); } catch {}
 
     // ── Injeta contexto do usuário para as tools (Opção C — Híbrido) ──────────
-    _currentUser = user ? { id: user.id, nome: user.nome, user_type: user.user_type } : { id: clerkUserId, nome: 'Usuário', user_type: 'standard' };
+    _currentUser = user ? { id: user.id, nome: user.nome, user_type: user.user_type, department: user.department || null } : { id: clerkUserId, nome: 'Usuário', user_type: 'standard', department: null };
 
     const isMaster = user?.user_type === 'master';
     const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
     // ── System prompt: role + userId injetados (sem lista de empresas) ─────────
     const systemPrompt = `Você é a Gabi, assistente de IA do Journey CRM da DATI. Data/hora atual: ${now}.
-Usuário: ${user?.nome || 'Usuário'} | ID: ${clerkUserId} | Perfil: ${isMaster ? 'Master — acesso total ao sistema' : 'Standard — acesso restrito às próprias empresas'}.
+Usuário: ${user?.nome || 'Usuário'} | ID: ${clerkUserId} | Perfil: ${isMaster ? 'Master — acesso total ao sistema' : 'Standard — acesso restrito às próprias empresas'} | Departamento: ${user?.department || 'não definido'}.
 
 Responda em Português Brasileiro. Seja direta, objetiva e calorosa.
 Use markdown básico. Raciocine antes de responder — pense nos dados necessários.
 
-ANÁLISE DE IMAGENS: Você tem visão computacional — pode receber e interpretar imagens enviadas pelo usuário (prints de e-mail, WhatsApp, propostas comerciais, documentos, planilhas, capturas de tela, fotos, etc.). Quando receber uma imagem, analise-a detalhadamente: extraia texto visível, identifique o contexto, leia valores, datas, nomes, e responda às perguntas do usuário com base no conteúdo visual. Se não houver pergunta explícita, descreva e pré-preencha os dados relevantes que possa extrair (ex: dados de um e-mail → sugira criar uma atividade; dados de uma proposta → liste valores e condições; dados de WhatsApp → resuma a conversa).
+ANÁLISE DE IMAGENS: Você tem visão computacional. Quando receber uma mensagem com o bloco [CONTEÚDO EXTRAÍDO DA IMAGEM], esse bloco contém o texto extraído automaticamente de um print/screenshot enviado pelo usuário. Use esse conteúdo como dados REAIS para executar a instrução descrita em [INSTRUÇÃO DO USUÁRIO]. Não apenas descreva o conteúdo — EXECUTE a ação pedida usando as tools disponíveis (ex: se o usuário pediu "deletar esses" e a imagem continha uma lista de empresas, use delete_company para cada uma; se pediu "criar atividade para essas empresas", use create_activity; etc.). Raciocine sobre a intenção do usuário com base no contexto da imagem E na instrução explícita.
 
 ${isMaster
     ? 'Como Master, você tem acesso TOTAL: pode ver, criar, editar e excluir qualquer empresa, atividade ou contato do sistema.'
@@ -1535,6 +1536,8 @@ Se não tiver permissão, responda claramente: "Você não tem permissão para [
 Se tiver permissão, USE as tools de escrita diretamente. Se faltarem dados obrigatórios, pergunte antes de executar.
 Para exclusões (delete_company, delete_activity, delete_contact): SEMPRE peça confirmação explícita ao usuário ANTES de chamar a tool, a menos que ele já tenha confirmado na mensagem. Avise que a ação é irreversível.
 Após criar/editar/excluir, informe o resultado e sugira próximos passos.
+
+DEPARTAMENTO EM ATIVIDADES: O campo "department" das atividades é preenchido automaticamente com o departamento do usuário logado (${user?.department || 'não definido'}). NUNCA pergunte ao usuário qual é o departamento — use sempre o departamento do perfil do usuário automaticamente. Só inclua "department" na tool create_activity se o usuário EXPLICITAMENTE pedir um departamento diferente do seu.
 
 ACESSO AO BANCO DE DADOS:
 Você tem acesso COMPLETO ao banco de dados via query_database. Use esta tool para responder qualquer pergunta sobre:
@@ -1608,48 +1611,47 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
         let outputTok   = 0;
         const actionsPerformed = [];
 
-        // ── CAMINHO ESPECIAL: mensagem com imagem ───────────────────────────────────
+        // ── PIPELINE 2 FASES: imagem → Vision extrai texto → loop normal com tools ──
         if (image?.base64) {
-            console.log(`[Gabi Vision] 🖼️ Imagem recebida: ${image.mimeType}, ${Math.round(image.base64.length / 1024)}KB base64`);
+            console.log(`[Gabi Vision] 🖼️ Fase 1 — Extração de texto da imagem: ${image.mimeType}, ${Math.round(image.base64.length / 1024)}KB base64`);
 
-            // Monta a mensagem da imagem diretamente como partes multimodais
-            // NOTA: Não usa system_instruction (modelos em preview podem ignorar).
-            // Inclui contexto como parte do texto da mensagem do usuário.
-            const visionUserText = message?.trim()
-                ? message.trim()
-                : 'Analise e descreva esta imagem em detalhes. Extraia todo o texto visível, identifique o contexto (e-mail, WhatsApp, proposta, etc.) e liste as informações mais relevantes.';
-
-            // Constrói a mensagem vision com o system_instruction embutido no texto
+            // ── FASE 1: Vision apenas para extrair o conteúdo da imagem ─────────────
             const visionMessages = [
                 {
                     role: 'user',
                     parts: [
                         { inlineData: { mimeType: image.mimeType, data: image.base64 } },
-                        { text: visionUserText }
+                        { text: 'Extraia e liste TODO o texto visível nesta imagem, linha por linha, sem interpretação. Se for uma lista de nomes, liste cada nome em uma linha separada. Responda apenas com o conteúdo extraído, sem comentários adicionais.' }
                     ]
                 }
             ];
 
             const visionData = await geminiGenerateVision({
                 contents: visionMessages,
-                generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
+                generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
             });
-            inputTok  = visionData.usageMetadata?.promptTokenCount    || 0;
-            outputTok = visionData.usageMetadata?.candidatesTokenCount || 0;
-            const visionParts = visionData.candidates?.[0]?.content?.parts || [];
-            finalText = visionParts.filter(p => p.text).map(p => p.text).join('')
-                || 'Não consegui analisar a imagem. Tente novamente com uma imagem mais clara.';
+            inputTok  += visionData.usageMetadata?.promptTokenCount    || 0;
+            outputTok += visionData.usageMetadata?.candidatesTokenCount || 0;
 
-            // Log e resposta imediata
-            const costUsd = (inputTok * PRICE_INPUT) + (outputTok * PRICE_OUTPUT);
-            try {
-                await prisma.gabi_usage_logs.create({
-                    data: { user_id: clerkUserId, input_tokens: inputTok, output_tokens: outputTok, cost_usd: costUsd }
-                });
-                _verificarEEnviarAlerta(costUsd, prisma, user).catch(() => {});
-            } catch {}
-            return res.json({ reply: finalText, actionsPerformed: [], activityChanged: false, companyChanged: false,
-                usage: { inputTokens: inputTok, outputTokens: outputTok, costUsd: costUsd.toFixed(6) } });
+            const visionParts = visionData.candidates?.[0]?.content?.parts || [];
+            const extractedText = visionParts.filter(p => p.text).map(p => p.text).join('').trim();
+
+            console.log(`[Gabi Vision] ✅ Fase 1 concluída — texto extraído: "${extractedText.substring(0, 200)}"`);
+
+            // ── FASE 2: injeta texto extraído como contexto e entra no loop de tools ─
+            // Se o usuário também enviou uma mensagem de texto, combina com o conteúdo extraído
+            const userInstruction = message?.trim() || 'Analise esta imagem e descreva o conteúdo.';
+            const enrichedMessage = extractedText
+                ? `[CONTEÚDO EXTRAÍDO DA IMAGEM]\n${extractedText}\n\n[INSTRUÇÃO DO USUÁRIO]\n${userInstruction}`
+                : userInstruction;
+
+            // Substitui a última mensagem do usuário (que continha inlineData) pela versão enriquecida
+            // para que o loop de tool-use receba o contexto correto
+            allMessages = allMessages.filter(m => !(m.role === 'user' && m.parts?.some(p => p.inlineData)));
+            allMessages.push({ role: 'user', parts: [{ text: enrichedMessage }] });
+
+            console.log(`[Gabi Vision] 🔄 Fase 2 — entrando no loop de tool-use com contexto enriquecido`);
+            // continua abaixo para o loop normal de tool-use
         }
 
 
