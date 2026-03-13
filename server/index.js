@@ -110,16 +110,24 @@ app.post('/fix-masters', async (req, res) => {
     if (key !== (process.env.ADMIN_FIX_KEY || 'dati-fix-2024')) {
         return res.status(403).json({ error: 'Key inválida' });
     }
+    const results = {};
     try {
         const r1 = await prisma.users.updateMany({ where: { user_type: 'Master' }, data: { user_type: 'master' } });
+        results.case_fixed = r1.count;
+    } catch(e) { results.case_fixed_err = e.message; }
+    try {
         const r2 = await prisma.users.updateMany({ where: { user_type: 'standard', OR: [{ email: { contains: 'daniel', mode: 'insensitive' } }, { nome: { contains: 'daniel', mode: 'insensitive' } }] }, data: { user_type: 'master' } });
+        results.master_fixed = r2.count;
+    } catch(e) { results.master_fixed_err = e.message; }
+    try {
         const VALID = ['dashboard.view','companies.view','my_tasks.view','reports.view','audit.view','test_logs.view','gabi.view','company_tab.basic_data','company_tab.products','company_tab.contacts','company_tab.cs','company_tab.activities','company_edit.basic_data','company_edit.products','company_edit.contacts','company_edit.cs','company_edit.activities'];
         const r3 = await prisma.user_feature_permissions.deleteMany({ where: { permission: { notIn: VALID } } });
-        const users = await prisma.users.findMany({ select: { nome: true, email: true, user_type: true } });
-        return res.json({ ok: true, case_fixed: r1.count, master_fixed: r2.count, perms_cleaned: r3.count, users });
-    } catch (err) {
-        return res.status(500).json({ error: err.message });
-    }
+        results.perms_cleaned = r3.count;
+    } catch(e) { results.perms_cleaned_err = e.message; }
+    try {
+        results.users = await prisma.users.findMany({ select: { nome: true, email: true, user_type: true } });
+    } catch(e) { results.users_err = e.message; }
+    return res.json({ ok: true, ...results });
 });
 
 app.use(clerkMiddleware({ secretKey: process.env.CLERK_SECRET_KEY }));
