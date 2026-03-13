@@ -7,7 +7,7 @@
  */
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireAuth, getAuth } from '@clerk/express';
+import { getAuth } from '@clerk/express';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -65,9 +65,11 @@ function formatMinutes(totalMinutes) {
 // GET /api/monthly-report/overview?month=YYYY-MM
 // Resumo de TODAS as empresas ativas — para a aba "Aderência Mensal"
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/overview', requireAuth(), async (req, res) => {
+router.get('/overview', async (req, res) => {
   try {
     const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: 'Não autenticado' });
+
     const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) return res.status(403).json({ error: 'Usuário não encontrado' });
 
@@ -148,9 +150,11 @@ router.get('/overview', requireAuth(), async (req, res) => {
 // GET /api/monthly-report/:companyId?month=YYYY-MM
 // Dados completos do relatório mensal de uma empresa
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/:companyId', requireAuth(), async (req, res) => {
+router.get('/:companyId', async (req, res) => {
   try {
     const { userId } = getAuth(req);
+    if (!userId) return res.status(401).json({ error: 'Não autenticado' });
+
     const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) return res.status(403).json({ error: 'Usuário não encontrado' });
 

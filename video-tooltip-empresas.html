@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Tooltip — Filtro de Empresas</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .stage {
+    min-height: 480px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: #f5f5f5;
+    border-radius: 16px;
+  }
+  .trigger-wrap { position: relative; display: inline-block; }
+  .trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 0.5px solid #ccc;
+    background: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    color: #111;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .trigger-btn:hover { background: #f5f5f5; border-color: #aaa; }
+  .trigger-btn svg { width: 16px; height: 16px; color: #888; }
+  .hint-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #CECBF6;
+    color: #3C3489;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .tooltip {
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.94);
+    transform-origin: bottom center;
+    background: #fff;
+    border: 0.5px solid #ddd;
+    border-radius: 16px;
+    width: 300px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  .tooltip.visible {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    pointer-events: all;
+  }
+  .tooltip-arrow {
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 9px;
+    height: 9px;
+    background: #fff;
+    border-right: 0.5px solid #ddd;
+    border-bottom: 0.5px solid #ddd;
+  }
+  .video-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #1a1f2e;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .video-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s;
+  }
+  .play-btn-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .video-container:hover .play-btn-circle {
+    background: rgba(255,255,255,0.25);
+    transform: scale(1.08);
+  }
+  .play-triangle {
+    width: 0; height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 14px solid rgba(255,255,255,0.95);
+    margin-left: 3px;
+  }
+  .pause-icon { display: flex; gap: 4px; }
+  .pause-bar { width: 3px; height: 14px; background: rgba(255,255,255,0.95); border-radius: 2px; }
+  .progress-bar-wrap {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: rgba(255,255,255,0.7);
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+  .tooltip-body { padding: 14px 16px; }
+  .tt-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 4px;
+  }
+  .tt-title { font-size: 14px; font-weight: 500; color: #111; margin-bottom: 4px; }
+  .tt-desc { font-size: 12px; color: #666; line-height: 1.5; margin-bottom: 12px; }
+  .tt-cta { display: flex; align-items: center; justify-content: space-between; }
+  .tt-link { font-size: 12px; color: #534AB7; font-weight: 500; cursor: pointer; text-decoration: none; }
+  .tt-link:hover { text-decoration: underline; }
+  .tt-mute {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 0.5px solid #ddd; background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; color: #888;
+  }
+  .tt-mute:hover { background: #f5f5f5; }
+  .time-display { font-size: 11px; color: #aaa; font-variant-numeric: tabular-nums; }
+  .demo-hint { margin-top: 16px; font-size: 12px; color: #aaa; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div style="text-align:center">
+    <div class="trigger-wrap" id="triggerWrap">
+      <button class="trigger-btn" id="triggerBtn">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6"/>
+          <line x1="8" y1="5" x2="8" y2="8"/>
+          <circle cx="8" cy="10.5" r="0.75" fill="currentColor" stroke="none"/>
+        </svg>
+        Como funciona
+        <span class="hint-badge">?</span>
+      </button>
+
+      <div class="tooltip" id="tooltip">
+        <div class="video-container" id="videoWrap">
+          <canvas class="video-canvas" id="vc" width="300" height="169"></canvas>
+          <div class="play-overlay" id="playOverlay">
+            <div class="play-btn-circle" id="playCircle">
+              <div class="play-triangle"></div>
+            </div>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="tooltip-body">
+          <div class="tt-label">TUTORIAL · 0:18</div>
+          <div class="tt-title">Filtrando empresas na tabela</div>
+          <div class="tt-desc">Veja como usar o filtro por coluna para encontrar qualquer empresa em segundos.</div>
+          <div class="tt-cta">
+            <a class="tt-link" href="#">Ver documentação completa →</a>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="time-display" id="timeDisplay">0:00</span>
+              <button class="tt-mute" id="muteBtn" title="mudo">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3 6H1v4h2l4 3V3L3 6z"/>
+                  <path d="M11.5 5.5a3 3 0 0 1 0 5M13.5 3.5a6 6 0 0 1 0 9" id="soundWaves"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="tooltip-arrow"></div>
+      </div>
+    </div>
+    <div class="demo-hint">Passe o mouse ou clique no botão</div>
+  </div>
+</div>
+
+<script>
+  const btn       = document.getElementById('triggerBtn');
+  const tip       = document.getElementById('tooltip');
+  const wrap      = document.getElementById('triggerWrap');
+  const vc        = document.getElementById('vc');
+  const ctx       = vc.getContext('2d');
+  const playOverlay  = document.getElementById('playOverlay');
+  const playCircle   = document.getElementById('playCircle');
+  const progressFill = document.getElementById('progressFill');
+  const timeDisplay  = document.getElementById('timeDisplay');
+  const muteBtn      = document.getElementById('muteBtn');
+
+  let visible = false, playing = false, muted = false;
+  let frame = 0, animId = null;
+  const TOTAL_FRAMES = 540;   // ~18 s a 30 fps
+  const TOTAL_SECS   = 18;
+
+  /* ── Tooltip open/close ─────────────────────────────────────────────────── */
+  function show() { if (visible) return; visible = true; tip.classList.add('visible'); startVideo(); }
+  function hide() { visible = false; tip.classList.remove('visible'); pauseVideo(); }
+
+  btn.addEventListener('mouseenter', show);
+  wrap.addEventListener('mouseleave', e => { if (!tip.contains(e.relatedTarget) && e.relatedTarget !== btn) hide(); });
+  tip.addEventListener('mouseleave',  e => { if (e.relatedTarget !== btn && !wrap.contains(e.relatedTarget)) hide(); });
+  btn.addEventListener('click', () => visible ? hide() : show());
+  document.getElementById('videoWrap').addEventListener('click', togglePlay);
+
+  function togglePlay() { playing ? pauseVideo() : startVideo(); }
+  function startVideo() {
+    playing = true;
+    playCircle.innerHTML = '<div class="pause-icon"><div class="pause-bar"></div><div class="pause-bar"></div></div>';
+    playOverlay.style.opacity = '0';
+    animate();
+  }
+  function pauseVideo() {
+    playing = false;
+    cancelAnimationFrame(animId);
+    playCircle.innerHTML = '<div class="play-triangle" style="margin-left:3px"></div>';
+    playOverlay.style.opacity = '1';
+  }
+  function animate() {
+    if (!playing) return;
+    drawFrame(frame);
+    frame = (frame + 1) % TOTAL_FRAMES;
+    progressFill.style.width = (frame / TOTAL_FRAMES * 100) + '%';
+    const s = Math.round(frame / TOTAL_FRAMES * TOTAL_SECS);
+    timeDisplay.textContent = '0:' + String(s).padStart(2, '0');
+    animId = requestAnimationFrame(animate);
+  }
+
+  muteBtn.addEventListener('click', () => {
+    muted = !muted;
+    document.getElementById('soundWaves').style.opacity = muted ? '0.2' : '1';
+  });
+
+  /* ── Helpers ────────────────────────────────────────────────────────────── */
+  function ease(t)         { t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+  function lerp(a, b, t)   { return a + (b - a) * t; }
+  function prog(f, s, e)   { return ease(Math.max(0, Math.min(1, (f - s) / (e - s)))); }
+
+  /* ── Layout constants ───────────────────────────────────────────────────── */
+  const W = 300, H = 169;
+  const SW = 40;          // sidebar width
+  const TH_Y  = 22;       // table header top y
+  const TH_H  = 16;       // table header height
+  const ROW_Y = TH_Y + TH_H; // first row y = 38
+  const ROW_H = 19;
+
+  // Column starts (relative to full canvas)
+  const CX_EMPRESA = SW + 16;   // x where EMPRESA text begins  (≈ 56)
+  const CX_STATUS  = SW + 148;  // x where STATUS text begins   (≈ 188)
+
+  // Filter icon: sits right after "EMPRESA" text (~38 px wide at 6px bold)
+  const FI_X = CX_EMPRESA + 40;  // ≈ 96
+  const FI_Y = TH_Y + TH_H / 2; // ≈ 30  (vertical center of header)
+
+  // Dropdown geometry
+  const DD_X = SW + 2;   // ≈ 42
+  const DD_Y = ROW_Y;    // 38
+  const DD_W = 140;
+  const DD_H = 118;
+
+  /* items inside dropdown */
+  const ITEM_LIST_Y = DD_Y + 67;  // y of first list item top
+  const ITEM_H = 13;
+  const ITEM_ABC_CY = ITEM_LIST_Y + ITEM_H + ITEM_H / 2; // center-y of ABC row ≈ 93
+
+  /* ── Companies data ─────────────────────────────────────────────────────── */
+  const COMPANIES = [
+    { name: 'ABC importador',    badge: 'PROSPECT', bc: '#7c5c00', btc: '#ffd54f' },
+    { name: 'ACE Schmersal El…', badge: 'INATIVO',  bc: '#5a1010', btc: '#ff8080' },
+    { name: 'ADITEX IND…',       badge: 'INATIVO',  bc: '#5a1010', btc: '#ff8080' },
+    { name: 'ALIBRA',            badge: 'INATIVO',  bc: '#5a1010', btc: '#ff8080' },
+    { name: 'ALIBRA ING…',       badge: 'INATIVO',  bc: '#5a1010', btc: '#ff8080' },
+  ];
+
+  /* ── Animation phases ───────────────────────────────────────────────────── */
+  // 0   – 55  : table static, cursor resting
+  // 55  – 160 : cursor moves to filter icon
+  // 160 – 200 : hover + click on filter icon (click at 175-185)
+  // 200 – 250 : dropdown opens
+  // 250 – 360 : cursor moves to ABC IMPORTADOR
+  // 360 – 415 : hover on ABC IMPORTADOR
+  // 415 – 430 : click ABC IMPORTADOR → selected (purple)
+  // 430 – 470 : dropdown closes
+  // 470 – 540 : filtered table (only ABC row)
+
+  /* ── Draw cursor ────────────────────────────────────────────────────────── */
+  function drawCursor(x, y, sc, pressing) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(sc, sc);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur  = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle   = pressing ? 'rgba(200,200,200,0.95)' : 'rgba(255,255,255,0.97)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth   = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 11);
+    ctx.lineTo(2.4, 8.6);
+    ctx.lineTo(4.0, 12.4);
+    ctx.lineTo(5.6, 11.7);
+    ctx.lineTo(4.1, 7.9);
+    ctx.lineTo(6.8, 7.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ── Draw filter funnel icon ────────────────────────────────────────────── */
+  function drawFilterIcon(x, y, active) {
+    ctx.fillStyle = active ? '#534AB7' : '#5a6a82';
+    ctx.beginPath();
+    ctx.moveTo(x,     y);
+    ctx.lineTo(x + 7, y);
+    ctx.lineTo(x + 5, y + 3);
+    ctx.lineTo(x + 5, y + 7);
+    ctx.lineTo(x + 2, y + 7);
+    ctx.lineTo(x + 2, y + 3);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  /* ── Draw one table row ─────────────────────────────────────────────────── */
+  function drawRow(company, rowIndex, highlight) {
+    const ry = ROW_Y + rowIndex * ROW_H;
+    if (ry + ROW_H > H) return;
+
+    ctx.fillStyle = highlight ? 'rgba(83,74,183,0.12)' : (rowIndex % 2 === 0 ? '#1e2436' : '#1a1f2e');
+    ctx.fillRect(SW, ry, W - SW, ROW_H);
+
+    // checkbox outline
+    ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 0.5;
+    ctx.strokeRect(SW + 4, ry + 5, 8, 8);
+
+    // company name
+    ctx.fillStyle = '#c8d2e0'; ctx.font = '6px system-ui';
+    ctx.fillText(company.name, CX_EMPRESA, ry + 11);
+
+    // badge
+    const bW = company.badge === 'PROSPECT' ? 38 : 30;
+    ctx.fillStyle = company.bc;
+    ctx.beginPath();
+    ctx.roundRect(CX_STATUS - 2, ry + 4, bW, 11, 3); ctx.fill();
+    ctx.fillStyle = company.btc; ctx.font = 'bold 5px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText(company.badge, CX_STATUS - 2 + bW / 2, ry + 11.5);
+    ctx.textAlign = 'left';
+
+    // row separator
+    ctx.strokeStyle = '#252c3d'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(SW, ry + ROW_H); ctx.lineTo(W, ry + ROW_H); ctx.stroke();
+  }
+
+  /* ────────────────────────────────────────────────────────────────────────── */
+  /*  MAIN DRAW FUNCTION                                                        */
+  /* ────────────────────────────────────────────────────────────────────────── */
+  function drawFrame(f) {
+    ctx.clearRect(0, 0, W, H);
+
+    /* ── Background ── */
+    ctx.fillStyle = '#1a1f2e'; ctx.fillRect(0, 0, W, H);
+
+    /* ── Sidebar ── */
+    ctx.fillStyle = '#141824'; ctx.fillRect(0, 0, SW, H);
+
+    // logo dot
+    ctx.fillStyle = '#534AB7';
+    ctx.beginPath(); ctx.arc(SW / 2, 11, 5, 0, Math.PI * 2); ctx.fill();
+
+    // nav items
+    [false, true, false, false, false].forEach((active, i) => {
+      const iy = 25 + i * 18;
+      if (active) {
+        ctx.fillStyle = 'rgba(83,74,183,0.28)';
+        ctx.beginPath(); ctx.roundRect(3, iy - 2, SW - 6, 13, 3); ctx.fill();
+        ctx.fillStyle = '#534AB7'; ctx.fillRect(0, iy - 2, 2, 13); // accent
+      }
+      ctx.fillStyle = active ? '#534AB7' : '#3e4a5c';
+      ctx.beginPath(); ctx.arc(10, iy + 4, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = active ? '#d0d8e8' : '#3e4a5c';
+      ctx.fillRect(16, iy + 1, active ? 18 : [12,16,10,14,11][i], 6);
+    });
+
+    /* ── Top search bar ── */
+    ctx.fillStyle = '#141824'; ctx.fillRect(SW, 0, W - SW, TH_Y);
+    ctx.fillStyle = '#1e2436';
+    ctx.beginPath(); ctx.roundRect(SW + 5, 4, W - SW - 10, 14, 4); ctx.fill();
+    ctx.fillStyle = '#3e4a5c'; ctx.font = '6px system-ui';
+    ctx.fillText('Buscar por empresa, segmento ou status...', SW + 12, 13);
+
+    /* ── Table header ── */
+    ctx.fillStyle = '#141824'; ctx.fillRect(SW, TH_Y, W - SW, TH_H);
+    ctx.strokeStyle = '#252c3d'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(SW, ROW_Y); ctx.lineTo(W, ROW_Y); ctx.stroke();
+
+    ctx.font = 'bold 6px system-ui'; ctx.fillStyle = '#7a8898';
+    ctx.fillText('EMPRESA', CX_EMPRESA, TH_Y + 10);
+    ctx.fillText('STATUS',  CX_STATUS,  TH_Y + 10);
+
+    // filter icon (active when f >= 160 and dropdown visible)
+    const filterActive = f >= 160 && f < 470;
+    drawFilterIcon(FI_X, TH_Y + 4, filterActive);
+
+    /* ── Table rows ── */
+    const isFiltered = f >= 470;
+    const rows = isFiltered ? [COMPANIES[0]] : COMPANIES;
+    rows.forEach((c, i) => drawRow(c, i, isFiltered && i === 0));
+
+    /* ── Filtered label ── */
+    if (isFiltered) {
+      const fa = Math.min(1, (f - 470) / 25);
+      ctx.globalAlpha = fa;
+      ctx.fillStyle = '#534AB7'; ctx.font = 'bold 5.5px system-ui';
+      ctx.textAlign = 'right';
+      ctx.fillText('1-1 de 1 registro filtrado', W - 6, H - 4);
+      ctx.textAlign = 'left';
+      ctx.globalAlpha = 1;
+    }
+
+    /* ── Dropdown ── */
+    if (f >= 170 && f < 470) {
+      const openP  = f < 250  ? prog(f, 170, 250) : 1;
+      const closeP = f >= 430 ? prog(f, 430, 470) : 0;
+      const scaleY = openP * (1 - closeP);
+      const alpha  = scaleY;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(DD_X + DD_W / 2, DD_Y);
+      ctx.scale(1, scaleY);
+      ctx.translate(-(DD_X + DD_W / 2), -DD_Y);
+
+      // dropdown bg + border
+      ctx.fillStyle = '#1e2436';
+      ctx.shadowColor = 'rgba(0,0,0,0.4)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 4;
+      ctx.beginPath(); ctx.roundRect(DD_X, DD_Y, DD_W, DD_H, 6); ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 0.5; ctx.stroke();
+
+      /* ORDENAR */
+      ctx.fillStyle = '#6b7690'; ctx.font = 'bold 5.5px system-ui';
+      ctx.fillText('ORDENAR', DD_X + 8, DD_Y + 11);
+
+      const btnY = DD_Y + 14; const btnH = 13;
+      // Cresc button
+      ctx.fillStyle = '#252b3b';
+      ctx.beginPath(); ctx.roundRect(DD_X + 7, btnY, 56, btnH, 3); ctx.fill();
+      ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 0.4; ctx.stroke();
+      ctx.fillStyle = '#8892a4'; ctx.font = '5.5px system-ui';
+      ctx.fillText('↑ Cresc.', DD_X + 14, btnY + 8.5);
+      // Decresc button
+      ctx.fillStyle = '#252b3b';
+      ctx.beginPath(); ctx.roundRect(DD_X + 68, btnY, 63, btnH, 3); ctx.fill();
+      ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 0.4; ctx.stroke();
+      ctx.fillStyle = '#8892a4';
+      ctx.fillText('↓ Decresc.', DD_X + 74, btnY + 8.5);
+
+      /* FILTRAR VALORES */
+      ctx.fillStyle = '#6b7690'; ctx.font = 'bold 5.5px system-ui';
+      ctx.fillText('FILTRAR VALORES', DD_X + 8, DD_Y + 34);
+
+      // search input
+      ctx.fillStyle = '#141824';
+      ctx.beginPath(); ctx.roundRect(DD_X + 7, DD_Y + 37, DD_W - 14, 12, 3); ctx.fill();
+      ctx.strokeStyle = '#3a4558'; ctx.lineWidth = 0.4; ctx.stroke();
+      ctx.fillStyle = '#4a5568'; ctx.font = '5.5px system-ui';
+      ctx.fillText('Pesquisar...', DD_X + 13, DD_Y + 45);
+
+      /* Separator */
+      ctx.strokeStyle = '#252c3d'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(DD_X + 1, ITEM_LIST_Y - 2); ctx.lineTo(DD_X + DD_W - 1, ITEM_LIST_Y - 2); ctx.stroke();
+
+      /* List items */
+      const ddItems = ['(TUDO)', 'ABC IMPORTADOR', 'ACE SCHMERSAL...', 'ADITEX INDUSTRIA...'];
+      ddItems.forEach((label, i) => {
+        const iy = ITEM_LIST_Y + i * ITEM_H;
+
+        // Determine state
+        const isTudo = i === 0;
+        const isABC  = i === 1;
+
+        // TUDO selected until ABC is clicked
+        const tudoSelected = isTudo && f < 430;
+        // ABC hovered from f=360 until click, then selected
+        const abcHovered   = isABC && f >= 350 && f < 430;
+        const abcSelected  = isABC && f >= 430;
+
+        if (tudoSelected || abcSelected) {
+          ctx.fillStyle = '#534AB7';
+          ctx.beginPath(); ctx.roundRect(DD_X + 4, iy - 1, DD_W - 8, ITEM_H - 1, 3); ctx.fill();
+        } else if (abcHovered) {
+          ctx.fillStyle = '#252b3b';
+          ctx.beginPath(); ctx.roundRect(DD_X + 4, iy - 1, DD_W - 8, ITEM_H - 1, 3); ctx.fill();
+        }
+
+        ctx.fillStyle = (tudoSelected || abcSelected) ? '#fff' : (abcHovered ? '#c8d2e0' : '#8a96a8');
+        ctx.font = isTudo ? 'bold 5.5px system-ui' : '5.5px system-ui';
+        ctx.fillText(label, DD_X + 9, iy + 8);
+      });
+
+      /* Limpar Filtro */
+      ctx.fillStyle = '#ff6b6b'; ctx.font = '5px system-ui';
+      ctx.fillText('⊘  Limpar Filtro', DD_X + 9, DD_Y + DD_H - 6);
+
+      ctx.restore();
+    }
+
+    /* ── Click ripple on filter icon ── */
+    if (f >= 175 && f <= 195) {
+      const cp = prog(f, 175, 195);
+      ctx.strokeStyle = `rgba(83,74,183,${1 - cp})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(FI_X + 3.5, FI_Y, 4 + cp * 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    /* ── Click ripple on ABC item ── */
+    if (f >= 415 && f <= 435) {
+      const cp = prog(f, 415, 435);
+      ctx.strokeStyle = `rgba(83,74,183,${1 - cp})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(DD_X + 60, ITEM_LIST_Y + ITEM_H + ITEM_H / 2, 3 + cp * 10, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    /* ── Cursor position ── */
+    let cx, cy, pressing = false, csc = 1;
+
+    if (f < 55) {
+      cx = 234; cy = 144;
+    } else if (f < 160) {
+      const t = prog(f, 55, 160);
+      cx = lerp(234, FI_X - 1, t);
+      cy = lerp(144, FI_Y - 1, t);
+    } else if (f < 200) {
+      cx = FI_X - 1; cy = FI_Y - 1;
+      pressing = f >= 175 && f < 185;
+      if (pressing) csc = 0.88;
+    } else if (f < 260) {
+      cx = FI_X - 1; cy = FI_Y - 1;  // stays while dropdown opens
+    } else if (f < 360) {
+      const t = prog(f, 260, 360);
+      cx = lerp(FI_X - 1, DD_X + 40, t);
+      cy = lerp(FI_Y - 1, ITEM_LIST_Y + ITEM_H + 3, t);
+    } else if (f < 470) {
+      cx = DD_X + 40;
+      cy = ITEM_LIST_Y + ITEM_H + 3;
+      pressing = f >= 415 && f < 430;
+      if (pressing) csc = 0.88;
+    } else {
+      // cursor relaxes to row 0 center after filter
+      const t = prog(f, 470, 510);
+      cx = lerp(DD_X + 40, CX_EMPRESA + 20, t);
+      cy = lerp(ITEM_LIST_Y + ITEM_H + 3, ROW_Y + ROW_H / 2, t);
+    }
+
+    drawCursor(cx, cy, csc, pressing);
+  }
+
+  /* initial paint */
+  drawFrame(0);
+</script>
+</body>
+</html>

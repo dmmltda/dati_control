@@ -103,8 +103,9 @@ export function openCompanyForm(id = null) {
     cidadeInput.disabled = true;
     cidadeInput.placeholder = 'Selecione um estado primeiro...';
 
+    let comp = null;
     if (id) {
-        const comp = state.companies.find(c => c.id == id);
+        comp = state.companies.find(c => c.id == id);
         if (comp) {
             document.getElementById('company-id').value = comp.id;
             document.getElementById('emp-nome').value = comp.nome;

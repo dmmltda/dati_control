@@ -469,10 +469,9 @@ function initRotinasTable(r) {
         `;
       }).join('');
 
-      // Atualiza contagem
+      // Atualiza contagem — usa data.length direto (evita refência a tm antes de ser atribuído)
       if (countEl) {
-        const total = tm.getPaginationState().totalRecords;
-        countEl.textContent = `${total} rotina${total !== 1 ? 's' : ''}`;
+        countEl.textContent = `${data.length} rotina${data.length !== 1 ? 's' : ''}`;
       }
     },
   });
@@ -505,9 +504,7 @@ function initRotinasTable(r) {
   if (searchEl) {
     searchEl.addEventListener('input', e => tm.setSearch(e.target.value));
   }
-
-  // Render inicial
-  tm.refresh();
+  // Nota: tm.refresh() já é chamado automaticamente no construtor do TableManager
 }
 
 // Calcula status da rotina pelo percentual
@@ -520,6 +517,12 @@ function rotinaStatus(pct) {
 
 // ── Renderiza gráficos Chart.js ───────────────────────────────────────────────
 function renderAllCharts(data) {
+  // Guard: Chart.js é carregado como script global
+  if (typeof Chart === 'undefined') {
+    console.warn('[monthly-report] Chart.js não disponível.');
+    return;
+  }
+
   const chartDefaults = {
     responsive: true,
     maintainAspectRatio: false,
@@ -540,29 +543,31 @@ function renderAllCharts(data) {
   const elClassif = document.getElementById('chart-classif');
   if (elClassif) {
     destroyChart('classif');
-    _charts['classif'] = new Chart(elClassif, {
-      type: 'doughnut',
-      data: {
-        labels: data.chamados.por_classificacao.map(p => p.label),
-        datasets: [{
-          data: data.chamados.por_classificacao.map(p => p.value),
-          backgroundColor: ['#4f46e5', '#10b981', '#f59e0b'],
-          borderWidth: 2,
-          borderColor: '#1e293b',
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 }, padding: 12 },
-          },
-          tooltip: { bodyFont: { family: 'Plus Jakarta Sans' }, titleFont: { family: 'Plus Jakarta Sans' } },
+    const classifValues = data.chamados.por_classificacao.map(p => p.value);
+    const classifTotal  = classifValues.reduce((s, v) => s + v, 0);
+    if (classifTotal === 0) {
+      // Empty state
+      elClassif.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:12px;opacity:.5;">Sem dados no período</div>`;
+    } else {
+      _charts['classif'] = new Chart(elClassif, {
+        type: 'doughnut',
+        data: {
+          labels: data.chamados.por_classificacao.map(p => p.label),
+          datasets: [{
+            data: classifValues,
+            backgroundColor: ['#ef4444', '#10b981', '#4f46e5'],
+            borderWidth: 2, borderColor: '#1e293b',
+          }],
         },
-      },
-    });
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 }, padding: 12 } },
+            tooltip: { bodyFont: { family: 'Plus Jakarta Sans' }, titleFont: { family: 'Plus Jakarta Sans' } },
+          },
+        },
+      });
+    }
   }
 
   // 2) Solicitante (bar horizontal)
@@ -571,59 +576,49 @@ function renderAllCharts(data) {
     destroyChart('solicitante');
     const labels = data.chamados.por_solicitante.map(p => p.label);
     const values = data.chamados.por_solicitante.map(p => p.value);
-    _charts['solicitante'] = new Chart(elSolic, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{ label: 'Chamados', data: values, backgroundColor: '#4f46e5', borderRadius: 4 }],
-      },
-      options: {
-        ...chartDefaults,
-        indexAxis: 'y',
-        plugins: { ...chartDefaults.plugins, legend: { display: false } },
-        scales: {
-          x: { ...chartDefaults.scales.x, ticks: { ...chartDefaults.scales.x.ticks, stepSize: 1 } },
-          y: { ...chartDefaults.scales.y },
+    if (values.length === 0 || values.every(v => v === 0)) {
+      elSolic.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:12px;opacity:.5;">Sem dados no período</div>`;
+    } else {
+      _charts['solicitante'] = new Chart(elSolic, {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Chamados', data: values, backgroundColor: '#4f46e5', borderRadius: 4 }] },
+        options: {
+          ...chartDefaults, indexAxis: 'y',
+          plugins: { ...chartDefaults.plugins, legend: { display: false } },
+          scales: {
+            x: { ...chartDefaults.scales.x, ticks: { ...chartDefaults.scales.x.ticks, stepSize: 1 } },
+            y: { ...chartDefaults.scales.y },
+          },
         },
-      },
-    });
+      });
+    }
   }
 
-  // 3) Help Desk por tipo (bar agrupado)
+  // 3) Help Desk por tipo (bar)
   const elHD = document.getElementById('chart-helpdesk-tipo');
   if (elHD) {
     destroyChart('helpdesk-tipo');
     const tipoLabels = data.helpdesk.por_tipo.map(p => p.label);
     const tipoValues = data.helpdesk.por_tipo.map(p => Math.round(p.value_minutos / 60 * 100) / 100);
-    const tipoColors = ['#ef4444', '#10b981', '#4f46e5'];
-    _charts['helpdesk-tipo'] = new Chart(elHD, {
-      type: 'bar',
-      data: {
-        labels: tipoLabels,
-        datasets: [{
-          label: 'Horas utilizadas',
-          data: tipoValues,
-          backgroundColor: tipoColors,
-          borderRadius: 4,
-        }],
-      },
-      options: {
-        ...chartDefaults,
-        plugins: { ...chartDefaults.plugins, legend: { display: false } },
-        scales: {
-          x: { ...chartDefaults.scales.x },
-          y: {
-            ...chartDefaults.scales.y,
-            title: {
-              display: true,
-              text: 'Horas',
-              color: '#64748b',
-              font: { family: 'Plus Jakarta Sans', size: 11 },
-            },
+    if (tipoValues.every(v => v === 0)) {
+      elHD.parentElement.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:12px;opacity:.5;">Sem horas registradas</div>`;
+    } else {
+      _charts['helpdesk-tipo'] = new Chart(elHD, {
+        type: 'bar',
+        data: {
+          labels: tipoLabels,
+          datasets: [{ label: 'Horas utilizadas', data: tipoValues, backgroundColor: ['#ef4444','#10b981','#4f46e5'], borderRadius: 4 }],
+        },
+        options: {
+          ...chartDefaults,
+          plugins: { ...chartDefaults.plugins, legend: { display: false } },
+          scales: {
+            x: { ...chartDefaults.scales.x },
+            y: { ...chartDefaults.scales.y, title: { display: true, text: 'Horas', color: '#64748b', font: { family: 'Plus Jakarta Sans', size: 11 } } },
           },
         },
-      },
-    });
+      });
+    }
   }
 }
 

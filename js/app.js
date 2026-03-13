@@ -34,6 +34,7 @@ import * as logTestes from './modules/log-testes.js';
 import * as logAgendamento from './modules/log-agendamento.js';
 import * as reports from './modules/reports.js';
 import { initMonthlyReport } from './modules/monthly-report.js';
+import { initAdherenceReport } from './modules/adherence-report.js';
 import * as auditLog from './modules/audit-log.js';
 import { initNotifications } from './modules/notifications.js';
 
@@ -247,7 +248,13 @@ window.handlers = handlers;
 window.utils = utils;
 window.state = state;
 window.activities = activities;
-window.tasksBoard = tasksBoard; // Exposto para a Gabi abrir atividades via link
+// window.tasksBoard é configurado pelo próprio tasks-board.js com renderActivityModal etc.
+// NÃO sobrescrever aqui — fazer assign apenas de props extras do namespace se existir.
+if (window.tasksBoard) {
+    Object.keys(tasksBoard).forEach(k => { if (!(k in window.tasksBoard)) window.tasksBoard[k] = tasksBoard[k]; });
+} else {
+    window.tasksBoard = tasksBoard;
+}
 
 // -- Logica do Sidebar Navbar Collapse --
 window.toggleSidebar = function() {
@@ -444,6 +451,12 @@ function handleTabActions(target) {
                 if (companyId) {
                     initMonthlyReport(companyId);
                 }
+            }
+
+            // Inicializa a aba Customer Success (sub-aba Lista → Relatório de Aderência)
+            if (tabId === 'tab-cs') {
+                const companyId = document.getElementById('company-id')?.value;
+                if (companyId) initAdherenceReport(companyId);
             }
         }
         return true;
