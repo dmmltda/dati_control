@@ -143,7 +143,13 @@
                     </a>
                 </div>
 
-                <!-- ── CONFIGURAÇÕES ───────────────────────────── -->
+                <!-- ── CANAIS ─────────────────────────────────── -->
+                <div class="nav-section-label" data-nav-permission-group="whatsapp.view">Canais</div>
+                <a class="nav-item" data-view="whatsapp-inbox" data-nav-permission="whatsapp.view" onclick="whatsappInbox && whatsappInbox.init()">
+                    <i class="ph ph-whatsapp-logo"></i> WhatsApp HD
+                </a>
+
+
                 <div class="nav-section-label" id="nav-label-config" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">Configurações</div>
                 <div id="nav-group-config-flat" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">
                     <a class="nav-item" data-view="config-usuarios" data-master-only>
@@ -1929,6 +1935,14 @@
             </div>
 
             <!-- ═══════════════════════════════════════════════════════════════
+                 VIEW: WhatsApp Inbox HD
+            ═══════════════════════════════════════════════════════════════════ -->
+            <div id="view-whatsapp-inbox" class="view-section" style="display:none; height:calc(100vh - var(--topbar-height,0px)); overflow:hidden;">
+                <!-- Preenchido dinamicamente por js/modules/whatsapp-inbox.js -->
+                <div id="wa-inbox-root" style="height:100%; display:flex; flex-direction:column;"></div>
+            </div>
+
+            <!-- ═══════════════════════════════════════════════════════════════
                  VIEW: Relatórios — Tabela nativa de dados do Journey
             ═══════════════════════════════════════════════════════════════════ -->
             <div id="view-reports" class="view-section" style="display:none;">
@@ -2426,6 +2440,7 @@
 
     <!-- UI Logic Entry Point -->
     <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/modules/whatsapp-inbox.js"></script>
 
     <!-- Modal: Contato Editor (Add / Edit) -->
     <div id="contato-editor-overlay" class="produto-modal-overlay">

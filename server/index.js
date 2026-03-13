@@ -26,6 +26,7 @@ import testScheduleRouter from './routes/test-schedule.js';
 import reportsRouter from './routes/reports.js';
 import auditRouter from './routes/audit.js';
 import googleMeetRouter, { syncPendingRecordings } from './routes/google-meet.js';
+import whatsappRouter from './routes/whatsapp.js';
 import * as audit from './services/audit.js';
 import { init as initScheduler } from './services/test-scheduler.js';
 
@@ -73,6 +74,11 @@ app.use('/webhook/clerk', express.raw({ type: 'application/json' }), (req, res, 
     }
     next();
 }, webhookClerkRouter);
+
+// ─── CRÍTICO: WhatsApp Webhook raw body — ANTES do express.json global ──────────
+// A API Meta requer validação HMAC da assinatura no body bruto.
+// Este middleware deve ser registrado antes do express.json() para capturar o Buffer.
+app.use('/api/whatsapp/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -538,6 +544,7 @@ app.use('/api/test-schedule', extractUsuario, testScheduleRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/audit-logs', extractUsuario, auditRouter);
 app.use('/api/google-meet', extractUsuario, googleMeetRouter);
+app.use('/api/whatsapp', whatsappRouter);
 
 
 

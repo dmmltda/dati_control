@@ -17,6 +17,7 @@ let _isOpen        = false;
 let _isThinking    = false;
 let _history       = [];       // histórico da sessão [{role, content}]
 let _streamTimer   = null;
+let _pendingImage  = null;     // { base64, mimeType, preview } — imagem aguardando envio
 const MAX_HISTORY  = 20;       // máximo de mensagens no histórico
 
 // ── Quick actions sugeridas ───────────────────────────────────────────────────
@@ -96,18 +97,68 @@ function _showWelcome() {
     });
 }
 
+// ── Imagem pendente ───────────────────────────────────────────────────────────
+function _setPendingImage(base64, mimeType, previewUrl) {
+    _pendingImage = { base64, mimeType, preview: previewUrl };
+    const preview = document.getElementById('gabi-image-preview');
+    if (preview) {
+        preview.innerHTML = `
+            <div class="gabi-img-preview-wrap">
+                <img src="${previewUrl}" alt="Imagem anexada" class="gabi-img-preview-thumb">
+                <button class="gabi-img-remove-btn" id="gabi-img-remove" title="Remover imagem">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+        `;
+        preview.style.display = 'block';
+        document.getElementById('gabi-img-remove')?.addEventListener('click', _clearPendingImage);
+        // Atualiza placeholder do textarea
+        const ta = document.getElementById('gabi-input');
+        if (ta) ta.placeholder = 'Descreva o que quer saber sobre a imagem...';
+    }
+}
+
+function _clearPendingImage() {
+    _pendingImage = null;
+    const preview = document.getElementById('gabi-image-preview');
+    if (preview) { preview.innerHTML = ''; preview.style.display = 'none'; }
+    const ta = document.getElementById('gabi-input');
+    if (ta) ta.placeholder = 'Pergunte qualquer coisa ou cole uma imagem (Ctrl+V)...';
+}
+
+function _processImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        // dataUrl: "data:image/png;base64,AAAA..."
+        const [header, base64] = dataUrl.split(',');
+        const mimeType = header.match(/:(.*?);/)?.[1] || 'image/png';
+        _setPendingImage(base64, mimeType, dataUrl);
+    };
+    reader.readAsDataURL(file);
+}
+
 // ── Enviar mensagem ───────────────────────────────────────────────────────────
 export async function sendMessage(text) {
     const raw = (text || document.getElementById('gabi-input')?.value || '').trim();
-    if (!raw || _isThinking) return;
+    const hasImage = !!_pendingImage;
+    if ((!raw && !hasImage) || _isThinking) return;
 
-    // Limpa input
+    // Captura imagem antes de limpar
+    const imageToBeSent = _pendingImage ? { ...  _pendingImage } : null;
+
+    // Limpa input e preview
     const input = document.getElementById('gabi-input');
     if (input) { input.value = ''; input.style.height = 'auto'; }
+    _clearPendingImage();
 
-    // Renderiza mensagem do usuário
-    _appendMessage('user', raw);
-    _history.push({ role: 'user', content: raw });
+    // Mensagem displayável
+    const displayText = raw || '📷 Imagem enviada para análise';
+
+    // Renderiza mensagem do usuário (com preview se houver imagem)
+    _appendMessage('user', displayText, imageToBeSent?.preview);
+    _history.push({ role: 'user', content: displayText });
 
     // Mostra thinking
     _showThinking();
@@ -120,8 +171,9 @@ export async function sendMessage(text) {
                 ...await _getAuthHeaders(),
             },
             body: JSON.stringify({
-                message: raw,
+                message: raw || 'Analise esta imagem.',
                 history:  _history.slice(-MAX_HISTORY).slice(0, -1), // sem a última (acabamos de adicionar)
+                image: imageToBeSent ? { base64: imageToBeSent.base64, mimeType: imageToBeSent.mimeType } : undefined,
             }),
         });
 
@@ -189,7 +241,7 @@ export async function sendMessage(text) {
 }
 
 // ── Append de mensagem (instantâneo) ─────────────────────────────────────────
-function _appendMessage(role, content) {
+function _appendMessage(role, content, imagePreviewUrl = null) {
     const msgs = document.getElementById('gabi-messages');
     if (!msgs) return;
 
@@ -201,9 +253,14 @@ function _appendMessage(role, content) {
     div.className = `gabi-msg gabi-msg-${role}`;
 
     const isUser = role === 'user';
+    const imageHtml = imagePreviewUrl
+        ? `<div class="gabi-msg-image-wrap"><img src="${imagePreviewUrl}" alt="Imagem enviada" class="gabi-msg-image"></div>`
+        : '';
+
     div.innerHTML = `
         ${!isUser ? `<div class="gabi-msg-avatar"><img src="/assets/gabi-avatar-v2.png" alt="Gabi"></div>` : ''}
         <div class="gabi-msg-bubble">
+            ${imageHtml}
             <div class="gabi-msg-content">${_renderMarkdown(content)}</div>
             <div class="gabi-msg-time">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
         </div>
@@ -475,6 +532,71 @@ function _bindEvents() {
     // Limpar chat
     document.getElementById('gabi-clear-btn')?.addEventListener('click', _clearChat);
 
+    // Colar imagem (Ctrl+V no textarea)
+    document.getElementById('gabi-input')?.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items || [];
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+                _processImageFile(item.getAsFile());
+                return;
+            }
+        }
+    });
+
+    // Upload via botão
+    document.getElementById('gabi-img-input')?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) _processImageFile(file);
+        // Reseta o input para permitir selecionar o mesmo arquivo novamente
+        e.target.value = '';
+    });
+    document.getElementById('gabi-img-btn')?.addEventListener('click', () => {
+        document.getElementById('gabi-img-input')?.click();
+    });
+
+    // ── Drag & Drop no painel da Gabi ────────────────────────────────────────
+    const panel = document.getElementById('gabi-panel');
+    if (panel) {
+        let _dragCounter = 0; // conta entradas/saídas de filhos para evitar flicker
+
+        panel.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Só mostra overlay se houver arquivo de imagem no drag
+            const hasImg = [...(e.dataTransfer?.items || [])].some(i => i.kind === 'file' && i.type.startsWith('image/'));
+            if (!hasImg) return;
+            _dragCounter++;
+            panel.classList.add('gabi-drag-over');
+        });
+
+        panel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+
+        panel.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            _dragCounter--;
+            if (_dragCounter <= 0) {
+                _dragCounter = 0;
+                panel.classList.remove('gabi-drag-over');
+            }
+        });
+
+        panel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            _dragCounter = 0;
+            panel.classList.remove('gabi-drag-over');
+            const files = [...(e.dataTransfer?.files || [])];
+            const imgFile = files.find(f => f.type.startsWith('image/'));
+            if (imgFile) _processImageFile(imgFile);
+        });
+    }
+
     // Fechar ao clicar fora (no overlay)
     document.addEventListener('click', (e) => {
         if (!_isOpen) return;
@@ -547,13 +669,28 @@ function _injectHTML() {
         <!-- Messages -->
         <div class="gabi-messages" id="gabi-messages"></div>
 
+        <!-- Drag & Drop overlay (visível apenas ao arrastar imagem) -->
+        <div class="gabi-drag-overlay" id="gabi-drag-overlay">
+            <div class="gabi-drag-overlay-inner">
+                <i class="ph ph-image-square"></i>
+                <span>Solte a imagem aqui</span>
+            </div>
+        </div>
+
         <!-- Input area -->
         <div class="gabi-input-area">
+            <!-- Preview da imagem pendente -->
+            <div class="gabi-image-preview" id="gabi-image-preview" style="display:none"></div>
             <div class="gabi-input-wrapper">
+                <!-- Botão de imagem -->
+                <button id="gabi-img-btn" class="gabi-img-btn" title="Anexar imagem (ou cole com Ctrl+V)">
+                    <i class="ph ph-image"></i>
+                </button>
+                <input type="file" id="gabi-img-input" accept="image/*" style="display:none">
                 <textarea
                     id="gabi-input"
                     class="gabi-textarea"
-                    placeholder="Pergunte qualquer coisa sobre o Journey..."
+                    placeholder="Pergunte qualquer coisa ou cole uma imagem (Ctrl+V)..."
                     rows="1"
                     maxlength="2000"
                 ></textarea>
@@ -562,7 +699,7 @@ function _injectHTML() {
                 </button>
             </div>
             <div class="gabi-footer-hint">
-                <i class="ph ph-sparkle"></i> Powered by Gemini 2.0 Flash · <kbd>Enter</kbd> para enviar
+                <i class="ph ph-sparkle"></i> Powered by Gemini 2.5 Flash · <kbd>Enter</kbd> para enviar · <i class="ph ph-image"></i> Cole imagens com Ctrl+V
             </div>
         </div>
     `;
@@ -659,6 +796,51 @@ function _injectStyles() {
     transform: scale(1) translateY(0);
     opacity: 1;
     pointer-events: all;
+}
+
+/* ── Drag & Drop ──────────────────────────────────────────────────────── */
+.gabi-panel.gabi-drag-over {
+    border-color: rgba(99,102,241,0.8) !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.3), 0 24px 60px rgba(0,0,0,0.55) !important;
+}
+.gabi-drag-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: rgba(10,13,30,0.88);
+    backdrop-filter: blur(6px);
+    border-radius: 20px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    pointer-events: none;
+}
+.gabi-panel.gabi-drag-over .gabi-drag-overlay {
+    display: flex;
+}
+.gabi-drag-overlay-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    animation: gabi-fadeIn 0.15s ease;
+}
+.gabi-drag-overlay-inner i {
+    font-size: 3rem;
+    color: #818cf8;
+    animation: gabi-drag-bounce 0.7s ease-in-out infinite alternate;
+}
+.gabi-drag-overlay-inner span {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #c7d2fe;
+    letter-spacing: -0.01em;
+}
+@keyframes gabi-drag-bounce {
+    from { transform: translateY(0); }
+    to   { transform: translateY(-10px); }
 }
 
 /* ── Header ───────────────────────────────────────────────────────────── */
@@ -929,6 +1111,60 @@ function _injectStyles() {
     flex-shrink: 0;
     background: rgba(8,12,22,0.4);
 }
+
+/* ── Image preview (pendente de envio) ───────────────────────────────── */
+.gabi-image-preview {
+    margin-bottom: 0.5rem;
+    animation: gabi-fadeIn 0.2s ease;
+}
+.gabi-img-preview-wrap {
+    position: relative;
+    display: inline-block;
+}
+.gabi-img-preview-thumb {
+    max-height: 80px;
+    max-width: 160px;
+    border-radius: 10px;
+    border: 2px solid rgba(99,102,241,0.4);
+    object-fit: cover;
+    display: block;
+}
+.gabi-img-remove-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    line-height: 1;
+}
+.gabi-img-remove-btn:hover { background: #dc2626; }
+
+/* ── Imagem dentro da mensagem ───────────────────────────────────────── */
+.gabi-msg-image-wrap {
+    margin-bottom: 0.4rem;
+}
+.gabi-msg-image {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    object-fit: cover;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: block;
+}
+.gabi-msg-image:hover { opacity: 0.9; }
+
 .gabi-input-wrapper {
     display: flex;
     align-items: flex-end;
@@ -936,7 +1172,7 @@ function _injectStyles() {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 14px;
-    padding: 0.6rem 0.6rem 0.6rem 1rem;
+    padding: 0.5rem 0.5rem 0.5rem 0.75rem;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
 .gabi-input-wrapper:focus-within {
@@ -958,6 +1194,29 @@ function _injectStyles() {
     overflow-y: auto;
 }
 .gabi-textarea::placeholder { color: #475569; }
+
+/* ── Botão de imagem ─────────────────────────────────────────────────── */
+.gabi-img-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.06);
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.gabi-img-btn:hover {
+    background: rgba(99,102,241,0.15);
+    color: #818cf8;
+    transform: scale(1.05);
+}
+
 .gabi-send-btn {
     width: 36px;
     height: 36px;

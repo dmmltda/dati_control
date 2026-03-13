@@ -451,7 +451,38 @@ function _renderTableSkeleton() {
 
 export function openCreateModal() {
     try {
-        _renderActivityDetailCard(null, _currentCompanyId);
+        if (!window.tasksBoard?.renderActivityModal) {
+            utils.showToast('Módulo de atividades não carregado.', 'error');
+            return;
+        }
+        // Objeto vazio com company_id pré-definida para o contexto da empresa
+        const emptyActivity = {
+            id: null,
+            title: '',
+            activity_type: '',
+            status: 'A Fazer',
+            priority: null,
+            activity_datetime: null,
+            description: '',
+            activity_assignees: [],
+            company_id: _currentCompanyId,
+            companies: null,
+            time_spent_minutes: 0,
+            next_step_title: null,
+            next_step_date: null,
+            activity_next_step_responsibles: [],
+            google_meet_link: null,
+            reminder_at: null,
+            reminder_email: false,
+            reminder_whatsapp: false,
+            notify_on_assign: false,
+        };
+        window.tasksBoard.renderActivityModal(
+            emptyActivity,
+            true, // isCreateMode
+            'info',
+            async () => { await _reloadActivities(); }
+        );
     } catch(err) {
         console.error('[openCreateModal] ERRO:', err);
         utils.showToast('Erro ao abrir formulário: ' + err.message, 'error');
@@ -464,7 +495,16 @@ export async function openEditModal(activityId) {
         utils.showToast('Atividade não encontrada.', 'error');
         return;
     }
-    _renderActivityDetailCard(activity);
+    if (!window.tasksBoard?.renderActivityModal) {
+        utils.showToast('Módulo de atividades não carregado.', 'error');
+        return;
+    }
+    window.tasksBoard.renderActivityModal(
+        activity,
+        false, // isCreateMode
+        'info',
+        async () => { await _reloadActivities(); }
+    );
 }
 
 function _showModal({ title, submitLabel, prefill }) {
@@ -1123,7 +1163,16 @@ export function openActivityCard(activityId) {
     try {
         const act = _manager?._originalData?.find(a => a.id === activityId);
         if (!act) { utils.showToast('Atividade não encontrada.', 'error'); return; }
-        _renderActivityDetailCard(act);
+        if (!window.tasksBoard?.renderActivityModal) {
+            utils.showToast('Módulo de atividades não carregado.', 'error');
+            return;
+        }
+        window.tasksBoard.renderActivityModal(
+            act,
+            false, // isCreateMode (edição)
+            'info',
+            async () => { await _reloadActivities(); }
+        );
     } catch(err) {
         console.error('[openActivityCard] ERRO:', err);
         utils.showToast('Erro ao abrir atividade: ' + err.message, 'error');
@@ -1212,7 +1261,6 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
           <button class="adc-tab adc-tab-reuniao" data-tab="reuniao" style="display:${isReuniao?'flex':'none'}"><i class="ph ph-video-camera"></i>Reunião</button>
           <button class="adc-tab" data-tab="proximo"><i class="ph ph-arrow-right-dashed"></i>Próximo Passo</button>
           <button class="adc-tab" data-tab="lembrete"><i class="ph ph-bell"></i>Lembrete</button>
-          <button class="adc-tab" data-tab="anexos"><i class="ph ph-paperclip"></i>Anexos</button>
         </div>
       </div>
 
@@ -1246,6 +1294,17 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
               <label><i class="ph ph-calendar" style="color:${sc};"></i> Data e Horário</label>
               <input type="datetime-local" id="adc-datetime" class="input-control" value="${dtLocal}">
             </div>
+          </div>
+
+          <div class="adc-sec"><i class="ph ph-building-office" style="color:${sc};"></i>Cliente Vinculado</div>
+          <div class="input-group" style="margin-bottom:1.2rem;position:relative;">
+            <div style="position:relative;">
+              <input type="text" id="adc-company-search" class="input-control" placeholder="Buscar empresa..." autocomplete="off" value="${a.companies?.Nome_da_empresa || ''}" style="padding-right:2rem;">
+              <i class="ph ph-magnifying-glass" style="position:absolute;right:0.7rem;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;font-size:0.9rem;"></i>
+            </div>
+            <div id="adc-company-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--glass-bg,#1a2035);border:1px solid var(--dark-border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:180px;overflow-y:auto;margin-top:2px;"></div>
+            <input type="hidden" id="adc-company-id" value="${a.company_id||a.companies?.id||companyIdForCreate||''}">
+            ${(a.companies?.Nome_da_empresa) ? `<span style="font-size:0.72rem;color:#818cf8;margin-top:0.3rem;display:flex;align-items:center;gap:0.3rem;"><i class="ph ph-check-circle"></i>Vinculado: ${a.companies.Nome_da_empresa}</span>` : '<span style="font-size:0.72rem;color:#ef4444;margin-top:0.3rem;display:block;">\u26a0 Nenhum cliente vinculado</span>'}
           </div>
 
           <div class="adc-sec"><i class="ph ph-text-align-left" style="color:${sc};"></i>Conteúdo</div>
@@ -1389,139 +1448,121 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
 
         <!-- TAB: PRÓXIMO PASSO -->
         <div class="adc-panel" id="adc-tab-proximo">
-          <div class="adc-sec"><i class="ph ph-arrow-right-dashed" style="color:#10b981;"></i>Próximo Passo</div>
-          <div style="background:linear-gradient(135deg,rgba(16,185,129,0.07),rgba(16,185,129,0.01));border:1px solid rgba(16,185,129,0.18);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:0.85rem;">
-              <div class="input-group" style="margin-bottom:0;">
-                <label>Título do Próximo Passo</label>
-                <input type="text" id="adc-next-title" class="input-control" value="${(a.next_step_title||'').replace(/"/g,'&quot;')}" placeholder="O que fazer a seguir?">
-              </div>
-              <div class="input-group" style="margin-bottom:0;">
-                <label>Data do Próximo Passo</label>
-                <input type="date" id="adc-next-date" class="input-control" value="${nextDt}">
-                <label id="adc-wrapper-next-reminder" style="display:${nextDt ? 'flex' : 'none'}; align-items:center; gap:0.35rem; font-size:0.72rem; cursor:pointer; color:#10b981; font-weight:600; margin-top:0.4rem;">
-                    <input type="checkbox" id="adc-next-reminder" ${a.next_step_reminder_email ? 'checked' : ''} style="width:13px;height:13px;accent-color:#10b981;">
-                    Lembrar por e-mail (1 dia antes)
-                </label>
-              </div>
+
+          <!-- Contextual hint -->
+          <div style="display:flex;align-items:flex-start;gap:0.55rem;padding:0.65rem 0.85rem;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.13);border-radius:8px;margin-bottom:1.1rem;font-size:0.79rem;color:var(--text-muted);line-height:1.45;">
+            <i class="ph ph-lightbulb" style="color:#10b981;font-size:1rem;flex-shrink:0;margin-top:1px;"></i>
+            <span>Defina a <strong style="color:var(--text-main);">ação que deve ocorrer após esta atividade</strong> — como um follow-up, envio de proposta ou nova reunião. Salvo junto com "Salvar Alterações".</span>
+          </div>
+
+          <!-- Form -->
+          <div style="background:linear-gradient(135deg,rgba(16,185,129,0.06),rgba(16,185,129,0.01));border:1px solid rgba(16,185,129,0.15);border-radius:12px;padding:1.2rem;">
+            <div class="input-group" style="margin-bottom:0.8rem;">
+              <label style="font-weight:600;">O que fazer a seguir?</label>
+              <input type="text" id="adc-next-title" class="input-control" value="${(a.next_step_title||'').replace(/"/g,'&quot;')}" placeholder="Ex: Ligar na segunda, Enviar proposta, Agendar demo...">
             </div>
-            <div class="input-group" style="margin-bottom:0;">
-              <label>Responsáveis do Próximo Passo</label>
-              <input type="text" id="adc-next-resp" class="input-control" value="${nextStepResp.replace(/"/g,'&quot;')}" placeholder="Nomes, separados por vírgula">
+            <div class="input-group" style="margin-bottom:0.8rem;">
+              <label>Prazo</label>
+              <input type="date" id="adc-next-date" class="input-control" value="${nextDt}">
+              <label id="adc-wrapper-next-reminder" style="display:${nextDt ? 'flex' : 'none'}; align-items:center; gap:0.35rem; font-size:0.72rem; cursor:pointer; color:#10b981; font-weight:600; margin-top:0.4rem;">
+                <input type="checkbox" id="adc-next-reminder" ${a.next_step_reminder_email ? 'checked' : ''} style="width:13px;height:13px;accent-color:#10b981;">
+                Lembrar por e-mail (1 dia antes)
+              </label>
+            </div>
+            <div style="margin-bottom:0;">
+              <label style="font-size:0.72rem;color:var(--text-muted);font-weight:500;display:block;margin-bottom:0.5rem;">Quem executa?</label>
+              <div style="margin-bottom:0.35rem;"><span style="font-size:0.68rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.07em;">Adicionar via:</span></div>
+              <div style="display:flex;gap:0.4rem;margin-bottom:0.3rem;flex-wrap:wrap;">
+                <button type="button" class="adc-nxt-mode active" data-mode="user" style="padding:0.28rem 0.65rem;border-radius:20px;border:1px solid rgba(16,185,129,0.5);background:rgba(16,185,129,0.12);color:#10b981;font-size:0.76rem;cursor:pointer;font-weight:600;transition:all 0.15s;"><i class="ph ph-at"></i> @usuário</button>
+                <button type="button" class="adc-nxt-mode" data-mode="email" style="padding:0.28rem 0.65rem;border-radius:20px;border:1px solid var(--dark-border);background:transparent;color:var(--text-muted);font-size:0.76rem;cursor:pointer;font-weight:500;transition:all 0.15s;"><i class="ph ph-envelope"></i> E-mail</button>
+                <button type="button" class="adc-nxt-mode" data-mode="whatsapp" style="padding:0.28rem 0.65rem;border-radius:20px;border:1px solid var(--dark-border);background:transparent;color:var(--text-muted);font-size:0.76rem;cursor:pointer;font-weight:500;transition:all 0.15s;"><i class="ph ph-whatsapp-logo"></i> WhatsApp</button>
+              </div>
+              <div style="font-size:0.68rem;color:var(--text-muted);opacity:0.65;margin-bottom:0.5rem;">Combine tipos livremente — usuário + e-mail + WhatsApp</div>
+              <div style="display:flex;gap:0.5rem;position:relative;">
+                <input type="text" id="adc-nxt-input" class="input-control" placeholder="Buscar usuário..." autocomplete="off" style="flex:1;">
+                <div id="adc-nxt-dropdown" style="display:none;position:absolute;top:100%;left:0;right:3rem;z-index:200;background:var(--glass-bg,#1a2035);border:1px solid var(--dark-border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-height:150px;overflow-y:auto;margin-top:2px;"></div>
+                <button type="button" id="adc-nxt-add-btn" style="padding:0.45rem 0.8rem;border-radius:8px;border:1px solid rgba(16,185,129,0.4);background:rgba(16,185,129,0.1);color:#10b981;cursor:pointer;font-size:0.82rem;"><i class="ph ph-plus"></i></button>
+              </div>
+              <div id="adc-nxt-chips" style="margin-top:0.55rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
+                ${(a.activity_next_step_responsibles||[]).map(r=>`
+                  <span class="adc-nxt-chip" data-id="${r.user_id||r.id||''}" data-type="user" style="display:inline-flex;align-items:center;gap:0.35rem;padding:0.22rem 0.6rem;border-radius:20px;font-size:0.76rem;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.3);color:#10b981;">
+                    <i class="ph ph-user"></i>${r.user_nome||r.user_id||''}
+                    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;line-height:1;margin-left:2px;font-size:0.9rem;">&times;</button>
+                  </span>`).join('')}
+              </div>
             </div>
           </div>
+
           ${a.next_step_title ? `
-          <div style="padding:1rem;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:10px;">
-            <div style="font-weight:700;color:#10b981;margin-bottom:0.35rem;font-size:0.82rem;"><i class="ph ph-check-circle"></i> Próximo passo atual</div>
-            <div style="color:var(--text-main);">${a.next_step_title}</div>
-            ${nextDt ? `<div style="color:var(--text-muted);margin-top:0.3rem;font-size:0.78rem;"><i class="ph ph-calendar"></i> Prazo: ${new Date(nextDt+'T12:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
-            ${nextStepResp ? `<div style="color:var(--text-muted);margin-top:0.25rem;font-size:0.78rem;"><i class="ph ph-user"></i> ${nextStepResp}</div>` : ''}
-          </div>` : `
-          <div style="text-align:center;padding:2.5rem;color:var(--text-muted);border:1px dashed rgba(255,255,255,0.07);border-radius:10px;">
-            <i class="ph ph-arrow-right-dashed" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;opacity:0.35;"></i>
-            Nenhum próximo passo definido ainda
-          </div>`}
+          <div style="margin-top:0.9rem;padding:0.7rem 0.9rem;background:rgba(16,185,129,0.05);border-left:3px solid #10b981;border-radius:0 8px 8px 0;display:flex;align-items:flex-start;gap:0.55rem;">
+            <i class="ph ph-check-circle" style="color:#10b981;flex-shrink:0;margin-top:2px;"></i>
+            <div style="flex:1;font-size:0.82rem;">
+              <div style="font-weight:600;color:var(--text-main);">${a.next_step_title}</div>
+              <div style="color:var(--text-muted);margin-top:0.2rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+                ${nextDt ? `<span><i class="ph ph-calendar"></i> ${new Date(nextDt+'T12:00:00').toLocaleDateString('pt-BR')}</span>` : ''}
+                ${nextStepResp ? `<span><i class="ph ph-user"></i> ${nextStepResp}</span>` : ''}
+              </div>
+            </div>
+            <span style="font-size:0.7rem;color:#10b981;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;">Salvo</span>
+          </div>` : ''}
         </div>
 
         <!-- TAB: LEMBRETE -->
-        <div class="adc-panel" id="adc-tab-lembrete">
-          <div class="adc-sec"><i class="ph ph-bell" style="color:#f59e0b;"></i>Lembrete</div>
-          <div style="background:linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.01));border:1px solid rgba(245,158,11,0.18);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem;">
-            <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:end;">
-              <div class="input-group" style="margin-bottom:0;">
-                <label>Data e Hora do Lembrete</label>
-                <input type="datetime-local" id="adc-reminder-at" class="input-control" value="${reminderAt}">
-              </div>
-              <div style="display:flex;flex-direction:column;gap:0.65rem;padding-bottom:2px;">
-                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.86rem;white-space:nowrap;">
-                  <input type="checkbox" id="adc-reminder-email" ${a.reminder_email?'checked':''} style="width:15px;height:15px;accent-color:#6366f1;cursor:pointer;">
-                  <i class="ph ph-envelope" style="color:#6366f1;"></i> Por e-mail
+        <div class="adc-panel" id="adc-tab-lembrete" data-activity-dt="${dtLocal}">
+
+          <!-- Contextual hint -->
+          <div style="display:flex;align-items:flex-start;gap:0.55rem;padding:0.65rem 0.85rem;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.13);border-radius:8px;margin-bottom:1.1rem;font-size:0.79rem;color:var(--text-muted);line-height:1.45;">
+            <i class="ph ph-bell" style="color:#f59e0b;font-size:1rem;flex-shrink:0;margin-top:1px;"></i>
+            <span>Receba uma notificação para não esquecer de agir. O lembrete é enviado no horário que você definir abaixo.</span>
+          </div>
+
+          <!-- Quick presets -->
+          <div style="margin-bottom:0.9rem;">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Lembrar com antecedência</div>
+            <div style="display:flex;gap:0.45rem;flex-wrap:wrap;" id="adc-reminder-presets">
+              <button type="button" class="adc-reminder-preset" data-offset="-15" style="padding:0.35rem 0.75rem;border-radius:20px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.07);color:#f59e0b;font-size:0.78rem;cursor:pointer;font-weight:500;transition:all 0.15s;">15 min antes</button>
+              <button type="button" class="adc-reminder-preset" data-offset="-60" style="padding:0.35rem 0.75rem;border-radius:20px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.07);color:#f59e0b;font-size:0.78rem;cursor:pointer;font-weight:500;transition:all 0.15s;">1 hora antes</button>
+              <button type="button" class="adc-reminder-preset" data-offset="-1440" style="padding:0.35rem 0.75rem;border-radius:20px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.07);color:#f59e0b;font-size:0.78rem;cursor:pointer;font-weight:500;transition:all 0.15s;">1 dia antes</button>
+              <button type="button" class="adc-reminder-preset" data-offset="0" style="padding:0.35rem 0.75rem;border-radius:20px;border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.07);color:#f59e0b;font-size:0.78rem;cursor:pointer;font-weight:500;transition:all 0.15s;">Na data</button>
+              <button type="button" class="adc-reminder-preset" data-offset="custom" style="padding:0.35rem 0.75rem;border-radius:20px;border:1px solid var(--dark-border);background:transparent;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-weight:500;transition:all 0.15s;">Personalizado</button>
+            </div>
+          </div>
+
+          <!-- Datetime input + channels -->
+          <div style="background:linear-gradient(135deg,rgba(245,158,11,0.07),rgba(245,158,11,0.01));border:1px solid rgba(245,158,11,0.15);border-radius:12px;padding:1.2rem;margin-bottom:1rem;">
+            <div class="input-group" style="margin-bottom:0.9rem;">
+              <label>Data e Hora do Lembrete</label>
+              <input type="datetime-local" id="adc-reminder-at" class="input-control" value="${reminderAt}">
+            </div>
+            <div>
+              <div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">Notificar por</div>
+              <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.84rem;padding:0.4rem 0.8rem;border-radius:8px;border:1px solid ${a.reminder_email?'rgba(99,102,241,0.35)':'var(--dark-border)'};background:${a.reminder_email?'rgba(99,102,241,0.08)':'transparent'};transition:all 0.15s;" id="adc-email-label">
+                  <input type="checkbox" id="adc-reminder-email" ${a.reminder_email?'checked':''} style="width:14px;height:14px;accent-color:var(--primary,#6366f1);cursor:pointer;">
+                  <i class="ph ph-envelope" style="color:#6366f1;"></i> E-mail
                 </label>
-                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.86rem;white-space:nowrap;">
-                  <input type="checkbox" id="adc-reminder-wpp" ${a.reminder_whatsapp?'checked':''} style="width:15px;height:15px;accent-color:#25d366;cursor:pointer;">
-                  <i class="ph ph-whatsapp-logo" style="color:#25d366;"></i> Por WhatsApp
+                <label style="display:flex;align-items:center;gap:0.45rem;cursor:pointer;font-size:0.84rem;padding:0.4rem 0.8rem;border-radius:8px;border:1px solid ${a.reminder_whatsapp?'rgba(37,211,102,0.35)':'var(--dark-border)'};background:${a.reminder_whatsapp?'rgba(37,211,102,0.08)':'transparent'};transition:all 0.15s;" id="adc-wpp-label">
+                  <input type="checkbox" id="adc-reminder-wpp" ${a.reminder_whatsapp?'checked':''} style="width:14px;height:14px;accent-color:#25d366;cursor:pointer;">
+                  <i class="ph ph-whatsapp-logo" style="color:#25d366;"></i> WhatsApp
                 </label>
               </div>
             </div>
           </div>
+
+          <!-- Confirmação quando lembrete está salvo -->
           ${reminderAt ? `
-          <div style="padding:1rem 1.1rem;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:10px;display:flex;align-items:center;gap:0.85rem;">
-            <i class="ph ph-bell-ringing" style="font-size:1.7rem;color:#f59e0b;flex-shrink:0;"></i>
-            <div>
-              <div style="font-size:0.73rem;color:var(--text-muted);">Lembrete agendado para</div>
-              <div style="font-weight:700;color:#f59e0b;font-size:1rem;">${new Date(reminderAt).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div>
-              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.15rem;display:flex;gap:0.5rem;">
+          <div style="padding:0.85rem 1rem;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.18);border-radius:10px;display:flex;align-items:center;gap:0.75rem;">
+            <i class="ph ph-bell-ringing" style="font-size:1.5rem;color:#f59e0b;flex-shrink:0;"></i>
+            <div style="flex:1;">
+              <div style="font-size:0.72rem;color:var(--text-muted);">Lembrete agendado para</div>
+              <div style="font-weight:700;color:#f59e0b;font-size:0.95rem;">${new Date(reminderAt).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</div>
+              <div style="font-size:0.74rem;color:var(--text-muted);margin-top:0.15rem;display:flex;gap:0.5rem;">
                 ${a.reminder_email ? '<span><i class="ph ph-envelope"></i> E-mail</span>' : ''}
                 ${a.reminder_whatsapp ? '<span><i class="ph ph-whatsapp-logo"></i> WhatsApp</span>' : ''}
               </div>
             </div>
-          </div>` : `
-          <div style="text-align:center;padding:2.5rem;color:var(--text-muted);border:1px dashed rgba(255,255,255,0.07);border-radius:10px;">
-            <i class="ph ph-bell-slash" style="font-size:2.5rem;display:block;margin-bottom:0.5rem;opacity:0.35;"></i>
-            Nenhum lembrete configurado
-          </div>`}
-        </div>
-
-        <!-- TAB: ANEXOS -->
-        <div class="adc-panel" id="adc-tab-anexos">
-          <div class="adc-sec"><i class="ph ph-paperclip" style="color:var(--primary);"></i>Anexos</div>
-          ${(() => {
-            const atts = (a.activity_attachments || []).filter(att => att.file_type !== 'meet_recording');
-            const recs = (a.activity_attachments || []).filter(att => att.file_type === 'meet_recording');
-            let html = '';
-            // Gravações (tipo especial)
-            if (recs.length > 0) {
-              html += `<div style="margin-bottom:0.85rem;">
-                <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;color:#ef4444;text-transform:uppercase;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.35rem;"><i class="ph ph-record"></i>Gravações de Reunião</div>
-                <div style="display:flex;flex-direction:column;gap:0.4rem;">
-                  ${recs.map(rec => `
-                  <div class="meet-recording-card" style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem 0.85rem;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;">
-                    <i class="ph ph-record" style="font-size:1.25rem;color:#ef4444;flex-shrink:0;"></i>
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-weight:600;font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${rec.file_name}">${rec.file_name}</div>
-                      <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.1rem;">Gravação da Reunião${rec.file_size ? ' · ' + (rec.file_size/1024/1024).toFixed(1) + ' MB' : ''}</div>
-                    </div>
-                    <a href="${rec.file_url}" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.75rem;border-radius:6px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);color:#ef4444;font-size:0.78rem;font-weight:600;text-decoration:none;">
-                      <i class="ph ph-play-circle"></i> Assistir
-                    </a>
-                  </div>`).join('')}
-                </div>
-              </div>`;
-            }
-            // Anexos comuns
-            if (atts.length > 0) {
-              html += `<div style="margin-bottom:0.85rem;">
-                <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.07em;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.5rem;">Arquivos Salvos</div>
-                <div style="display:flex;flex-direction:column;gap:0.4rem;">
-                  ${atts.map(att => {
-                    const icon = att.file_type === 'video' ? 'ph-video' : att.file_type === 'image' ? 'ph-image' : 'ph-file';
-                    const sizeMb = att.file_size ? (att.file_size/1024/1024).toFixed(1) + ' MB' : '';
-                    return `
-                    <div style="display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.85rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:8px;">
-                      <i class="ph ${icon}" style="font-size:1.2rem;color:var(--primary);flex-shrink:0;"></i>
-                      <div style="flex:1;min-width:0;">
-                        <div style="font-size:0.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;" title="${att.file_name}">${att.file_name}</div>
-                        ${sizeMb ? `<div style="font-size:0.7rem;color:var(--text-muted);">${sizeMb}</div>` : ''}
-                      </div>
-                      <a href="${att.file_url}" target="_blank" rel="noopener noreferrer" style="flex-shrink:0;display:inline-flex;align-items:center;gap:0.3rem;padding:0.3rem 0.7rem;border-radius:6px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);color:#818cf8;font-size:0.78rem;text-decoration:none;">
-                        <i class="ph ph-download-simple"></i> Baixar
-                      </a>
-                    </div>`;
-                  }).join('')}
-                </div>
-              </div>`;
-            }
-            return html;
-          })()}
-          <div id="adc-dropzone" style="border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:2rem;text-align:center;cursor:pointer;transition:all 0.2s;color:var(--text-muted);font-size:0.86rem;background:rgba(255,255,255,0.02);"
-            ondragover="event.preventDefault();this.style.borderColor='var(--primary)';this.style.background='rgba(99,102,241,0.06)';"
-            ondragleave="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.02)';"
-            ondrop="event.preventDefault();this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.02)';[...event.dataTransfer.files].forEach(f=>window._adcAddFile(f));">
-            <i class="ph ph-upload-simple" style="font-size:1.8rem;display:block;margin-bottom:0.5rem;color:var(--primary);"></i>
-            Arraste arquivos ou <label for="adc-file-input" style="color:var(--primary);cursor:pointer;font-weight:600;">clique aqui</label>
-            <input type="file" id="adc-file-input" multiple style="display:none;" onchange="[...this.files].forEach(f=>window._adcAddFile(f));this.value=''">
-          </div>
-          <div id="adc-pending-files" style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.35rem;"></div>
+            <span style="font-size:0.7rem;color:#f59e0b;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">Salvo</span>
+          </div>` : ''}
         </div>
       </div>
 
@@ -1536,10 +1577,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         <div style="display:flex;gap:0.6rem;align-items:center;">
           <button id="adc-cancel-btn" class="btn btn-secondary">Cancelar</button>
           <button id="adc-save-btn" class="btn btn-primary" style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 1.35rem;font-weight:700;">
-            ${isCreateMode
-              ? `<i class="ph ph-plus"></i> Criar Atividade`
-              : `<i class="ph ph-floppy-disk"></i> Salvar Alterações`
-            }
+            <i class="ph ph-floppy-disk"></i> Salvar Alterações
           </button>
         </div>
       </div>
@@ -1594,6 +1632,197 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
     document.getElementById('adc-next-date')?.addEventListener('input', (e) => {
         const wrapper = document.getElementById('adc-wrapper-next-reminder');
         if (wrapper) wrapper.style.display = e.target.value ? 'flex' : 'none';
+    });
+
+    // ── Carregamento de Sessões Registradas ───────────────────────────────────
+    async function _adcLoadTimeLogs(activityId) {
+        const tbody = document.getElementById('adc-time-logs-body');
+        if (!tbody) return;
+        try {
+            const res = await fetch(`/api/activities/${activityId}/time-logs`);
+            if (!res.ok) throw new Error('Erro');
+            const logs = await res.json();
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:0.8rem;"><i class="ph ph-clock-countdown" style="font-size:1.4rem;display:block;margin:0 auto 0.4rem;"></i>Nenhuma sessão registrada ainda.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = logs.map(log => {
+                const dt = new Date(log.started_at);
+                const dateFmt = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const timeFmt = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const h = Math.floor(log.duration_minutes / 60);
+                const m = log.duration_minutes % 60;
+                const durFmt = h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ''}` : `${m}min`;
+                const subj = log.subject ? log.subject.replace(/"/g, '&quot;') : '';
+                return `<tr data-log-id="${log.id}" style="border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background=''">
+                  <td style="padding:0.45rem 0.6rem;color:var(--text-main);white-space:nowrap;">${dateFmt}</td>
+                  <td style="padding:0.45rem 0.6rem;color:var(--text-muted);white-space:nowrap;">${timeFmt}</td>
+                  <td style="padding:0.45rem 0.6rem;white-space:nowrap;"><span style="display:inline-flex;align-items:center;gap:0.3rem;padding:0.15rem 0.5rem;border-radius:5px;background:rgba(99,102,241,0.1);color:#818cf8;font-size:0.78rem;font-weight:600;border:1px solid rgba(99,102,241,0.25);"><i class="ph ph-clock"></i>${durFmt}</span></td>
+                  <td style="padding:0.35rem 0.6rem;"><input type="text" class="adc-tl-subject" data-log-id="${log.id}" value="${subj}" placeholder="Adicionar assunto..." style="background:transparent;border:1px solid transparent;border-radius:5px;padding:0.2rem 0.45rem;font-size:0.81rem;color:var(--text-main);width:100%;min-width:120px;transition:all 0.15s;outline:none;" onfocus="this.style.background='rgba(255,255,255,0.05)';this.style.borderColor='rgba(99,102,241,0.35)';" onblur="this.style.background='transparent';this.style.borderColor='transparent';"></td>
+                  <td style="padding:0.35rem 0.3rem;text-align:center;"><button type="button" class="adc-tl-del" data-log-id="${log.id}" style="background:none;border:none;cursor:pointer;color:rgba(239,68,68,0.5);font-size:0.9rem;padding:0.15rem 0.3rem;border-radius:4px;transition:all 0.15s;line-height:1;" onmouseover="this.style.color='#ef4444';this.style.background='rgba(239,68,68,0.08)';" onmouseout="this.style.color='rgba(239,68,68,0.5)';this.style.background='none';"><i class="ph ph-trash"></i></button></td>
+                </tr>`;
+            }).join('');
+            // Editar assunto e excluir sessão
+            let _subDebT = null;
+            tbody.querySelectorAll('.adc-tl-subject').forEach(inp => {
+                inp.addEventListener('input', () => {
+                    clearTimeout(_subDebT);
+                    _subDebT = setTimeout(async () => {
+                        try { await fetch(`/api/activities/time-logs/${inp.dataset.logId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subject: inp.value }) }); } catch(e) {}
+                    }, 600);
+                });
+            });
+            tbody.querySelectorAll('.adc-tl-del').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (btn.dataset.confirming === '1') return;
+                    btn.dataset.confirming = '1';
+                    const td = btn.closest('td');
+                    const origHtml = td.innerHTML;
+                    td.innerHTML = `<div style="display:flex;align-items:center;gap:0.4rem;white-space:nowrap;"><span style="font-size:0.75rem;color:var(--text-muted);">Remover?</span><button type="button" id="adc-tl-yes-${btn.dataset.logId}" style="padding:0.15rem 0.5rem;border-radius:4px;border:1px solid rgba(239,68,68,0.5);background:rgba(239,68,68,0.12);color:#ef4444;font-size:0.75rem;cursor:pointer;font-weight:600;">Sim</button><button type="button" id="adc-tl-no-${btn.dataset.logId}" style="padding:0.15rem 0.5rem;border-radius:4px;border:1px solid var(--dark-border);background:transparent;color:var(--text-muted);font-size:0.75rem;cursor:pointer;">Não</button></div>`;
+                    document.getElementById(`adc-tl-no-${btn.dataset.logId}`)?.addEventListener('click', (ev) => { ev.stopPropagation(); _adcLoadTimeLogs(a.id); });
+                    document.getElementById(`adc-tl-yes-${btn.dataset.logId}`)?.addEventListener('click', async (ev) => {
+                        ev.stopPropagation();
+                        try { await fetch(`/api/activities/time-logs/${btn.dataset.logId}`, { method: 'DELETE' }); _adcLoadTimeLogs(a.id); } catch(err) { utils.showToast('Erro ao remover sessão', 'error'); }
+                    });
+                });
+            });
+        } catch(e) {
+            if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1rem;color:#ef4444;font-size:0.8rem;">Erro ao carregar sessões.</td></tr>`;
+        }
+    }
+    // Carregar sessões ao abrir aba Tempo
+    overlay.querySelectorAll('.adc-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.tab === 'tempo' && !isCreateMode) _adcLoadTimeLogs(a.id);
+        });
+    });
+    // Carregar se já iniciou na aba Tempo
+    if (!isCreateMode) _adcLoadTimeLogs(a.id);
+
+    // ── Autocomplete de Empresa ───────────────────────────────────────────────
+    (function() {
+        let _debT = null;
+        const srch = document.getElementById('adc-company-search');
+        const drop = document.getElementById('adc-company-dropdown');
+        const hid  = document.getElementById('adc-company-id');
+        if (!srch || !drop) return;
+        async function _fetchCo(q) {
+            try {
+                const res = await fetch(`/api/companies/search?q=${encodeURIComponent(q)}&limit=10`);
+                if (!res.ok) return;
+                const list = await res.json();
+                if (!list.length) { drop.style.display='none'; return; }
+                drop.innerHTML = list.map(c=>`
+                    <div class="adc-co-opt" data-id="${c.id}" data-name="${c.Nome_da_empresa}"
+                        style="padding:0.5rem 0.85rem;cursor:pointer;font-size:0.84rem;display:flex;align-items:center;gap:0.5rem;border-bottom:1px solid rgba(255,255,255,0.04);">
+                        <i class="ph ph-building-office" style="color:var(--primary);flex-shrink:0;"></i>
+                        <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.Nome_da_empresa}</span>
+                        ${c.Status?`<span style="font-size:0.7rem;color:var(--text-muted);">${c.Status}</span>`:''}
+                    </div>`).join('');
+                drop.style.display='block';
+                drop.querySelectorAll('.adc-co-opt').forEach(el=>{
+                    el.addEventListener('mouseover',()=>el.style.background='rgba(99,102,241,0.12)');
+                    el.addEventListener('mouseout',()=>el.style.background='');
+                    el.addEventListener('mousedown',ev=>{ ev.preventDefault(); hid.value=el.dataset.id; srch.value=el.dataset.name; drop.style.display='none'; });
+                });
+            } catch { drop.style.display='none'; }
+        }
+        srch.addEventListener('focus', ()=>{ if(!hid.value) _fetchCo(''); });
+        srch.addEventListener('input', ()=>{ hid.value=''; clearTimeout(_debT); _debT=setTimeout(()=>_fetchCo(srch.value),250); });
+        srch.addEventListener('blur',  ()=>{ setTimeout(()=>drop.style.display='none',200); });
+    })();
+
+    // ── Componente Quem Executa (Próximo Passo) ───────────────────────────────
+    (function() {
+        let _nxtMode = 'user', _usuarios = [], _debT = null;
+        fetch('/api/usuarios').then(r=>r.ok?r.json():[]).then(l=>{ _usuarios=l; }).catch(()=>{});
+
+        overlay.querySelectorAll('.adc-nxt-mode').forEach(btn => {
+            btn.addEventListener('click', () => {
+                _nxtMode = btn.dataset.mode;
+                overlay.querySelectorAll('.adc-nxt-mode').forEach(b => {
+                    const on = b.dataset.mode === _nxtMode;
+                    b.style.background = on?'rgba(16,185,129,0.12)':'transparent';
+                    b.style.borderColor = on?'rgba(16,185,129,0.5)':'var(--dark-border)';
+                    b.style.color = on?'#10b981':'var(--text-muted)';
+                    b.style.fontWeight = on?'600':'500';
+                });
+                const inp = document.getElementById('adc-nxt-input');
+                if(inp){ inp.placeholder={user:'Buscar usuário...',email:'Ex: fulano@email.com',whatsapp:'Ex: 11999998888'}[_nxtMode]||''; inp.value=''; }
+                const drop = document.getElementById('adc-nxt-dropdown');
+                if(drop) drop.style.display='none';
+            });
+        });
+
+        const nxtInput = document.getElementById('adc-nxt-input');
+        const nxtDrop  = document.getElementById('adc-nxt-dropdown');
+        if (nxtInput && nxtDrop) {
+            const showDrop = q => {
+                if(_nxtMode!=='user'){ nxtDrop.style.display='none'; return; }
+                const m = _usuarios.filter(u=>u.nome.toLowerCase().includes(q.toLowerCase())).slice(0,5);
+                if(!m.length){ nxtDrop.style.display='none'; return; }
+                nxtDrop.innerHTML = m.map(u=>`<div class="adc-nu-opt" data-id="${u.id}" data-nome="${u.nome}" style="padding:0.42rem 0.7rem;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:0.45rem;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="width:24px;height:24px;border-radius:50%;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.67rem;font-weight:700;flex-shrink:0;">${u.nome[0]}</span>${u.nome}</div>`).join('');
+                nxtDrop.style.display='block';
+                nxtDrop.querySelectorAll('.adc-nu-opt').forEach(el=>{
+                    el.addEventListener('mouseover',()=>el.style.background='rgba(16,185,129,0.1)');
+                    el.addEventListener('mouseout',()=>el.style.background='');
+                    el.addEventListener('mousedown',ev=>{ev.preventDefault();adcAddNxtChip(el.dataset.id,el.dataset.nome,'user');nxtInput.value='';nxtDrop.style.display='none';});
+                });
+            };
+            nxtInput.addEventListener('input',()=>{ clearTimeout(_debT); _debT=setTimeout(()=>showDrop(nxtInput.value),200); });
+            nxtInput.addEventListener('focus',()=>{ if(_nxtMode==='user') showDrop(nxtInput.value); });
+            nxtInput.addEventListener('blur', ()=>{ setTimeout(()=>nxtDrop.style.display='none',200); });
+        }
+
+        function adcAddNxtChip(id, label, type) {
+            const chips = document.getElementById('adc-nxt-chips'); if(!chips) return;
+            const icons = {user:'ph-user',email:'ph-envelope',whatsapp:'ph-whatsapp-logo'};
+            const styles = {user:'rgba(16,185,129,0.12)|rgba(16,185,129,0.3)|#10b981',email:'rgba(6,182,212,0.12)|rgba(6,182,212,0.3)|#22d3ee',whatsapp:'rgba(37,211,102,0.1)|rgba(37,211,102,0.3)|#25d366'};
+            const [bg,bdr,clr] = (styles[type]||styles.user).split('|');
+            const sp = document.createElement('span');
+            sp.className='adc-nxt-chip'; sp.dataset.id=id; sp.dataset.type=type;
+            sp.style.cssText=`display:inline-flex;align-items:center;gap:0.35rem;padding:0.22rem 0.6rem;border-radius:20px;font-size:0.76rem;background:${bg};border:1px solid ${bdr};color:${clr};`;
+            sp.innerHTML=`<i class="ph ${icons[type]||'ph-user'}"></i>${label}<button type="button" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;line-height:1;margin-left:2px;font-size:0.9rem;">×</button>`;
+            sp.querySelector('button').addEventListener('click',()=>sp.remove());
+            chips.appendChild(sp);
+        }
+
+        document.getElementById('adc-nxt-add-btn')?.addEventListener('click',()=>{
+            const v=document.getElementById('adc-nxt-input')?.value?.trim(); if(!v) return;
+            adcAddNxtChip(v,v,_nxtMode); document.getElementById('adc-nxt-input').value='';
+        });
+    })();
+
+    // ── Reminder presets ────────────────────────────────────────────────────────
+    overlay.querySelectorAll('.adc-reminder-preset').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const reminderInput = document.getElementById('adc-reminder-at');
+            const offset = btn.dataset.offset;
+            if (offset === 'custom') { reminderInput?.focus(); return; }
+            const tabEl = document.getElementById('adc-tab-lembrete');
+            const actDt = tabEl?.dataset.activityDt;
+            const base = actDt ? new Date(actDt) : new Date();
+            base.setMinutes(base.getMinutes() + parseInt(offset, 10));
+            const iso = new Date(base.getTime() - base.getTimezoneOffset()*60000).toISOString().slice(0,16);
+            if (reminderInput) reminderInput.value = iso;
+        });
+        btn.addEventListener('mouseenter', () => { btn.style.opacity = '0.75'; });
+        btn.addEventListener('mouseleave', () => { btn.style.opacity = '1'; });
+    });
+
+    // ── Reminder channel toggle style ──────────────────────────────────────────
+    ['adc-reminder-email','adc-reminder-wpp'].forEach(id => {
+        const chk = document.getElementById(id);
+        const lbl = document.getElementById(id === 'adc-reminder-email' ? 'adc-email-label' : 'adc-wpp-label');
+        if (!chk || !lbl) return;
+        const [borderOn, bgOn] = id === 'adc-reminder-email'
+            ? ['rgba(99,102,241,0.35)','rgba(99,102,241,0.08)']
+            : ['rgba(37,211,102,0.35)','rgba(37,211,102,0.08)'];
+        chk.addEventListener('change', () => {
+            lbl.style.borderColor = chk.checked ? borderOn : 'var(--dark-border)';
+            lbl.style.background  = chk.checked ? bgOn     : 'transparent';
+        });
     });
 
     // ── Participantes multi-modo ───────────────────────────────────────────────
@@ -1723,9 +1952,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         if (!title) {
             utils.showToast('O título é obrigatório.', 'error');
             btn.disabled=false;
-            btn.innerHTML = isCreateMode
-                ? '<i class="ph ph-plus"></i> Criar Atividade'
-                : '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
             return;
         }
 
@@ -1733,7 +1960,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         if (isCreateMode && !actType) {
             utils.showToast('Selecione o tipo de atividade.', 'error');
             btn.disabled=false;
-            btn.innerHTML = '<i class="ph ph-plus"></i> Criar Atividade';
+            btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
             return;
         }
 
@@ -1743,6 +1970,13 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
             .map(ch => ch.dataset.id)
             .filter(Boolean);
 
+        // Coleta responsáveis do próximo passo dos chips (multi-modo)
+        const nxtChips = [...document.querySelectorAll('#adc-nxt-chips > span')];
+        const nxtResp = nxtChips.map(ch => ch.dataset.id).filter(Boolean);
+
+        // Company
+        const companyId = document.getElementById('adc-company-id')?.value || null;
+
         const payload = {
             activity_type:     actType,
             status:            document.getElementById('adc-status').value || null,
@@ -1751,10 +1985,11 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
             title,
             description:       document.getElementById('adc-desc').value.trim() || null,
             assignees:         assigneeIds,
+            company_id:        companyId,
             time_spent_minutes: timeSpent,
             next_step_title:   document.getElementById('adc-next-title').value.trim() || null,
             next_step_date:    document.getElementById('adc-next-date').value ? new Date(document.getElementById('adc-next-date').value).toISOString() : null,
-            next_step_responsibles: (document.getElementById('adc-next-resp').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+            next_step_responsibles: nxtResp,
             google_meet_link:  document.getElementById('adc-meet-link')?.value?.trim() || null,
             reminder_at:       document.getElementById('adc-reminder-at').value ? new Date(document.getElementById('adc-reminder-at').value).toISOString() : null,
             reminder_email:    document.getElementById('adc-reminder-email').checked,
@@ -1796,9 +2031,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         } catch(e) {
             utils.showToast(e.message, 'error');
             btn.disabled=false;
-            btn.innerHTML = isCreateMode
-                ? '<i class="ph ph-plus"></i> Criar Atividade'
-                : '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
         }
     });
 

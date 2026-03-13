@@ -69,6 +69,7 @@ model companies {
   contacts                        contacts[]
   test_runs_triggered              test_runs[]      // execuções manuais disparadas pela aba LOG
   activities                      activities[]
+  whatsapp_conversations          whatsapp_conversations[]
 
   // relações de usuários
   user_memberships                user_memberships[]
@@ -186,6 +187,7 @@ model contacts {
   Nome_do_contato         String?
   WhatsApp                String?
   companies               companies @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsapp_conversations  whatsapp_conversations[]
 }
 
 model product_historico {
@@ -641,4 +643,62 @@ model email_send_log {
 
   @@index([sent_at])
   @@map("email_send_log")
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MÓDULO WHATSAPP — Inbox HD + Notificações
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── INBOX HD ──────────────────────────────────────────────────────────────────
+
+model whatsapp_conversations {
+  id              String    @id @default(uuid())
+  contact_id      String?                         // FK contacts (nullable)
+  company_id      String?                         // FK companies (nullable)
+  wa_phone_number String                          // número E.164: +5511999999999
+  status          String    @default("open")      // "open" | "closed"
+  opened_at       DateTime  @default(now())
+  closed_at       DateTime?
+  assigned_to     String?                         // user_id do agente (Clerk)
+  activity_id     String?                         // FK activities (criada ao fechar)
+
+  // Análise Gabi ao fechar
+  gabi_temperatura       String?   // "critico"|"negativo"|"neutro"|"positivo"|"encantado"
+  gabi_temperatura_score Int?      // 1–5
+  gabi_resumo            String?   // resumo gerado pela Gabi
+  gabi_acoes_sugeridas   String?   // JSON array de ações sugeridas
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  messages  whatsapp_messages[]
+  contacts  contacts?   @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+  companies companies?  @relation(fields: [company_id], references: [id], onDelete: SetNull)
+}
+
+model whatsapp_messages {
+  id              String   @id @default(uuid())
+  conversation_id String
+  wa_message_id   String?  @unique             // ID Meta — dedup (Meta reenvia eventos)
+  direction       String                        // "inbound" | "outbound"
+  content_type    String   @default("text")     // "text" | "image" | "audio" | "document"
+  content         String                        // texto ou URL da mídia
+  sent_by         String?                       // user_id se agente, null se inbound ou Gabi
+  origin          String   @default("agent")    // "agent" | "gabi" | "system" (lembretes)
+  status          String   @default("sent")     // "sent" | "delivered" | "read" | "failed"
+  created_at      DateTime @default(now())
+
+  conversation whatsapp_conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+}
+
+// ── LOG DE CUSTO (padrão gabi_usage_logs) ─────────────────────────────────────
+
+model whatsapp_usage_logs {
+  id                    String   @id @default(uuid())
+  conversation_id       String?
+  company_id            String?
+  conversation_category String?  // "service" | "marketing" | "utility" | "notification"
+  origin                String?  // "inbox" | "gabi" | "reminder" | "system"
+  cost_usd              Float    @default(0)
+  created_at            DateTime @default(now())
 }

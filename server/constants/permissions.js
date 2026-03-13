@@ -13,6 +13,7 @@ export const FEATURE_PERMISSIONS = {
   'audit.view':          'Histórico de Alterações',
   'test_logs.view':      'Log de Testes',
   'gabi.view':           'Gabi AI',
+  'whatsapp.view':       'WhatsApp Inbox HD',
 
   // ── 2. VISUALIZAR CLIENTE (Abas internas da Empresa) ────────────────────
   'company_tab.basic_data': 'Dados Básicos',
@@ -48,6 +49,7 @@ export const PERMISSION_GROUPS = [
       'audit.view',
       'test_logs.view',
       'gabi.view',
+      'whatsapp.view',
     ],
   },
   {

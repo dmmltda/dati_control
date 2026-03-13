@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"/Users/danielmendes/Library/Mobile Documents/com~apple~CloudDocs/1. DATI/1.1. DATI > ENGENHARIA DE PRODUTO/dati_control\" -type d -maxdepth 3)"
+    ]
+  }
+}

@@ -748,7 +748,7 @@ export function openActivityDetail(id, defaultTab = 'info') {
     _renderDetailDrawer(task, defaultTab);
 }
 
-function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false) {
+function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAfterSave = null) {
     document.getElementById('tb-drawer-overlay')?.remove();
 
     const TYPES    = ['Comentário','Reunião','Chamados HD','Chamados CS','Ação necessária','Outros'];
@@ -1682,10 +1682,12 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false) {
             }
 
             if (!r.ok) { const err = await r.json().catch(() => ({ error: 'Erro desconhecido' })); throw new Error(err.error); }
+            const savedActivity = await r.json().catch(() => null);
 
             utils.showToast(isCreateMode ? 'Atividade criada!' : 'Atividade atualizada!', 'success');
-            window.dispatchEvent(new CustomEvent('journey:activity-changed', { detail: { action: isCreateMode ? 'create' : 'update', id: t.id } }));
-            _closeCard(); await _loadAndRender();
+            window.dispatchEvent(new CustomEvent('journey:activity-changed', { detail: { action: isCreateMode ? 'create' : 'update', id: savedActivity?.id || t.id } }));
+            _closeCard();
+            if (onAfterSave) { await onAfterSave(savedActivity); } else { await _loadAndRender(); }
         } catch (err) {
             utils.showToast(err.message, 'error');
             saveBtn.disabled = false;
@@ -2105,4 +2107,9 @@ window._kbDrag = {
 window.tasksBoard = {
     initTasksBoard, switchView, applyFilter, clearAllFilters, openNewActivity, openActivityDetail,
     deleteActivity,
+    // Exposto para uso em outros módulos (activities.js) — mesmo modal exato
+    renderActivityModal: (activity, isCreateMode = false, defaultTab = 'info', onAfterSave = null) => {
+        // Permite sobrescrever o callback pós-save para outros módulos
+        _renderDetailDrawer(activity, defaultTab, isCreateMode, onAfterSave);
+    },
 };

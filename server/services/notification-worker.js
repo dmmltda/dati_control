@@ -1,9 +1,68 @@
 import { PrismaClient } from '@prisma/client';
 import { createClerkClient } from '@clerk/express';
 import { sendEmail } from './email.js';
+import { sendTextMessage, isWhatsAppConfigured, normalizePhone } from './whatsapp.js';
 
 const prisma = new PrismaClient();
 const clerkClient = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+
+/**
+ * Busca o telefone de um usuário pelo userId Clerk.
+ * Retorna o valor do campo users.phone (configurado via perfil) ou null.
+ */
+async function getUserPhone(userId) {
+    try {
+        const user = await prisma.users.findUnique({
+            where:  { id: userId },
+            select: { phone: true },
+        });
+        return user?.phone || null;
+    } catch (err) {
+        console.warn(`[notification-worker] Erro ao buscar phone de ${userId}:`, err.message);
+        return null;
+    }
+}
+
+/**
+ * Gera texto simples (sem HTML) para envio via WhatsApp.
+ * @param {string} type       - tipo de notificação
+ * @param {object} activity   - registro da atividade
+ * @param {object} usuario    - usuário destinatário { nome }
+ * @param {string} empresa    - nome da empresa
+ * @returns {string}
+ */
+function buildWhatsAppText(type, activity, usuario, empresa) {
+    const titulo  = activity?.title || 'Atividade';
+    const nome    = usuario?.nome || 'Usuário';
+    const emp     = empresa || '';
+
+    const formatDate = (dt) => {
+        if (!dt) return '';
+        try {
+            return new Date(dt).toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+            });
+        } catch { return ''; }
+    };
+
+    switch (type) {
+        case 'reminder':
+            return `⏰ *Lembrete Journey*\n\n*${titulo}*${emp ? `\n🏢 ${emp}` : ''}${activity?.activity_datetime ? `\n📅 ${formatDate(activity.activity_datetime)}` : ''}\n\nAcesse o Journey para mais detalhes.`;
+
+        case 'meeting-invite':
+            return `📅 *Convite de Reunião — Journey*\n\n*${titulo}*${emp ? `\n🏢 ${emp}` : ''}${activity?.activity_datetime ? `\n🕐 ${formatDate(activity.activity_datetime)}` : ''}${activity?.google_meet_link ? `\n🔗 ${activity.google_meet_link}` : ''}\n\nVocê foi adicionado como participante.`;
+
+        case 'task-assigned':
+            return `📋 *Nova tarefa atribuída — Journey*\n\n*${titulo}*${emp ? `\n🏢 ${emp}` : ''}${activity?.next_step_date ? `\n📅 Prazo: ${formatDate(activity.next_step_date)}` : ''}\n\nAcesse o Journey para começar.`;
+
+        case 'next-step':
+            return `🎯 *Próximo Passo — Journey*\n\n*${activity?.next_step_title || titulo}*${emp ? `\n🏢 ${emp}` : ''}${activity?.next_step_date ? `\n📅 ${formatDate(activity.next_step_date)}` : ''}\n\nNão esqueça de registrar o andamento.`;
+
+        default:
+            return `📌 *Journey CRM*\n\n${titulo}${emp ? ` — ${emp}` : ''}`;
+    }
+}
 
 /**
  * Processa um job de notificação enfileirado no pg-boss.
@@ -122,4 +181,30 @@ export async function processNotificationJob({ type, activityId, userId, extra }
     });
 
     console.log(`[notification-worker] Job ${type} processed for ${email}`);
+
+    // 5. Envio via WhatsApp (se configurado + atividade tem reminder_whatsapp + usuário tem número)
+    const waTypes = ['reminder', 'meeting-invite', 'task-assigned', 'next-step'];
+    if (
+        waTypes.includes(type) &&
+        activity?.reminder_whatsapp &&
+        isWhatsAppConfigured()
+    ) {
+        try {
+            const phone = await getUserPhone(userId);
+            if (phone) {
+                const waText = buildWhatsAppText(type, activity, usuario, empresa);
+                await sendTextMessage(phone, waText, {
+                    origin:          'reminder',
+                    conversation_id: null,
+                    company_id:      activity?.company_id || null,
+                });
+                console.log(`[notification-worker] ✅ WhatsApp enviado para ${normalizePhone(phone)} [${type}]`);
+            } else {
+                console.log(`[notification-worker] Usuário ${userId} sem número de WhatsApp cadastrado — WA ignorado`);
+            }
+        } catch (waErr) {
+            // Não deixa o worker crashar por falha de WhatsApp
+            console.warn(`[notification-worker] Erro ao enviar WhatsApp [${type}]:`, waErr.message);
+        }
+    }
 }

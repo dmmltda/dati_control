@@ -159,9 +159,7 @@ async function getGeminiApiKey() {
     return getSetting('gemini_api_key', process.env.GEMINI_API_KEY || null);
 }
 
-// Modelos em ordem de preferência — tenta o próximo se 429 (quota), 404 (não disponível) ou timeout
-// Nota: gemini-2.0-flash e gemini-2.0-flash-001 retornam 404 para APIs keys novas ("no longer available")
-// Por isso começamos com gemini-2.5-flash que é o mais recente e estável
+// Modelos em ordem de preferência para TEXTO + TOOL USE
 const GEMINI_MODELS  = [
     'gemini-2.5-flash',          // principal: mais recente e estável
     'gemini-2.0-flash-lite',     // fallback leve e rápido
@@ -170,20 +168,28 @@ const GEMINI_MODELS  = [
     'gemini-pro-latest',         // fallback final
 ];
 
+// Modelos para VISÃO (multimodal — inlineData). Estes são estritamente multimodais
+// e não recebem tools para evitar conflito com inlineData.
+const GEMINI_VISION_MODELS = [
+    'gemini-2.0-flash',           // melhor suporte vision + mais estável
+    'gemini-1.5-flash',           // excelente para visão, muito maduro
+    'gemini-1.5-pro',             // fallback de alta qualidade
+    'gemini-2.5-flash',           // tentativa com mais novo
+    'gemini-flash-latest',        // alias genérico
+];
+
 // Preços USD por 1M tokens (Gemini 2.0 Flash)
 const PRICE_INPUT  = 0.075 / 1_000_000;
 const PRICE_OUTPUT = 0.30  / 1_000_000;
 
-// Helper: tenta gerar conteúdo com fallback de modelos
-// FIX #1: AbortController com timeout de 10s por modelo — evita travar na espera de
-// models lentos/indisponíveis antes de fazer fallback para o próximo da lista.
+// Helper: gera conteúdo TEXTUAL com tool-use (sem imagem)
 async function geminiGenerate(body) {
     const apiKey = await getGeminiApiKey();
     let lastErr;
     for (const model of GEMINI_MODELS) {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const controller = new AbortController();
-        const timeoutId  = setTimeout(() => controller.abort(), 15_000); // 15s por modelo (modelos novos podem ser mais lentos)
+        const timeoutId  = setTimeout(() => controller.abort(), 15_000);
         try {
             const resp = await fetch(url, {
                 method: 'POST',
@@ -198,13 +204,11 @@ async function geminiGenerate(body) {
                 return data;
             }
             const errBody = await resp.json().catch(() => ({}));
-            // Faz fallback em: 429 (quota), 404 (modelo não disponível), 503 (indisponível)
             if (resp.status === 429 || resp.status === 404 || resp.status === 503) {
                 console.warn(`[Gabi] Modelo ${model} falhou (${resp.status}), tentando próximo...`);
                 lastErr = errBody;
                 continue;
             }
-            // Outros erros — lança direto
             throw new Error(`Gemini ${resp.status}: ${JSON.stringify(errBody)}`);
         } catch (e) {
             clearTimeout(timeoutId);
@@ -217,6 +221,54 @@ async function geminiGenerate(body) {
         }
     }
     throw new Error(`Gemini: todos os modelos falharam. Último erro: ${JSON.stringify(lastErr)}`);
+}
+
+// Helper: gera conteúdo MULTIMODAL (com imagem/visão) — SEM tool_use
+// Os modelos de visão não recebem tools pois isso confunde o Gemini
+// quando há inlineData na mesma requisição.
+async function geminiGenerateVision(body) {
+    const apiKey = await getGeminiApiKey();
+    let lastErr;
+    // Remove tools do body vision — inlineData + tools não se misturam bem
+    const visionBody = { ...body };
+    delete visionBody.tools;
+
+    for (const model of GEMINI_VISION_MODELS) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), 30_000); // 30s — imagens são mais lentas
+        try {
+            const resp = await fetch(url, {
+                method: 'POST',
+                signal: controller.signal,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(visionBody),
+            });
+            clearTimeout(timeoutId);
+            if (resp.ok) {
+                const data = await resp.json();
+                data._model_used = model;
+                console.log(`[Gabi Vision] ✅ Modelo ${model} respondeu com visão`);
+                return data;
+            }
+            const errBody = await resp.json().catch(() => ({}));
+            console.warn(`[Gabi Vision] Modelo ${model} falhou (${resp.status}):`, JSON.stringify(errBody).substring(0, 200));
+            if (resp.status === 429 || resp.status === 404 || resp.status === 503) {
+                lastErr = errBody;
+                continue;
+            }
+            throw new Error(`Gemini Vision ${resp.status}: ${JSON.stringify(errBody)}`);
+        } catch (e) {
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') {
+                console.warn(`[Gabi Vision] Modelo ${model} timeout (>30s), tentando próximo...`);
+                lastErr = { error: 'timeout' };
+                continue;
+            }
+            throw e;
+        }
+    }
+    throw new Error(`Gemini Vision: todos os modelos falharam. Último erro: ${JSON.stringify(lastErr)}`);
 }
 
 // ── Tools disponíveis ─────────────────────────────────────────────────────────
@@ -521,6 +573,32 @@ Permissões aplicadas automaticamente conforme perfil do usuário.`,
             name: 'get_gabi_settings',
             description: 'Retorna as configurações atuais da Gabi AI: limite mensal de gasto (USD), percentual de alerta, e-mail de alerta. Também retorna o gasto atual do mês corrente. Use quando o usuário perguntar sobre custos, limites ou configurações da Gabi.',
             parameters: { type: 'object', properties: {} }
+        },
+
+        // ── WHATSAPP ──────────────────────────────────────────────────────────
+        {
+            name: 'send_whatsapp_message',
+            description: 'Envia uma mensagem de WhatsApp para um contato cadastrado no Journey. Use quando o usuário pedir para enviar uma mensagem via WhatsApp para um contato.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    contact_id: { type: 'string', description: 'ID do contato no Journey' },
+                    message:    { type: 'string', description: 'Texto da mensagem a enviar' },
+                },
+                required: ['contact_id', 'message'],
+            }
+        },
+        {
+            name: 'get_whatsapp_history',
+            description: 'Busca o histórico de conversas WhatsApp de um contato cadastrado no Journey.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    contact_id: { type: 'string', description: 'ID do contato no Journey' },
+                    limit:      { type: 'number', description: 'Máximo de mensagens a retornar (padrão: 20)' },
+                },
+                required: ['contact_id'],
+            }
         },
     ]
 }];
@@ -1111,6 +1189,126 @@ async function execTool(name, args = {}) {
         };
     }
 
+    // ── send_whatsapp_message ─────────────────────────────────────────────────
+    if (name === 'send_whatsapp_message') {
+        // Importação lazy para evitar dependência circular
+        const { sendTextMessage: waSend, isWhatsAppConfigured: waConfigured, normalizePhone } = await import('../services/whatsapp.js');
+
+        if (!waConfigured()) {
+            return { error: 'WhatsApp não configurado', message: 'O serviço de WhatsApp não está configurado no Journey. Peça ao administrador para configurar o WhatsApp Business nas configurações.' };
+        }
+
+        const contact = await prisma.contacts.findUnique({
+            where:   { id: args.contact_id },
+            include: { companies: { select: { id: true, Nome_da_empresa: true } } },
+        });
+        if (!contact) return { error: `Contato com ID "${args.contact_id}" não encontrado.` };
+
+        if (!contact.WhatsApp) {
+            return { error: 'sem_whatsapp', message: `O contato "${contact.Nome_do_contato}" não tem número de WhatsApp cadastrado. Peça ao usuário para adicionar o WhatsApp deste contato antes de enviar a mensagem.` };
+        }
+
+        const normalized = normalizePhone(contact.WhatsApp);
+
+        // Busca ou cria conversa aberta
+        let conv = await prisma.whatsapp_conversations.findFirst({
+            where: { wa_phone_number: normalized, status: 'open' },
+            orderBy: { opened_at: 'desc' },
+        });
+        if (!conv) {
+            conv = await prisma.whatsapp_conversations.create({
+                data: {
+                    wa_phone_number: normalized,
+                    contact_id:      contact.id,
+                    company_id:      contact.companyId || null,
+                    status:          'open',
+                },
+            });
+        }
+
+        const result = await waSend(`+${normalized}`, args.message, {
+            origin:          'gabi',
+            conversation_id: conv.id,
+            company_id:      contact.companyId || null,
+        });
+
+        if (!result.sent) {
+            return { error: result.error || 'Falha ao enviar', message: `Não foi possível enviar a mensagem para ${contact.Nome_do_contato}. Erro: ${result.error}` };
+        }
+
+        // Registra mensagem no banco
+        await prisma.whatsapp_messages.create({
+            data: {
+                conversation_id: conv.id,
+                wa_message_id:   result.wa_message_id || null,
+                direction:       'outbound',
+                content_type:    'text',
+                content:         args.message,
+                sent_by:         userId,
+                origin:          'gabi',
+                status:          'sent',
+            },
+        });
+
+        return {
+            sent:         true,
+            to:           `+${normalized}`,
+            contact_name: contact.Nome_do_contato,
+            empresa:      contact.companies?.Nome_da_empresa || null,
+            message:      `✅ Mensagem WhatsApp enviada para ${contact.Nome_do_contato} (+${normalized}) com sucesso!`,
+        };
+    }
+
+    // ── get_whatsapp_history ──────────────────────────────────────────────────
+    if (name === 'get_whatsapp_history') {
+        const { normalizePhone } = await import('../services/whatsapp.js');
+
+        const contact = await prisma.contacts.findUnique({
+            where: { id: args.contact_id },
+        });
+        if (!contact) return { error: `Contato com ID "${args.contact_id}" não encontrado.` };
+
+        if (!contact.WhatsApp) {
+            return { error: 'sem_whatsapp', message: `O contato "${contact.Nome_do_contato}" não tem número de WhatsApp cadastrado.` };
+        }
+
+        const normalized = normalizePhone(contact.WhatsApp);
+        const limit = Math.min(args.limit || 20, 100);
+
+        // Busca conversa mais recente (aberta ou fechada)
+        const conv = await prisma.whatsapp_conversations.findFirst({
+            where:   { wa_phone_number: normalized },
+            orderBy: { opened_at: 'desc' },
+        });
+
+        if (!conv) {
+            return { mensagens: [], total: 0, info: `Nenhuma conversa WhatsApp encontrada para ${contact.Nome_do_contato}.` };
+        }
+
+        const msgs = await prisma.whatsapp_messages.findMany({
+            where:   { conversation_id: conv.id },
+            orderBy: { created_at: 'desc' },
+            take:    limit,
+        });
+
+        const formatada = msgs.reverse().map(m => ({
+            data:      new Date(m.created_at).toLocaleString('pt-BR'),
+            direcao:   m.direction === 'inbound' ? 'Cliente → Agente' : 'Agente → Cliente',
+            origem:    m.origin,
+            conteudo:  m.content,
+            status:    m.status,
+        }));
+
+        return {
+            contato:       contact.Nome_do_contato,
+            numero:        `+${normalized}`,
+            conversa_id:   conv.id,
+            status_conv:   conv.status,
+            mensagens:     formatada,
+            total:         formatada.length,
+        };
+    }
+
     // ── query_database ────────────────────────────────────────────────────────
     if (name === 'query_database') {
         const table  = (args.table || '').toLowerCase().trim();
@@ -1200,23 +1398,20 @@ async function execTool(name, args = {}) {
             }
         }
 
-        // ── CONTROLE DE PERMISSÃO: Standard filtra por suas empresas ─────────
+        // ── CONTROLE DE PERMISSÃO: Standard filtra por suas empresas ─────────────────
         if (!isMaster && userId) {
             const memberships = await prisma.user_memberships.findMany({
                 where: { user_id: userId }, select: { company_id: true }
             });
             const allowedIds = memberships.map(m => m.company_id);
 
-            // Tabelas com company_id (snake_case)
             const COMPANY_ID_SNAKE = ['activities', 'audit_logs'];
-            // Tabelas com companyId (camelCase)
             const COMPANY_ID_CAMEL = ['contacts', 'company_products', 'company_followups',
                 'company_meetings', 'company_notes', 'company_nps', 'company_tickets', 'product_historico'];
 
             if (COMPANY_ID_SNAKE.includes(table)) {
                 where.company_id = { in: allowedIds };
             } else if (COMPANY_ID_CAMEL.includes(table)) {
-                // Para product_historico, filtra via productId → companyId
                 if (table === 'product_historico') {
                     const prods = await prisma.company_products.findMany({
                         where: { companyId: { in: allowedIds } }, select: { id: true }
@@ -1230,7 +1425,6 @@ async function execTool(name, args = {}) {
             } else if (table === 'companies') {
                 where.id = { in: allowedIds };
             } else if (table === 'user_memberships') {
-                // Standard só vê seus próprios vínculos
                 where.user_id = userId;
             } else if (table === 'test_runs' || table === 'test_cases' || table === 'import_jobs' || table === 'user_invites') {
                 return { error: 'permission_denied', message: 'Você não tem permissão para acessar estes dados. Apenas usuários Master podem visualizar logs de sistema, importações e convites.' };
@@ -1282,9 +1476,10 @@ async function checkLimit() {
 // ── POST /api/gabi/chat ────────────────────────────────────────────────────────
 router.post('/chat', requireAuth(), async (req, res) => {
     const clerkUserId = req.auth?.userId;
-    const { message, history = [] } = req.body;
+    const { message, history = [], image } = req.body;
 
-    if (!message?.trim()) return res.status(400).json({ error: 'Mensagem vazia.' });
+    // Permite envio apenas de imagem (sem texto obrigatório)
+    if (!message?.trim() && !image?.base64) return res.status(400).json({ error: 'Mensagem ou imagem obrigatória.' });
     const apiKey = await getGeminiApiKey();
     if (!apiKey)  return res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' });
 
@@ -1310,6 +1505,8 @@ Usuário: ${user?.nome || 'Usuário'} | ID: ${clerkUserId} | Perfil: ${isMaster 
 
 Responda em Português Brasileiro. Seja direta, objetiva e calorosa.
 Use markdown básico. Raciocine antes de responder — pense nos dados necessários.
+
+ANÁLISE DE IMAGENS: Você tem visão computacional — pode receber e interpretar imagens enviadas pelo usuário (prints de e-mail, WhatsApp, propostas comerciais, documentos, planilhas, capturas de tela, fotos, etc.). Quando receber uma imagem, analise-a detalhadamente: extraia texto visível, identifique o contexto, leia valores, datas, nomes, e responda às perguntas do usuário com base no conteúdo visual. Se não houver pergunta explícita, descreva e pré-preencha os dados relevantes que possa extrair (ex: dados de um e-mail → sugira criar uma atividade; dados de uma proposta → liste valores e condições; dados de WhatsApp → resuma a conversa).
 
 ${isMaster
     ? 'Como Master, você tem acesso TOTAL: pode ver, criar, editar e excluir qualquer empresa, atividade ou contato do sistema.'
@@ -1380,17 +1577,72 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
 
     const messages = [
         ...history.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })),
-        { role: 'user', parts: [{ text: message }] }
     ];
+
+    // Monta a mensagem do usuário com suporte a imagem multimodal
+    const userParts = [];
+
+    // Se houver imagem, inclui como inlineData (suporte nativo do Gemini Vision)
+    if (image?.base64 && image?.mimeType) {
+        // Validação de mimeType aceito
+        const ALLOWED_MIME = ['image/png','image/jpeg','image/jpg','image/gif','image/webp','image/bmp'];
+        const mimeType = ALLOWED_MIME.includes(image.mimeType) ? image.mimeType : 'image/png';
+
+        // Limita tamanho do base64 (~5MB decodificado = ~6.7MB base64)
+        if (image.base64.length > 7_000_000) {
+            return res.status(400).json({ error: 'Imagem muito grande. Máximo: ~5MB.' });
+        }
+
+        userParts.push({
+            inlineData: {
+                mimeType,
+                data: image.base64,
+            }
+        });
+    }
+
+    // Sempre inclui a parte de texto
+    userParts.push({ text: message?.trim() || 'Descreva e analise esta imagem em detalhes.' });
+
+    messages.push({ role: 'user', parts: userParts });
 
     try {
         let allMessages = [...messages];
         let finalText   = '';
         let inputTok    = 0;
         let outputTok   = 0;
-        // Rastreia se a Gabi realizou alguma ação de escrita (create/update)
         const actionsPerformed = [];
 
+        // ── CAMINHO ESPECIAL: mensagem com imagem ───────────────────────────────────
+        // Quando há imagem, usamos geminiGenerateVision (sem tools) para
+        // garantir que o modelo multimodal analise a imagem antes de qualquer
+        // tool-use. Depois a resposta é retornada direto (sem loop de tools).
+        if (image?.base64) {
+            console.log(`[Gabi Vision] 🖼️ Imagem recebida: ${image.mimeType}, ${Math.round(image.base64.length / 1024)}KB base64`);
+            const visionData = await geminiGenerateVision({
+                system_instruction: { parts: [{ text: systemPrompt }] },
+                contents: allMessages,
+                generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
+            });
+            inputTok  = visionData.usageMetadata?.promptTokenCount    || 0;
+            outputTok = visionData.usageMetadata?.candidatesTokenCount || 0;
+            const visionParts = visionData.candidates?.[0]?.content?.parts || [];
+            finalText = visionParts.filter(p => p.text).map(p => p.text).join('')
+                || 'Não consegui analisar a imagem. Tente novamente com uma imagem mais clara.';
+
+            // Log e resposta imediata
+            const costUsd = (inputTok * PRICE_INPUT) + (outputTok * PRICE_OUTPUT);
+            try {
+                await prisma.gabi_usage_logs.create({
+                    data: { user_id: clerkUserId, input_tokens: inputTok, output_tokens: outputTok, cost_usd: costUsd }
+                });
+                _verificarEEnviarAlerta(costUsd, prisma, user).catch(() => {});
+            } catch {}
+            return res.json({ reply: finalText, actionsPerformed: [], activityChanged: false, companyChanged: false,
+                usage: { inputTokens: inputTok, outputTokens: outputTok, costUsd: costUsd.toFixed(6) } });
+        }
+
+        // ── CAMINHO NORMAL: texto apenas (com tool-use) ───────────────────────────────
         // Loop de reasoning + tool-use (máx 100 iterações)
         for (let i = 0; i < 100; i++) {
             const data = await geminiGenerate({
