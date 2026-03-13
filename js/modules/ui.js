@@ -485,21 +485,28 @@ export function updateBulkSelectionUI() {
 
     // ⚠️ CRÍTICO: atributo HTML disabled bloqueia eventos click independente de CSS.
     // É necessário remover/adicionar o atributo diretamente.
+    const canEdit = !window.canDo || window.canDo('company_edit.basic_data');
     const deleteBtn = document.getElementById('bulk-delete-btn');
     const clearBtn = document.getElementById('bulk-clear-btn');
     const editBtn = document.getElementById('bulk-edit-btn');
-    if (deleteBtn) deleteBtn.disabled = !hasAny;
+    
+    if (deleteBtn) deleteBtn.disabled = !hasAny || !canEdit;
     if (clearBtn) clearBtn.disabled = !hasAny;
-    if (editBtn) editBtn.disabled = !hasAny;
+    if (editBtn) editBtn.disabled = !hasAny || !canEdit;
 
     // "Importar em Massa" — habilitado exceto quando mais de 1 empresa selecionada
     const importBtn = document.getElementById('btn-importar-em-massa');
     if (importBtn) {
-        const moreThanOne = count > 1;
-        importBtn.disabled = moreThanOne;
-        importBtn.title = moreThanOne
-            ? 'Desabilite a seleção múltipla para usar a importação em massa'
-            : 'Importe empresas e contatos em massa via planilha';
+        if (!canEdit) {
+            importBtn.disabled = true;
+            importBtn.title = 'Você não tem permissão para importar empresas.';
+        } else {
+            const moreThanOne = count > 1;
+            importBtn.disabled = moreThanOne;
+            importBtn.title = moreThanOne
+                ? 'Desabilite a seleção múltipla para usar a importação em massa'
+                : 'Importe empresas e contatos em massa via planilha';
+        }
     }
 
     // Estado do checkbox "selecionar todos"
@@ -1330,18 +1337,163 @@ document.addEventListener('click', (e) => {
         document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
     }
 });
+
 export function initGlobalPickers() {
-    // Aplicar Flatpickr em todos os inputs de data do sistema
-    // Exceto os marcados com .no-flatpickr (ex: audit-log, que usam color-scheme:dark nativo)
+    // ═══════════════════════════════════════════════════════════════════
+    // CALENDÁRIO PREMIUM — Componente Padrão DATI
+    // Aplica o tema premium em TODOS os inputs de data do sistema.
+    // Para excluir um input específico, use a classe .no-flatpickr
+    // ═══════════════════════════════════════════════════════════════════
+
+    // Helper que aplica o tema premium no calendário flatpickr
+    function applyPremiumTheme(instance, hasTime = false) {
+        const container = instance.calendarContainer;
+        container.classList.add('premium-cal-theme');
+
+        // Footer com data selecionada + botão Hoje
+        const footer = document.createElement('div');
+        footer.className = 'flatpickr-premium-footer';
+
+        const leftSpan = document.createElement('span');
+        leftSpan.className = 'premium-left-date';
+        leftSpan.innerText = 'Selecione uma data';
+
+        const rightBtn = document.createElement('button');
+        rightBtn.className = 'premium-today-btn';
+        rightBtn.innerText = 'Hoje';
+        rightBtn.type = 'button';
+        rightBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            instance.setDate(new Date(), true);
+        });
+
+        footer.appendChild(leftSpan);
+        footer.appendChild(rightBtn);
+        container.appendChild(footer);
+        instance._premiumLeftSpan = leftSpan;
+
+        // Seletor de mês inline (substitui <select> nativo)
+        const monthSelectNative = container.querySelector('.flatpickr-monthDropdown-months');
+        if (monthSelectNative) {
+            monthSelectNative.style.display = 'none';
+            const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+            const monthTrigger = document.createElement('span');
+            monthTrigger.className = 'premium-month-trigger';
+            monthTrigger.innerText = monthNames[instance.currentMonth];
+            monthSelectNative.insertAdjacentElement('afterend', monthTrigger);
+
+            const monthPopup = document.createElement('div');
+            monthPopup.className = 'premium-month-popup';
+            monthNames.forEach((name, idx) => {
+                const item = document.createElement('div');
+                item.className = 'premium-month-item';
+                item.innerText = name;
+                item.dataset.month = idx;
+                if (idx === instance.currentMonth) item.classList.add('active');
+                item.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    instance.changeMonth(idx - instance.currentMonth);
+                    monthTrigger.innerText = monthNames[idx];
+                    monthPopup.querySelectorAll('.premium-month-item').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    monthPopup.classList.remove('open');
+                });
+                monthPopup.appendChild(item);
+            });
+            container.querySelector('.flatpickr-month').appendChild(monthPopup);
+
+            monthTrigger.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                monthPopup.classList.toggle('open');
+                const active = monthPopup.querySelector('.premium-month-item.active');
+                if (active) active.scrollIntoView({ block: 'nearest' });
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (!monthPopup.contains(e.target) && e.target !== monthTrigger) {
+                    monthPopup.classList.remove('open');
+                }
+            });
+
+            instance._premiumMonthTrigger = monthTrigger;
+            instance._premiumMonthPopup = monthPopup;
+            instance._premiumMonthNames = monthNames;
+        }
+    }
+
+    // ── INPUTS type="date" ─────────────────────────────────────────────
     const dateInputs = document.querySelectorAll("input[type='date']:not(.no-flatpickr), .datepicker:not(.no-flatpickr)");
     dateInputs.forEach(el => {
+        if (el._flatpickr) return; // Já inicializado
         flatpickr(el, {
-            dateFormat: "Y-m-d", // Formato para o DB continuar funcionando
+            dateFormat: "Y-m-d",
             altInput: true,
-            altFormat: "d/m/Y", // Formato visual 10/10
-            locale: "pt"
+            altFormat: "d/m/Y",
+            locale: "pt",
+            monthSelectorType: "dropdown",
+            onReady: function(selectedDates, dateStr, instance) {
+                applyPremiumTheme(instance);
+            },
+            onMonthChange: function(selectedDates, dateStr, instance) {
+                if (instance._premiumMonthTrigger && instance._premiumMonthNames) {
+                    instance._premiumMonthTrigger.innerText = instance._premiumMonthNames[instance.currentMonth];
+                }
+                if (instance._premiumMonthPopup) {
+                    instance._premiumMonthPopup.querySelectorAll('.premium-month-item').forEach(el => {
+                        el.classList.toggle('active', parseInt(el.dataset.month) === instance.currentMonth);
+                    });
+                }
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                if (instance._premiumLeftSpan && selectedDates.length > 0) {
+                    const d = selectedDates[0];
+                    const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+                    instance._premiumLeftSpan.innerText = `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+                }
+                // Dispara o evento 'change' nativo no input original
+                // para que handlers onchange= do HTML sejam executados
+                instance.element.dispatchEvent(new Event('change', { bubbles: true }));
+            }
         });
     });
+
+    // ── INPUTS type="datetime-local" ───────────────────────────────────
+    const datetimeInputs = document.querySelectorAll("input[type='datetime-local']:not(.no-flatpickr)");
+    datetimeInputs.forEach(el => {
+        if (el._flatpickr) return;
+        flatpickr(el, {
+            dateFormat: "Y-m-dTH:i",
+            altInput: true,
+            altFormat: "d/m/Y H:i",
+            locale: "pt",
+            enableTime: true,
+            time_24hr: true,
+            monthSelectorType: "dropdown",
+            onReady: function(selectedDates, dateStr, instance) {
+                applyPremiumTheme(instance, true);
+            },
+            onMonthChange: function(selectedDates, dateStr, instance) {
+                if (instance._premiumMonthTrigger && instance._premiumMonthNames) {
+                    instance._premiumMonthTrigger.innerText = instance._premiumMonthNames[instance.currentMonth];
+                }
+                if (instance._premiumMonthPopup) {
+                    instance._premiumMonthPopup.querySelectorAll('.premium-month-item').forEach(el => {
+                        el.classList.toggle('active', parseInt(el.dataset.month) === instance.currentMonth);
+                    });
+                }
+            },
+            onChange: function(selectedDates, dateStr, instance) {
+                if (instance._premiumLeftSpan && selectedDates.length > 0) {
+                    const d = selectedDates[0];
+                    const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+                    instance._premiumLeftSpan.innerText = `${d.getDate()} de ${months[d.getMonth()]} de ${d.getFullYear()}`;
+                }
+            }
+        });
+    });
+
 
     // ── CustomSelects Premium (Global) ────────────────────────
     // Substitui todos os native selects do sistema

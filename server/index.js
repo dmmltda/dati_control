@@ -2847,6 +2847,20 @@ if (IS_PROD) {
         res.sendFile(path.join(__dirname, '..', 'index.html'));
     });
 }
+app.use((err, req, res, next) => {
+    console.error(`[GLOBAL ERROR] ${req.method} ${req.originalUrl}`);
+    console.error(`  Status:`, err.status || 500);
+    console.error(`  Message:`, err.message);
+    if (err.type === 'entity.parse.failed') {
+        console.error(`  Raw Body Context:`, err.body?.substring(0, 100));
+    }
+    console.error(`  Stack:`, err.stack);
+    
+    res.status(err.status || 500).json({
+        error: err.message,
+        type: err.type,
+    });
+});
 
 app.listen(PORT, async () => {
     const env = process.env.NODE_ENV || 'development';

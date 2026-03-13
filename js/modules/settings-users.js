@@ -558,11 +558,11 @@ const _PERMISSION_GROUPS = [
         icon: 'ph-pencil-simple',
         color: '#34d399',
         keys: [
-            ['company_edit.basic_data', 'Editar Básicos',     'ph-pencil'],
-            ['company_edit.products',   'Editar Produtos',    'ph-wrench'],
-            ['company_edit.contacts',   'Editar Contatos',    'ph-user-gear'],
-            ['company_edit.cs',         'Editar CS',          'ph-note-pencil'],
-            ['company_edit.activities', 'Editar Atividades',  'ph-plus-circle'],
+            ['company_edit.basic_data', 'Editar Básicos',       'ph-pencil'],
+            ['company_edit.products',   'Editar Produtos DATI', 'ph-wrench'],
+            ['company_edit.contacts',   'Editar Contatos',      'ph-user-gear'],
+            ['company_edit.cs',         'Editar CS',            'ph-note-pencil'],
+            ['company_edit.activities', 'Editar Atividades',    'ph-plus-circle'],
         ],
     },
 ];
@@ -874,8 +874,16 @@ window._salvarPermissoes = async function (userId) {
             body: JSON.stringify({ permissions: checked }),
         });
         if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || 'Erro ao salvar');
+            const errorText = await res.text();
+            console.error('[Feature Permissions] Server returned error:', res.status, errorText);
+            let errorMessage = 'Erro ao salvar';
+            try {
+                const data = JSON.parse(errorText);
+                errorMessage = data.error || errorMessage;
+            } catch (e) {
+                errorMessage = errorText;
+            }
+            throw new Error(`${res.status} - ${errorMessage}`);
         }
         showToast(`Permissões atualizadas! ✅`, 'success');
         window._fecharModalPermissoes();

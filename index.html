@@ -53,7 +53,7 @@
         <div class="login-clerk-container">
             <div class="login-brand">
                 <img src="journey-logo-final.svg" class="login-brand-logo-img" alt="Journey" style="height: 62px; width: auto; margin-bottom: 0.35rem; margin-left: -5px;">
-                <p>Toda a jornada do cliente em um único lugar</p>
+                <p>Jornada do cliente de ponta a ponta</p>
             </div>
             <!-- Clerk renderiza o componente de login aqui -->
             <div id="clerk-sign-in-mount"></div>
@@ -76,14 +76,14 @@
                         style="background:transparent; border:none; cursor:pointer; font-size:1.15rem; padding:0.3rem; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all 0.15s; position:relative; color:rgba(255,255,255,0.45);">
                         <i class="ph ph-bell"></i>
                         <span id="notif-badge"
-                            style="display:none; position:absolute; top:-4px; right:-4px; background:#ef4444; color:#fff; font-size:0.58rem; font-weight:800; min-width:16px; height:16px; border-radius:9px; align-items:center; justify-content:center; padding:0 3px; line-height:1; border:2px solid var(--dark-surface);">0</span>
+                            style="display:none; position:absolute; top:-6px; right:-6px; background:#ef4444; color:#fff; font-size:0.7rem; font-weight:800; min-width:19px; height:19px; border-radius:10px; align-items:center; justify-content:center; padding:0 3px; line-height:1; border:2px solid var(--dark-surface);">0</span>
                     </button>
                     <!-- Dropdown de notificações -->
                     <div id="notif-dropdown" style="display:none; position:absolute; top:calc(100% + 10px); left:0; width:340px; background:#1a2035; border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.6); z-index:9999; overflow:hidden;">
                         <div style="display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.1rem; border-bottom:1px solid rgba(255,255,255,0.06);">
                             <span style="font-size:0.85rem; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
                                 <i class="ph ph-bell" style="color:#818cf8;"></i> Notificações
-                                <span id="notif-header-badge" style="background:rgba(99,102,241,0.15); color:#818cf8; font-size:0.65rem; padding:0.15rem 0.4rem; border-radius:12px; display:none;">0</span>
+                                <span id="notif-header-badge" style="background:rgba(99,102,241,0.15); color:#818cf8; font-size:0.95rem; padding:0.22rem 0.6rem; border-radius:18px; display:none;">0</span>
                             </span>
                             <button id="notif-read-all-btn" style="background:transparent; border:none; cursor:pointer; color:#818cf8; font-size:0.72rem; font-weight:600; padding:0;" title="Marcar todas como lidas">Marcar tudo lido</button>
                         </div>
@@ -144,12 +144,12 @@
                 </div>
 
                 <!-- ── CONFIGURAÇÕES ───────────────────────────── -->
-                <div class="nav-section-label" id="nav-label-config" data-master-only style="display:none;">Configurações</div>
-                <div id="nav-group-config-flat" data-master-only style="display:none;">
-                    <a class="nav-item" data-view="config-usuarios">
+                <div class="nav-section-label" id="nav-label-config" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">Configurações</div>
+                <div id="nav-group-config-flat" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">
+                    <a class="nav-item" data-view="config-usuarios" data-master-only>
                         <i class="ph ph-user-circle"></i> Usuários e permissões
                     </a>
-                    <a class="nav-item" data-view="config-gabi">
+                    <a class="nav-item" data-view="config-gabi" data-nav-permission="gabi.view">
                         <i class="ph ph-diamond"></i> Integrações e IA
                     </a>
                 </div>
@@ -268,9 +268,11 @@
                             Empresas</h1>
                         <p>Gerencie todas as empresas cadastradas no sistema.</p>
                     </div>
-                    <button class="btn btn-primary btn-new-company">
-                        <i class="ph ph-plus"></i> Nova Empresa
-                    </button>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <button class="btn btn-primary btn-new-company">
+                            <i class="ph ph-plus"></i> Nova Empresa
+                        </button>
+                    </div>
                 </div>
 
                 <div class="glass-panel" style="margin-bottom: 2rem;">
@@ -607,7 +609,7 @@
                     <div style="display: flex; flex-direction: column; gap: 0.2rem;">
                         <div style="display: flex; align-items: center; gap: 1rem;">
                             <h1 id="form-title" style="font-size: 1.5rem; margin-bottom: 0;">Nova Empresa</h1>
-                            <select id="emp-status" class="status-select" required
+                            <select id="emp-status" class="status-select native-only" required
                                 style="font-size: 0.85rem; padding: 0.4rem 0.8rem; height: auto;">
                                 <option value="Prospect">Prospect</option>
                                 <option value="Lead">Lead</option>
@@ -620,8 +622,7 @@
                                 <option value="Inativo">Inativo</option>
                             </select>
                         </div>
-                        <p style="color: var(--text-muted); font-size: 0.85rem;">Toda jornada do cliente colocada em um
-                            só local</p>
+                        <p style="color: var(--text-muted); font-size: 0.85rem;">Jornada do cliente de ponta a ponta</p>
                     </div>
                     <div style="display: flex; gap: 0.8rem; align-items: center;">
                         <div id="cs-header-metrics" style="display: none; gap: 0.8rem; align-items: center;">
@@ -1495,7 +1496,7 @@
                                 </div>
 
                                 <!-- Barra de filtros (injetada via JS) -->
-                                <div id="activities-filters-bar" style="margin-bottom:1rem;"></div>
+                                <div id="activities-filters-bar" style="margin:-2rem -2rem 0;"></div>
 
                                 <!-- Tabela TableManager 2.0 -->
                                 <div class="table-responsive" style="overflow-x:auto;">
@@ -1898,11 +1899,11 @@
                             <i class="ph ph-magnifying-glass"></i>
                             <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off" />
                         </div>
-                        <select id="rpt-filter-status">  <option value="">Todos os status</option>  </select>
-                        <select id="rpt-filter-tipo">    <option value="">Todos os tipos</option>    </select>
-                        <select id="rpt-filter-segmento"><option value="">Todos os segmentos</option></select>
-                        <select id="rpt-filter-health">  <option value="">Health Score</option>     </select>
-                        <select id="rpt-filter-cs">      <option value="">CS Responsável</option>   </select>
+                        <select id="rpt-filter-status" data-icon="ph-funnel-simple" data-prefix="Status:"><option value="">Status</option></select>
+                        <select id="rpt-filter-tipo" data-icon="ph-squares-four" data-prefix="Tipo:"><option value="">Tipo</option></select>
+                        <select id="rpt-filter-segmento" data-icon="ph-briefcase" data-prefix="Segmento:"><option value="">Segmento</option></select>
+                        <select id="rpt-filter-health" data-icon="ph-heartbeat" data-prefix="Health Score:"><option value="">Health Score</option></select>
+                        <select id="rpt-filter-cs" data-icon="ph-user" data-prefix="Responsável:"><option value="">Responsável</option></select>
                         <div class="rpt-date-range">
                             <input type="date" id="rpt-filter-date-from" title="Criado de" />
                             <span>até</span>
@@ -2202,7 +2203,7 @@
             <!-- ═══════════════════════════════════════════════════════════════
                  VIEW: Log → Histórico de Alterações (Audit Log)
             ═══════════════════════════════════════════════════════════════════ -->
-            <div id="view-audit-log" class="view-section" style="display:none;">
+            <div id="view-audit-log" class="view-section flex-view" style="display:none;">
                 <div class="top-bar">
                     <div>
                         <h1 style="display:flex; align-items:center; gap:0.571rem;">
@@ -2217,71 +2218,50 @@
                 </div>
 
                 <div class="glass-panel">
-                    <!-- Busca global -->
-                    <div class="filters">
-                        <div class="search-container" style="flex:1;">
-                            <div class="search-wrapper">
-                                <i class="ph ph-magnifying-glass search-icon"></i>
-                                <input type="text" id="audit-search-global" class="search-input"
-                                    placeholder="Pesquisar em todas as colunas..."
-                                    oninput="auditLog.handleSearch(this.value)">
-                            </div>
+                    <!-- Filtros — padrão rpt-filters (igual a Relatórios) -->
+                    <div class="rpt-filters">
+                        <div class="rpt-filter-search" style="flex:1; min-width:220px;">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="audit-search-global"
+                                placeholder="Pesquisar em todas as colunas..."
+                                oninput="auditLog.handleSearch(this.value)">
                         </div>
+
+                        <!-- Filtro por ação — mesmo visual dos selects de Relatórios -->
+                        <select id="audit-filter-action"
+                            onchange="auditLog.handleActionFilter(this.value)">
+                            <option value="">Todas as ações</option>
+                            <option value="CREATE">Criação</option>
+                            <option value="UPDATE">Alteração</option>
+                            <option value="DELETE">Exclusão</option>
+                            <option value="MEMBERSHIP">Acesso</option>
+                            <option value="INVITE">Convite</option>
+                            <option value="IMPORT">Importação</option>
+                            <option value="SYSTEM">Sistema</option>
+                        </select>
+
+                        <!-- Período — componente rpt-date-range (igual a Relatórios) -->
+                        <div class="rpt-date-range">
+                            <input type="date" id="audit-date-from"
+                                title="De:"
+                                onchange="auditLog.handleDateFrom(this.value)">
+                            <span>até</span>
+                            <input type="date" id="audit-date-to"
+                                title="Até:"
+                                onchange="auditLog.handleDateTo(this.value)">
+                        </div>
+
+                        <button id="btn-clear-audit-filters" class="btn-ghost btn-sm" style="display:none;"
+                            onclick="auditLog.clearFilters()">
+                            <i class="ph ph-x"></i> Limpar
+                        </button>
                     </div>
 
-                    <!-- Barra de ações / resumo — padrão bulk-toolbar -->
-                    <div class="bulk-toolbar has-selection" id="audit-bulk-toolbar">
-                        <div class="bulk-toolbar-left">
-                            <div class="bulk-selection-info">
-                                <i class="ph ph-clock-counter-clockwise"></i>
-                                <span id="audit-log-count">Carregando...</span>
-                            </div>
-                            <div id="audit-log-badges" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-left:1rem;">
-                                <!-- Badges dinâmicos via JS -->
-                            </div>
-                        </div>
-                        <div class="bulk-toolbar-actions">
-                            <!-- Filtro por ação -->
-                            <select id="audit-filter-action" class="input-control"
-                                onchange="auditLog.handleActionFilter(this.value)"
-                                style="width:auto; min-width:140px; padding:0.35rem 2rem 0.35rem 0.75rem; font-size:0.82rem; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:var(--text-main);">
-                                <option value="">Todas as ações</option>
-                                <option value="CREATE">Criação</option>
-                                <option value="UPDATE">Alteração</option>
-                                <option value="DELETE">Exclusão</option>
-                                <option value="MEMBERSHIP">Acesso</option>
-                                <option value="INVITE">Convite</option>
-                                <option value="IMPORT">Importação</option>
-                                <option value="SYSTEM">Sistema</option>
-                            </select>
-
-                            <div class="bulk-toolbar-divider"></div>
-
-                            <!-- Data de -->
-                            <div style="display:flex;align-items:center;gap:0.3rem;background:rgba(15,23,42,0.5);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.2rem 0.5rem;">
-                                <i class="ph ph-calendar-blank" style="color:var(--text-muted);font-size:0.9rem;"></i>
-                                <input type="date" id="audit-date-from" class="no-flatpickr"
-                                    title="De:"
-                                    onchange="auditLog.handleDateFrom(this.value)"
-                                    style="background:transparent;border:none;outline:none;color:var(--text-main);font-size:0.82rem;cursor:pointer;color-scheme:dark;width:120px;">
-                            </div>
-
-                            <!-- Data até -->
-                            <div style="display:flex;align-items:center;gap:0.3rem;background:rgba(15,23,42,0.5);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:0.2rem 0.5rem;">
-                                <i class="ph ph-arrow-right" style="color:var(--text-muted);font-size:0.75rem;"></i>
-                                <input type="date" id="audit-date-to" class="no-flatpickr"
-                                    title="Até:"
-                                    onchange="auditLog.handleDateTo(this.value)"
-                                    style="background:transparent;border:none;outline:none;color:var(--text-main);font-size:0.82rem;cursor:pointer;color-scheme:dark;width:120px;">
-                            </div>
-
-                            <div class="bulk-toolbar-divider" id="audit-clear-divider" style="display:none;"></div>
-                            <button type="button" id="btn-clear-audit-filters" class="bulk-action-btn" style="display:none;"
-                                onclick="auditLog.clearFilters()">
-                                <i class="ph ph-funnel-simple-x"></i>
-                                <span>Limpar Filtros</span>
-                            </button>
-                        </div>
+                    <!-- Info bar — padrão rpt-info-bar (igual a Relatórios) -->
+                    <div class="rpt-info-bar">
+                        <span id="audit-log-count" class="rpt-count-badge">Carregando...</span>
+                        <div id="audit-log-badges" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-left:1rem;"></div>
+                        <div id="audit-clear-divider" style="display:none;"></div>
                     </div>
 
                     <!-- Tabela no padrão TableManager 2.0 -->

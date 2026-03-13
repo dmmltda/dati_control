@@ -178,7 +178,7 @@ function _renderRows(data) {
     }).join('');
 }
 
-// ─── Renderizar paginação — padrão log-testes.js ──────────────────────────────
+// ─── Renderizar paginação — padrão Relatórios (rpt-pagination) ──────────────
 function _renderPagination(state) {
     const container = document.getElementById('pagination-audit');
     if (!container) return;
@@ -188,28 +188,25 @@ function _renderPagination(state) {
 
     if (state.totalPages <= 1) {
         container.innerHTML = '';
+        container.className = 'pagination-container'; // Limpa as classes custom
         return;
     }
 
-    const { currentPage, totalPages, totalRecords } = state;
-    let html = `<div class="pagination">
-        <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window._auditGoPage(${currentPage - 1})">
-            <i class="ph ph-caret-left"></i>
-        </button>`;
+    const { currentPage, totalPages } = state;
 
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            html += `<button class="pagination-page ${i === currentPage ? 'active' : ''}" onclick="window._auditGoPage(${i})">${i}</button>`;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            html += `<span class="pagination-dots">...</span>`;
-        }
-    }
+    // Aplica a classe rpt-pagination para que herde os estilos do relatório
+    container.className = 'rpt-pagination';
 
-    html += `<button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="window._auditGoPage(${currentPage + 1})">
-            <i class="ph ph-caret-right"></i>
+    let html = `
+        <button class="btn-ghost btn-sm" ${currentPage === 1 ? 'disabled' : ''} onclick="window._auditGoPage(${currentPage - 1})">
+            <i class="ph ph-caret-left"></i> Anterior
         </button>
-    </div>
-    <div class="pagination-info">Página ${currentPage} de ${totalPages} (${totalRecords} registros)</div>`;
+        <span id="rpt-page-info">Página ${currentPage} de ${totalPages}</span>
+        <button class="btn-ghost btn-sm" ${currentPage === totalPages ? 'disabled' : ''} onclick="window._auditGoPage(${currentPage + 1})">
+            Próxima <i class="ph ph-caret-right"></i>
+        </button>
+    `;
+
     container.innerHTML = html;
 }
 

@@ -34,22 +34,21 @@ import { colors } from '../theme/tokens.js';
 // Painéis "metade" (3-6) são agrupados dois a dois em linhas 50/50.
 
 const PAINEL_ORDER_MAP = {
-  'CS':          [4, 5, 6, 2, 3, 1],
-  'Help Desk':   [5, 4, 2, 1, 3, 6],
-  'Vendas':      [3, 2, 1, 4, 5, 6],
-  'Financeiro':  [1, 2, 3, 4, 5, 6],
-  'Master':      [1, 2, 3, 4, 5, 6],
-  'default':     [1, 2, 3, 4, 5, 6],
+  'CS':          [4, 5, 6, 3, 1],
+  'Help Desk':   [5, 4, 1, 3, 6],
+  'Vendas':      [3, 1, 4, 5, 6],
+  'Financeiro':  [1, 3, 4, 5, 6],
+  'Master':      [1, 3, 4, 5, 6],
+  'default':     [1, 3, 4, 5, 6],
 };
 
 // Metadados de cada painel (label legível para o toggle UI)
 const PAINEIS_META = {
-  1: { id: 'painel-kpi',             full: true,  label: 'KPI Cards',         icon: 'ph-chart-bar'      },
-  2: { id: 'painel-proximos-passos', full: true,  label: 'Minhas Atividades',  icon: 'ph-activity'       },
-  3: { id: 'painel-funil',           full: false, label: 'Funil de Vendas',    icon: 'ph-funnel'         },
-  4: { id: 'painel-health',          full: false, label: 'Health Score',       icon: 'ph-heartbeat'      },
-  5: { id: 'painel-helpdesk',        full: false, label: 'Help Desk',          icon: 'ph-headset'        },
-  6: { id: 'painel-onboarding',      full: false, label: 'Onboarding',         icon: 'ph-rocket-launch'  },
+  1: { id: 'painel-kpi',        full: true,  label: 'KPI Cards',        icon: 'ph-chart-bar'     },
+  3: { id: 'painel-funil',      full: false, label: 'Funil de Vendas',   icon: 'ph-funnel'        },
+  4: { id: 'painel-health',     full: false, label: 'Health Score',      icon: 'ph-heartbeat'     },
+  5: { id: 'painel-helpdesk',   full: false, label: 'Help Desk',         icon: 'ph-headset'       },
+  6: { id: 'painel-onboarding', full: false, label: 'Onboarding',        icon: 'ph-rocket-launch' },
 };
 
 // ─── Visibilidade por painel (localStorage por usuário) ──────────────────────
@@ -172,10 +171,6 @@ function iniciarPaineis() {
     catch (e) { console.error('[Dashboard] KPI Cards:', e); }
   }
 
-  if (document.getElementById('painel-proximos-passos')) {
-    renderProximosPassos('painel-proximos-passos', empresas, usuarios)
-      .catch(e => console.error('[Dashboard] Minhas Atividades:', e));
-  }
 
   if (document.getElementById('painel-funil')) {
     try { renderSalesFunnel('painel-funil', empresas); }

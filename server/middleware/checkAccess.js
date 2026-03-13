@@ -82,8 +82,12 @@ export function checkAccess(paramName = 'companyId') {
  * Usar em rotas administrativas (gestão de usuários, convites, etc.)
  */
 export function requireMaster(req, res, next) {
-    if (!req.usuarioAtual) return res.status(401).json({ error: 'Não autenticado' });
+    if (!req.usuarioAtual) {
+        console.log('[DEBUG] requireMaster: 401 Não autenticado');
+        return res.status(401).json({ error: 'Não autenticado' });
+    }
     if (req.usuarioAtual.user_type !== 'master') {
+        console.log(`[DEBUG] requireMaster: 403 Acesso negado para usuário ${req.usuarioAtual.id} (user_type=${req.usuarioAtual.user_type}) em ${req.originalUrl}`);
         return res.status(403).json({
             error: 'Acesso negado',
             message: 'Apenas usuários master podem executar esta ação.',

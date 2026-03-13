@@ -19,13 +19,13 @@
 
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
-import { requireMaster } from '../middleware/checkAccess.js';
+import { requireFeature } from '../middleware/checkAccess.js';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // ─── GET /api/audit-logs ─────────────────────────────────────────────────────
-router.get('/', requireMaster, async (req, res) => {
+router.get('/', requireFeature('audit.view'), async (req, res) => {
     const {
         page = '1',
         limit = '50',
@@ -103,7 +103,7 @@ router.get('/', requireMaster, async (req, res) => {
 
 // ─── GET /api/audit-logs/stats ────────────────────────────────────────────────
 // Retorna contagens por action (útil para badges no frontend)
-router.get('/stats', requireMaster, async (req, res) => {
+router.get('/stats', requireFeature('audit.view'), async (req, res) => {
     try {
         const counts = await prisma.audit_logs.groupBy({
             by: ['action'],

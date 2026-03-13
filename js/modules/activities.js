@@ -282,11 +282,11 @@ function _renderRows(rows) {
 }
 
 function _statusBg(s) {
-    const m = { 'A Fazer': 'rgba(99,102,241,0.12)', 'Em Andamento': 'rgba(245,158,11,0.12)', 'Concluída': 'rgba(16,185,129,0.12)', 'Cancelada': 'rgba(239,68,68,0.12)' };
+    const m = { 'A Fazer': 'rgba(99,102,241,0.12)', 'Em Andamento': 'rgba(245,158,11,0.12)', 'Concluída': 'rgba(16,185,129,0.12)', 'Cancelada': 'rgba(100,116,139,0.12)' };
     return m[s] || 'rgba(255,255,255,0.05)';
 }
 function _statusColor(s) {
-    const m = { 'A Fazer': '#818cf8', 'Em Andamento': '#f59e0b', 'Concluída': '#10b981', 'Cancelada': '#ef4444' };
+    const m = { 'A Fazer': '#818cf8', 'Em Andamento': '#f59e0b', 'Concluída': '#10b981', 'Cancelada': '#64748b' };
     return m[s] || 'var(--text-muted)';
 }
 
@@ -358,34 +358,57 @@ function _renderFiltersBar() {
     const bar = document.getElementById('activities-filters-bar');
     if (!bar) return;
 
-    bar.innerHTML = `
-        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-            <div class="search-wrapper" style="flex:1;min-width:220px;">
-                <i class="ph ph-magnifying-glass search-icon"></i>
-                <input type="text" id="search-activities" class="search-input" placeholder="Buscar em atividades...">
-            </div>
+    bar.className = 'rpt-filters';
+    bar.style.cssText = '';
 
-            <select id="filter-act-type" class="input-control" style="min-width:160px;max-width:190px;" onchange="activities.applyFilter('activity_type', this.value)">
-                <option value="">Tipo: todos</option>
+    bar.innerHTML = `
+        <div class="rpt-filter-search" style="flex:1;min-width:200px;max-width:340px;">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" id="search-activities" placeholder="Buscar em atividades..." autocomplete="off">
+        </div>
+
+        <div class="act-filter-select-wrap">
+            <i class="ph ph-activity" style="color:var(--text-muted);font-size:0.9rem;flex-shrink:0;"></i>
+            <select id="filter-act-type" onchange="activities.applyFilter('activity_type', this.value)">
+                <option value="">Tipo</option>
                 ${ACTIVITY_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
             </select>
+            <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:0.75rem;flex-shrink:0;pointer-events:none;"></i>
+        </div>
 
-            <select id="filter-act-dept" class="input-control" style="min-width:150px;max-width:180px;" onchange="activities.applyFilter('department', this.value)">
-                <option value="">Departamento: todos</option>
+        <div class="act-filter-select-wrap">
+            <i class="ph ph-buildings" style="color:var(--text-muted);font-size:0.9rem;flex-shrink:0;"></i>
+            <select id="filter-act-dept" onchange="activities.applyFilter('department', this.value)">
+                <option value="">Departamento</option>
                 ${ACTIVITY_DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join('')}
             </select>
+            <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:0.75rem;flex-shrink:0;pointer-events:none;"></i>
+        </div>
 
-            <select id="filter-act-status" class="input-control" style="min-width:140px;max-width:170px;" onchange="activities.applyFilter('status', this.value)">
-                <option value="">Fase: todas</option>
+        <div class="act-filter-select-wrap">
+            <i class="ph ph-flag" style="color:var(--text-muted);font-size:0.9rem;flex-shrink:0;"></i>
+            <select id="filter-act-status" onchange="activities.applyFilter('status', this.value)">
+                <option value="">Fase</option>
                 ${ACTIVITY_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
             </select>
-
-            <button type="button" class="btn btn-secondary btn-sm" onclick="activities.clearAllFilters()" title="Limpar filtros">
-                <i class="ph ph-funnel-simple-x"></i>
-            </button>
+            <i class="ph ph-caret-down" style="color:var(--text-muted);font-size:0.75rem;flex-shrink:0;pointer-events:none;"></i>
         </div>
-        <div id="activities-active-chips" class="active-filters-bar" style="display:none;margin-top:0.5rem;"></div>
+
+        <button type="button" class="btn-ghost btn-sm" onclick="activities.clearAllFilters()" title="Limpar filtros">
+            <i class="ph ph-x"></i> Limpar
+        </button>
+
+        <div id="activities-active-chips" class="active-filters-bar" style="display:none;flex-basis:100%;margin-top:0;padding-top:0.5rem;"></div>
     `;
+
+    // Conectar busca
+    const searchInput = document.getElementById('search-activities');
+    if (searchInput && !searchInput.dataset.actConnected) {
+        searchInput.dataset.actConnected = '1';
+        searchInput.addEventListener('input', (e) => {
+            if (_manager) _manager.setSearch(e.target.value);
+        });
+    }
 }
 
 function _renderActiveFiltersChips() {
@@ -1104,7 +1127,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
     const isCreateMode = !a;
     if (isCreateMode) a = {}; // objeto vazio facilita as referências abaixo
 
-    const STATUS_COLORS = { 'A Fazer':'#6366f1','Em Andamento':'#f59e0b','Concluída':'#10b981','Cancelada':'#ef4444' };
+    const STATUS_COLORS = { 'A Fazer':'#6366f1','Em Andamento':'#f59e0b','Concluída':'#10b981','Cancelada':'#64748b' };
     const sc  = STATUS_COLORS[a.status] || '#6366f1';
     const pc  = a.priority ? (PRIORITY_CONFIG[a.priority]?.color || '#64748b') : null;
     const cfg = ACTIVITY_TYPE_CONFIG[a.activity_type] || { icon:'ph-activity', color:'#64748b' };
@@ -1140,8 +1163,8 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
       @keyframes adcFadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:none} }
       .adc-sec { font-size:0.67rem;font-weight:700;letter-spacing:0.09em;color:var(--text-muted);text-transform:uppercase;margin:0 0 0.75rem;display:flex;align-items:center;gap:0.4rem; }
       .adc-sec::after { content:'';flex:1;height:1px;background:rgba(255,255,255,0.07); }
-      .adc-chip { display:inline-flex;align-items:center;gap:0.3rem;padding:0.16rem 0.62rem;border-radius:6px;font-size:0.74rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text-muted); }
-      .adc-badge { display:inline-flex;align-items:center;gap:0.3rem;padding:0.18rem 0.75rem;border-radius:20px;font-size:0.72rem;font-weight:700; }
+      .adc-chip { display:inline-flex;align-items:center;gap:0.28rem;padding:0.13rem 0.55rem;border-radius:6px;font-size:0.72rem;background:rgba(255,255,255,0.04);border:1px solid var(--dark-border,rgba(255,255,255,0.08));color:var(--text-muted); }
+      .adc-badge { display:inline-flex;align-items:center;gap:0.28rem;padding:0.13rem 0.55rem;border-radius:6px;font-size:0.69rem;font-weight:600;border-width:1px;border-style:solid;letter-spacing:0.01em; }
       #act-detail-card .input-group label { font-size:0.72rem;color:var(--text-muted);margin-bottom:0.3rem;font-weight:500;display:block; }
       #adc-save-btn { transition:all 0.2s; }
       #adc-save-btn:hover:not(:disabled) { transform:translateY(-1px);box-shadow:0 4px 20px rgba(99,102,241,0.5); }
@@ -1155,11 +1178,11 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.65rem;">
               ${isCreateMode
-                ? `<span class="adc-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.4);"><i class="ph ph-plus-circle"></i> Nova Atividade</span>`
-                : `<span class="adc-badge" style="background:${sc}18;color:${sc};border:1px solid ${sc}40;"><span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></span>${a.status||'A Fazer'}</span>`
+                ? `<span class="adc-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border-color:rgba(99,102,241,0.4);"><i class="ph ph-plus-circle"></i> Nova Atividade</span>`
+                : `<span class="adc-badge" style="background:${sc}18;color:${sc};border-color:${sc}44;"><span style="width:5px;height:5px;border-radius:50%;background:${sc};display:inline-block;flex-shrink:0;"></span>${a.status||'A Fazer'}</span>`
               }
-              ${!isCreateMode && pc ? `<span class="adc-badge" style="background:${pc}18;color:${pc};border:1px solid ${pc}40;">${PRIORITY_CONFIG[a.priority]?.label||a.priority}</span>` : ''}
-              ${!isCreateMode && isOverdue ? `<span class="adc-badge" style="background:#ef444415;color:#ef4444;border:1px solid #ef444438;"><i class="ph ph-warning-circle"></i> Atrasada</span>` : ''}
+              ${!isCreateMode && pc ? `<span class="adc-badge" style="background:${pc}15;color:${pc};border-color:${pc}35;">${PRIORITY_CONFIG[a.priority]?.label||a.priority}</span>` : ''}
+              ${!isCreateMode && isOverdue ? `<span class="adc-badge" style="background:#ef444415;color:#ef4444;border-color:#ef444438;"><i class="ph ph-warning-circle"></i> Atrasada</span>` : ''}
               ${!isCreateMode && a.activity_type ? `<span class="adc-chip"><i class="ph ${cfg.icon}" style="color:${cfg.color};"></i>${a.activity_type}</span>` : ''}
             </div>
             <h2 style="margin:0 0 0.5rem;font-size:1.3rem;font-weight:800;line-height:1.35;word-break:break-word;">${isCreateMode ? 'Nova Atividade' : (a.title||'').replace(/</g,'&lt;')}</h2>

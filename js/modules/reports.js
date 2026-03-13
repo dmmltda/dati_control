@@ -280,11 +280,11 @@ function clearFilters() {
 
 function populateFilterOptions(opts) {
   const pairs = [
-    ['rpt-filter-status',   opts.status,       'Todos os status'],
-    ['rpt-filter-tipo',     opts.tipo,         'Todos os tipos'],
-    ['rpt-filter-segmento', opts.segmento,     'Todos os segmentos'],
+    ['rpt-filter-status',   opts.status,       'Status'],
+    ['rpt-filter-tipo',     opts.tipo,         'Tipo'],
+    ['rpt-filter-segmento', opts.segmento,     'Segmento'],
     ['rpt-filter-health',   opts.health_score, 'Health Score'],
-    ['rpt-filter-cs',       opts.cs,           'CS Responsável'],
+    ['rpt-filter-cs',       opts.cs,           'Responsável'],
   ];
   pairs.forEach(([id, values = [], placeholder]) => {
     const el = document.getElementById(id);
@@ -292,6 +292,11 @@ function populateFilterOptions(opts) {
     const current = el.value;
     el.innerHTML = `<option value="">${placeholder}</option>` +
       (values || []).map(v => `<option value="${escHtml(v)}"${v === current ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
+
+    // Se o elemento foi transformado em CustomSelect, força re-leitura
+    if (el._customSelectInstance) {
+      el._customSelectInstance.refresh();
+    }
   });
 }
 

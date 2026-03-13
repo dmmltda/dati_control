@@ -133,7 +133,7 @@ async function _bootstrapApp() {
         window.canDo = function(permissionKey) {
             const u = window.__usuarioAtual;
             if (!u) return false;
-            if (u.user_type === 'master') return true;
+            if ((u.user_type || '').toLowerCase() === 'master') return true;
             return Array.isArray(u.feature_permissions) && u.feature_permissions.includes(permissionKey);
         };
 
@@ -225,7 +225,7 @@ export const handleLogin = (e) => e?.preventDefault();
  * Configurações continua oculto para Standard (admin-only).
  */
 function _aplicarPermissoesNavegacao(me) {
-    const isMaster = me.user_type === 'master';
+    const isMaster = (me.user_type || '').toLowerCase() === 'master';
     const fp = Array.isArray(me.feature_permissions) ? me.feature_permissions : [];
 
     // ─ Itens individuais com data-nav-permission
@@ -251,13 +251,19 @@ function _aplicarPermissoesNavegacao(me) {
     });
 
 
-    // ─ Configurações: oculto para Standard (admin-only)
+    // ─ Itens master only
+    document.querySelectorAll('[data-master-only]').forEach(el => {
+        el.style.display = isMaster ? '' : 'none';
+    });
+
+    // ─ Configurações: visível se for master ou tiver permissão de ver Gabi AI
+    const temPermissaoConfig   = isMaster || fp.includes('gabi.view');
     const navConfig        = document.getElementById('nav-group-config');
     const navLabelConfig   = document.getElementById('nav-label-config');
     const navConfigFlat    = document.getElementById('nav-group-config-flat');
-    if (navConfig)      navConfig.style.display      = isMaster ? '' : 'none';
-    if (navLabelConfig) navLabelConfig.style.display  = isMaster ? 'flex' : 'none';
-    if (navConfigFlat)  navConfigFlat.style.display   = isMaster ? '' : 'none';
+    if (navConfig)      navConfig.style.display      = temPermissaoConfig ? '' : 'none';
+    if (navLabelConfig) navLabelConfig.style.display  = temPermissaoConfig ? 'flex' : 'none';
+    if (navConfigFlat)  navConfigFlat.style.display   = temPermissaoConfig ? '' : 'none';
 
     // ─ Monitoramento: oculta label + bloco se o usuário não tiver nenhuma permissão de log
     const logPerms          = ['test_logs.view', 'audit.view'];
@@ -266,6 +272,45 @@ function _aplicarPermissoesNavegacao(me) {
     const navGroupMon       = document.getElementById('nav-group-monitoring');
     if (navLabelMon) navLabelMon.style.display = temAlgumaLogPerm ? 'flex' : 'none';
     if (navGroupMon) navGroupMon.style.display = temAlgumaLogPerm ? ''     : 'none';
+
+    // ─ Bloqueio de Botões "Nova Empresa"
+    const podeCriarEmpresa = isMaster || fp.includes('company_edit.basic_data');
+    document.querySelectorAll('.btn-new-company, .btn-primary').forEach(btn => {
+        if (btn.textContent.includes('Nova Empresa')) {
+            if (!podeCriarEmpresa) {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+                btn.style.cursor = 'not-allowed';
+                btn.style.pointerEvents = 'auto'; // allow hover for tooltip
+                btn.setAttribute('data-th-title', 'MODO SOMENTE LEITURA');
+                btn.setAttribute('data-th-tooltip', 'Você não tem permissão para cadastrar novas empresas.');
+            } else {
+                btn.disabled = false;
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+                btn.removeAttribute('data-th-title');
+                btn.removeAttribute('data-th-tooltip');
+            }
+        }
+    });
+
+    const btnImportar = document.getElementById('btn-importar-em-massa');
+    if (btnImportar) {
+        if (!podeCriarEmpresa) {
+            btnImportar.disabled = true;
+            btnImportar.style.opacity = '0.6';
+            btnImportar.style.cursor = 'not-allowed';
+            btnImportar.style.pointerEvents = 'auto';
+            btnImportar.setAttribute('data-th-title', 'MODO SOMENTE LEITURA');
+            btnImportar.setAttribute('data-th-tooltip', 'Você não tem permissão para importar empresas.');
+        } else {
+            btnImportar.disabled = false;
+            btnImportar.style.opacity = '';
+            btnImportar.style.cursor = '';
+            btnImportar.removeAttribute('data-th-title');
+            btnImportar.setAttribute('data-th-tooltip', 'Importe empresas e contatos em massa via planilha');
+        }
+    }
 }
 
 /**

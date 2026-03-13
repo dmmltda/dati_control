@@ -117,7 +117,7 @@ function _render() {
             </div>
             ${!lida ? `<span style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;margin-top:6px;"></span>` : ''}
             
-            <button class="notif-dismiss-btn" title="Marcar como lida e remover" style="background:transparent; border:none; cursor:pointer; font-size:1.1rem; color:var(--text-muted); opacity:0.5; padding:0 0.2rem; transition:all 0.2s;"
+            <button class="notif-dismiss-btn" data-th-title="DISPENSAR" data-th-tooltip="Marcar como lida e remover" style="background:transparent; border:none; cursor:pointer; font-size:1.1rem; color:var(--text-muted); opacity:0.5; padding:0 0.2rem; transition:all 0.2s;"
                 onmouseover="this.style.opacity='1'; this.style.color='#10b981';"
                 onmouseout="this.style.opacity='0.5'; this.style.color='var(--text-muted)';"
                 onclick="window._notifDispensar(event, '${n.id}')">

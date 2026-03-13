@@ -31,7 +31,7 @@ export class CustomSelect {
         this._opts = opts;
         this._open = false;
         this._groups = opts.groups || this._extractGroups();
-        this._placeholder = opts.placeholder || 'Selecione...';
+        this._placeholder = this._placeholder || opts.placeholder || 'Selecione...';
 
         this._build();
         this._bindEvents();
@@ -40,11 +40,23 @@ export class CustomSelect {
         this.setValue(selectEl.value || '');
     }
 
+    refresh() {
+        this._groups = this._extractGroups();
+        this._renderList('');
+        this.setValue(this._select.value || '');
+    }
+
     /* ── Extrai grupos a partir das <option> do select original ── */
     _extractGroups() {
         const flat = [];
-        this._select.querySelectorAll('option').forEach(o => {
-            if (o.value === '') return; // skip placeholder
+        this._select.querySelectorAll('option').forEach((o, index) => {
+            if (o.value === '') {
+                // Se não foi passado placeholder explícito, usa o texto da option vazia.
+                if (!this._opts.placeholder && index === 0) {
+                    this._placeholder = o.textContent.trim();
+                }
+                return; // skip placeholder from options list
+            }
             flat.push({ value: o.value, label: o.textContent.trim() });
         });
         return [{ label: null, options: flat }];
@@ -63,9 +75,24 @@ export class CustomSelect {
         this._root.setAttribute('aria-haspopup', 'listbox');
         this._root.setAttribute('aria-expanded', 'false');
 
+        // Ícone customizado no dataset
+        this._iconClass = this._select.dataset.icon || null;
+
+        // Prefix customizado
+        this._prefix = this._select.dataset.prefix || null;
+
         // Trigger (o "botão" que abre o dropdown)
         this._trigger = document.createElement('div');
         this._trigger.className = 'csel-trigger';
+
+        if (this._iconClass) {
+            this._triggerIcon = document.createElement('i');
+            this._triggerIcon.className = `csel-trigger-icon ph ${this._iconClass}`;
+            this._triggerIcon.style.marginRight = '0.35rem';
+            this._triggerIcon.style.opacity = '0.7';
+            this._triggerIcon.style.flexShrink = '0';
+            this._trigger.appendChild(this._triggerIcon);
+        }
 
         this._triggerText = document.createElement('span');
         this._triggerText.className = 'csel-trigger-text csel-placeholder';
@@ -263,7 +290,7 @@ export class CustomSelect {
         // Atualiza trigger
         const option = this._findOption(val);
         if (option) {
-            this._triggerText.textContent = option.label;
+            this._triggerText.textContent = this._prefix ? `${this._prefix} ${option.label}` : option.label;
             this._triggerText.classList.remove('csel-placeholder');
         } else {
             this._triggerText.textContent = this._placeholder;

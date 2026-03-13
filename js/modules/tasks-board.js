@@ -78,7 +78,7 @@ const TB_STATUSES       = ['A Fazer','Em Andamento','Concluída','Cancelada'];
 
 let _currentView = 'kanban'; // 'kanban' | 'lista'
 let _tasks = [];
-let _filters = { status: '', priority: '' }; // kanban filters
+let _filters = { status: '', priority: '', prazo: '', search: '', dateFrom: '', dateTo: '' }; // global filters
 let _tbManager = null; // TableManager 2.0 para view Lista
 let _dragTaskId  = null;  // id da task sendo arrastada
 
@@ -141,7 +141,14 @@ function _renderShell() {
     const container = document.getElementById('view-minhas-tarefas');
     if (!container) return;
 
+    // Garante padding correto (a view agora usa display:block com scroll normal)
+    // O header sticky compensa com margin negativa para sangrar até as bordas
+    container.style.padding = '0';
+
     container.innerHTML = `
+        <!-- ── Header fixo (flex-shrink:0 via CSS): título + filtros ── -->
+        <div id="tb-sticky-header">
+
         <!-- Cabeçalho: título + subtítulo + call-to-action à extrema direita -->
         <div style="margin-bottom:1.429rem;display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
             <div>
@@ -160,37 +167,127 @@ function _renderShell() {
             }
         </div>
         <!-- Filtros + Toggle na mesma linha -->
-        <div class="glass-panel" style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;padding:0.75rem 1rem;flex-wrap:wrap;">
-            <select id="tb-filter-status" class="input-control" style="width:160px;flex-shrink:0;" onchange="tasksBoard.applyFilter('status', this.value)">
-                <option value="">Fase: todas</option>
-                <option value="A Fazer">A Fazer</option>
-                <option value="Em Andamento">Em Andamento</option>
-                <option value="Concluída">Concluída</option>
-                <option value="Cancelada">Cancelada</option>
-            </select>
-            <select id="tb-filter-priority" class="input-control" style="width:160px;flex-shrink:0;" onchange="tasksBoard.applyFilter('priority', this.value)">
-                <option value="">Prioridade: todas</option>
-                <option value="urgente">Urgente</option>
-                <option value="alta">Alta</option>
-                <option value="média">Média</option>
-                <option value="baixa">Baixa</option>
-            </select>
-            <!-- Separador -->
-            <div style="width:1px;height:24px;background:var(--dark-border);flex-shrink:0;"></div>
-            <!-- Toggle de View -->
-            <div style="display:flex;background:rgba(255,255,255,0.05);border:1px solid var(--dark-border);border-radius:8px;overflow:hidden;flex-shrink:0;">
+        <div class="glass-panel" style="position:relative; z-index:1000; display:flex;align-items:center;gap:0.75rem;margin-bottom:1.5rem;padding:0.75rem 1rem;flex-wrap:wrap;justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:0.75rem;flex:1;flex-wrap:wrap;">
+                
+                <div class="search-wrapper"
+                     data-th-tooltip="Busca simultânea em todos os campos:&#10;• Título da atividade&#10;• Empresa vinculada&#10;• Tipo (Reunião, Comentário...)&#10;• Prioridade e status&#10;• Responsáveis e criador&#10;• Data no formato DD/MM/AAAA&#10;&#10;Não diferencia maiúsculas/minúsculas. Busca parcial: &quot;reun&quot; encontra &quot;Reunião&quot;."
+                     data-th-title="BUSCAR EM ATIVIDADES"
+                     style="width:280px;max-width:300px; padding:0 0.6rem; border-radius:var(--radius-sm); height:32px; min-height:32px; border:1px solid var(--dark-border); background:rgba(15,23,42,0.6); align-items:center;">
+                    <i class="ph ph-magnifying-glass search-icon" style="font-size:1rem; margin-right:0.4rem;"></i>
+                    <input type="text" id="tb-global-search" class="search-input" placeholder="Localizar em atividades..." style="padding:0; height:100%; font-size:0.85rem;">
+                </div>
+
+                <select id="tb-filter-status" class="input-control" data-icon="ph-funnel-simple" data-prefix="Status:"
+                    data-th-title="FILTRAR POR STATUS"
+                    data-th-tooltip="Filtra as atividades pela fase atual:&#10;• A Fazer — pendentes, não iniciadas&#10;• Em Andamento — em execução&#10;• Concluída — finalizadas&#10;• Cancelada — descartadas&#10;&#10;Selecione &quot;Status&quot; para ver todas."
+                    style="width:145px;flex-shrink:0;" onchange="tasksBoard.applyFilter('status', this.value)">
+                    <option value="">Status</option>
+                    <option value="A Fazer">A Fazer</option>
+                    <option value="Em Andamento">Em Andamento</option>
+                    <option value="Concluída">Concluída</option>
+                    <option value="Cancelada">Cancelada</option>
+                </select>
+
+                <select id="tb-filter-prazo" class="input-control" data-icon="ph-calendar-blank" data-prefix="Prazo:"
+                    data-th-title="FILTRAR POR PRAZO"
+                    data-th-tooltip="Filtra as atividades pela data/prazo configurado:&#10;• Atrasadas — prazo anterior à data de hoje&#10;• Hoje — prazo para o dia atual&#10;• Próximos dias — prazo após hoje&#10;• Sem prazo — não possuem data definida&#10;&#10;Selecione &quot;Prazo&quot; para ver todas."
+                    style="width:145px;flex-shrink:0;" onchange="tasksBoard.applyFilter('prazo', this.value)">
+                    <option value="">Prazo</option>
+                    <option value="atrasado">Atrasadas</option>
+                    <option value="hoje">Hoje</option>
+                    <option value="futuro">Próximos dias</option>
+                    <option value="sem_prazo">Sem prazo</option>
+                </select>
+
+                <select id="tb-filter-priority" class="input-control" data-icon="ph-arrow-up" data-prefix="Prioridade:"
+                    data-th-title="FILTRAR POR PRIORIDADE"
+                    data-th-tooltip="Filtra as atividades pelo nível de urgência:&#10;• Urgente — requer atenção imediata&#10;• Alta — execução hoje&#10;• Média — esta semana&#10;• Baixa — quando possível&#10;&#10;Selecione &quot;Prioridade&quot; para ver todas."
+                    style="width:145px;flex-shrink:0;" onchange="tasksBoard.applyFilter('priority', this.value)">
+                    <option value="">Prioridade</option>
+                    <option value="urgente">Urgente</option>
+                    <option value="alta">Alta</option>
+                    <option value="média">Média</option>
+                    <option value="baixa">Baixa</option>
+                </select>
+
+                <!-- Intervalo de datas — mesmo componente do Relatórios -->
+                <div class="rpt-date-range" style="height:32px;" id="tb-date-range-wrap">
+                    <input type="date" id="tb-filter-date-from"
+                        title="Data inicial"
+                        style="min-width:120px;"
+                        onchange="tasksBoard.applyFilter('dateFrom', this.value)">
+                    <span>até</span>
+                    <input type="date" id="tb-filter-date-to"
+                        title="Data final"
+                        style="min-width:120px;"
+                        onchange="tasksBoard.applyFilter('dateTo', this.value)">
+                </div>
+
+                <!-- Limpar Filtros -->
+                <button type="button" class="btn-ghost btn-sm" onclick="tasksBoard.clearAllFilters()" title="Limpar todos os filtros"
+                    style="height:32px;white-space:nowrap;flex-shrink:0;">
+                    <i class="ph ph-x"></i> Limpar
+                </button>
+
+            </div>
+
+            <!-- Toggle de View (alinhado à direita) -->
+            <div style="display:flex;background:rgba(255,255,255,0.05);border:1px solid var(--dark-border);border-radius:var(--radius-sm);overflow:hidden;flex-shrink:0; height:32px;">
                 <button class="tb-view-btn active" data-view="kanban" onclick="tasksBoard.switchView('kanban')"
-                    style="border:none;background:none;padding:0.45rem 0.9rem;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main);">
+                    data-th-tooltip="Visualização em colunas por status (A Fazer, Em Andamento, Concluída, Cancelada). Suporta arrastar e soltar para mover atividades."
+                    data-th-title="VISÃO KANBAN"
+                    style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
                     <i class="ph ph-columns"></i> Kanban
                 </button>
+                <div style="width:1px; background:var(--dark-border); height:100%;"></div>
                 <button class="tb-view-btn" data-view="lista" onclick="tasksBoard.switchView('lista')"
-                    style="border:none;background:none;padding:0.45rem 0.9rem;cursor:pointer;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main);">
+                    data-th-tooltip="Visualização em tabela com todas as colunas: tipo, empresa, título, status, responsáveis, data, tempo e próximo passo. Suporta ordenação e paginação."
+                    data-th-title="VISÃO LISTA"
+                    style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
                     <i class="ph ph-list-bullets"></i> Lista
                 </button>
             </div>
         </div>
-        <div id="tb-content"></div>
+
+        </div><!-- /tb-sticky-header -->
+
+        <!-- Conteúdo Kanban/Lista — rola abaixo do sticky header -->
+        <div id="tb-content" style="padding:1.5rem 2rem;"></div>
     `;
+
+    const searchEl = document.getElementById('tb-global-search');
+    if (searchEl) {
+        if (_filters.search) searchEl.value = _filters.search;
+        searchEl.addEventListener('input', e => {
+            _filters.search = e.target.value;
+            if (_currentView === 'lista' && _tbManager) {
+                _tbManager.setSearch(_filters.search);
+            } else if (_currentView === 'kanban') {
+                _renderKanban(_tasks);
+            }
+        });
+    }
+
+    // Restaura valores dos inputs de intervalo de datas após re-render do shell
+    const fromEl = document.getElementById('tb-filter-date-from');
+    const toEl   = document.getElementById('tb-filter-date-to');
+    if (fromEl && _filters.dateFrom) fromEl.value = _filters.dateFrom;
+    if (toEl   && _filters.dateTo)   toEl.value   = _filters.dateTo;
+
+    // Aplica o Flatpickr premium nos inputs de data recém-criados
+    if (window.ui?.initGlobalPickers) {
+        setTimeout(() => window.ui.initGlobalPickers(), 50);
+    }
+
+    // IntersectionObserver: borda/sombra no header quando conteúdo está rolando
+    const stickyEl = document.getElementById('tb-sticky-header');
+    const contentEl = document.getElementById('tb-content');
+    if (stickyEl && contentEl) {
+        contentEl.addEventListener('scroll', () => {
+            stickyEl.classList.toggle('is-stuck', contentEl.scrollTop > 4);
+        }, { passive: true });
+    }
 }
 
 async function _loadAndRender() {
@@ -242,10 +339,66 @@ function _renderKanban(tasks) {
     const html = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;align-items:start;">
             ${KANBAN_COLUMNS.map(col => {
-                const colTasks = tasks.filter(t => _normalizeStatus(t.status) === col.key);
+                const colTasks = tasks.filter(t => {
+                    if (_normalizeStatus(t.status) !== col.key) return false;
+                    
+                    if (_filters.priority && t.priority !== _filters.priority) return false;
+                    
+                    if (_filters.prazo) {
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        const tDt = t.activity_datetime ? new Date(t.activity_datetime) : null;
+                        if (tDt) tDt.setHours(0,0,0,0);
+                        
+                        if (_filters.prazo === 'sem_prazo' && tDt) return false;
+                        if (_filters.prazo !== 'sem_prazo') {
+                            if (!tDt) return false;
+                            if (_filters.prazo === 'atrasado' && tDt >= today) return false;
+                            if (_filters.prazo === 'hoje' && tDt.getTime() !== today.getTime()) return false;
+                            if (_filters.prazo === 'futuro' && tDt <= today) return false;
+                        }
+                    }
+
+                    // Filtro por intervalo de datas (dateFrom / dateTo)
+                    if (_filters.dateFrom || _filters.dateTo) {
+                        const tDtRaw = t.activity_datetime ? new Date(t.activity_datetime) : null;
+                        if (!tDtRaw) return false;
+                        const tDay = new Date(tDtRaw); tDay.setHours(0,0,0,0);
+                        if (_filters.dateFrom) {
+                            const from = new Date(_filters.dateFrom + 'T00:00:00');
+                            if (tDay < from) return false;
+                        }
+                        if (_filters.dateTo) {
+                            const to = new Date(_filters.dateTo + 'T23:59:59');
+                            if (tDay > to) return false;
+                        }
+                    }
+
+                    if (_filters.search) {
+                        const q = _filters.search.toLowerCase();
+                        const dateString = t.activity_datetime ? new Date(t.activity_datetime).toLocaleDateString('pt-BR') : '';
+                        const isOverdue = t.activity_datetime && new Date(t.activity_datetime) < new Date() && t.status !== 'Concluída';
+                        const searchableText = [
+                            t.title,
+                            t.description,
+                            t.companies?.Nome_da_empresa,
+                            t.activity_type,
+                            t.priority,
+                            t.next_step_title,
+                            t.department,
+                            t.created_by_user?.nome,
+                            dateString,
+                            isOverdue ? 'atrasada' : '',
+                            ...(t.activity_assignees || []).map(a => a.user_nome || a.user_id),
+                            ...(t.activity_next_step_responsibles || []).map(r => r.user_nome || r.user_id)
+                        ].filter(Boolean).join(' ').toLowerCase();
+                        return searchableText.includes(q);
+                    }
+                    return true;
+                });
                 return `
-                <div class="kanban-column glass-panel" style="padding:1rem;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                <div class="kanban-column glass-panel" style="padding:0; position:relative;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem; border-bottom:1px solid rgba(255,255,255,0.06); border-top-left-radius:var(--radius-md); border-top-right-radius:var(--radius-md);">
                         <div style="display:flex;align-items:center;gap:0.5rem;">
                             <i class="ph ${col.icon}" style="color:${col.color};font-size:1rem;"></i>
                             <span style="font-weight:700;font-size:0.9rem;">${col.label}</span>
@@ -257,7 +410,7 @@ function _renderKanban(tasks) {
                          ondragover="window._kbDrag.over(event,this)"
                          ondragleave="window._kbDrag.leave(event,this)"
                          ondrop="window._kbDrag.drop(event,this)"
-                         style="display:flex;flex-direction:column;gap:0.75rem;min-height:120px;">
+                         style="display:flex;flex-direction:column;gap:0.75rem;min-height:120px; padding:1rem;">
                         ${colTasks.length ? colTasks.map(t => _renderKanbanCard(t)).join('') : `
                             <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:0.82rem;border:1px dashed var(--dark-border);border-radius:8px;">
                                 <i class="ph ph-tray" style="display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>
@@ -360,90 +513,90 @@ function _renderLista(tasks) {
     if (!content) return;
 
     content.innerHTML = `
-        <div class="glass-panel" style="padding:1.25rem;">
-            <div id="tb-filters-bar" style="margin-bottom:1rem;"></div>
-            <div class="table-responsive" style="overflow-x:auto;">
+        <div class="glass-panel" style="display:flex; flex-direction:column; flex:1; min-height:0; padding:0; margin-bottom:0.5rem; overflow:hidden;">
+            <div class="table-responsive" style="flex:1; overflow:auto; min-height:0; padding:1.25rem;">
                 <table class="company-table" id="tb-list-table" style="min-width:1200px;">
-                    <thead>
+                    <thead style="position:sticky; top:-1.25rem; z-index:10; background:var(--glass-bg, #0f1623); box-shadow:0 1px 0 rgba(255,255,255,0.06);">
                         <tr>
-                            <th class="sortable-header" data-key="activity_type" style="width:130px;">Tipo</th>
-                            <th data-key="company_name" style="width:160px;">Empresa</th>
-                            <th class="sortable-header" data-key="title">Título</th>
-                            <th data-key="description">Descrição</th>
-                            <th class="sortable-header" data-key="department" style="text-align:center;width:130px;">Departamento</th>
-                            <th data-key="status" style="text-align:center;width:130px;">Fase da Atividade</th>
-                            <th data-key="assignees" style="width:140px;">Responsáveis</th>
-                            <th data-key="created_by" style="width:110px;">Criado por</th>
-                            <th class="sortable-header" data-key="activity_date" style="text-align:center;width:100px;">Data</th>
-                            <th data-key="time_spent" style="text-align:center;width:90px;">Tempo</th>
-                            <th data-key="next_step" style="width:160px;">Próximo Passo</th>
+                            <th class="sortable-header" data-key="activity_type" style="width:130px;">Tipo <span class="th-info-btn" data-th-title="TIPO DE ATIVIDADE" data-th-tooltip="Categoria da interação: Comentário (nota interna), Reunião, Chamados HD (suporte técnico), Chamados CS (sucesso do cliente), Ação necessária (urgente)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="company_name" style="width:160px;">Empresa <span class="th-info-btn" data-th-title="EMPRESA VINCULADA" data-th-tooltip="Empresa associada a esta atividade. Atividades sem vínculo de empresa aparecem como traço."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th class="sortable-header" data-key="title">Título <span class="th-info-btn" data-th-title="TÍTULO DA ATIVIDADE" data-th-tooltip="Nome conciso da atividade. Clique no ícone de edição nas Ações para ver e editar todos os detalhes."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="description">Descrição <span class="th-info-btn" data-th-title="DESCRIÇÃO" data-th-tooltip="Detalhamento do que foi feito ou discutido. Campo livre para contexto adicional."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th class="sortable-header" data-key="department" style="text-align:center;width:130px;">Departamento <span class="th-info-btn" data-th-title="DEPARTAMENTO EXECUTOR" data-th-tooltip="Área da DATI responsável pela atividade: Comercial, Customer Success, Help Desk, TI, Financeiro, Produto ou Operações."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="status" style="text-align:center;width:130px;">Fase da Atividade <span class="th-info-btn" data-th-title="FASE DA ATIVIDADE" data-th-tooltip="Estado atual: A Fazer (pendente), Em Andamento (em execução), Concluída (finalizada), Cancelada (descartada)."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="assignees" style="width:140px;">Responsáveis <span class="th-info-btn" data-th-title="RESPONSÁVEIS" data-th-tooltip="Colaboradores DATI que participaram ou são responsáveis por executar esta atividade."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="created_by" style="width:110px;">Criado por <span class="th-info-btn" data-th-title="CRIADO POR" data-th-tooltip="Usuário DATI que registrou esta atividade no sistema."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th class="sortable-header" data-key="activity_date" style="text-align:center;width:100px;">Data <span class="th-info-btn" data-th-title="DATA DA ATIVIDADE" data-th-tooltip="Quando a atividade ocorreu ou está agendada. Clique para ordenar cronologicamente. Atividades com prazo vencido aparecem em vermelho."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="time_spent" style="text-align:center;width:90px;">Tempo <span class="th-info-btn" data-th-title="TEMPO GASTO" data-th-tooltip="Duração da atividade registrada via cronômetro ou manualmente. Usado para controle de produtividade e SLA."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
+                            <th data-key="next_step" style="width:160px;">Próximo Passo <span class="th-info-btn" data-th-title="PRÓXIMO PASSO" data-th-tooltip="Ação definida para avançar o relacionamento após esta atividade. Inclui título e data do próximo passo quando configurado."><i class="ph ph-info"></i><span class="th-pulse"></span></span></th>
                             <th style="text-align:right;width:80px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tb-list-body"></tbody>
                 </table>
             </div>
-            <div id="tb-pagination" class="pagination-container" style="display:none;"></div>
+            <div id="tb-pagination" class="pagination-container" style="display:none; flex-shrink:0; padding:0.875rem 1.25rem; border-top:1px solid rgba(255,255,255,0.06);"></div>
         </div>`;
 
+    // Aplica filtros de prazo, prioridade e intervalo de datas antes do TableManager
+    const filteredTasks = tasks.filter(t => {
+        if (_filters.status && _normalizeStatus(t.status) !== _filters.status) return false;
+        if (_filters.priority && t.priority !== _filters.priority) return false;
+
+        if (_filters.prazo) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const tDt = t.activity_datetime ? new Date(t.activity_datetime) : null;
+            if (tDt) tDt.setHours(0,0,0,0);
+            if (_filters.prazo === 'sem_prazo' && tDt) return false;
+            if (_filters.prazo !== 'sem_prazo') {
+                if (!tDt) return false;
+                if (_filters.prazo === 'atrasado' && tDt >= today) return false;
+                if (_filters.prazo === 'hoje' && tDt.getTime() !== today.getTime()) return false;
+                if (_filters.prazo === 'futuro' && tDt <= today) return false;
+            }
+        }
+
+        if (_filters.dateFrom || _filters.dateTo) {
+            const tDtRaw = t.activity_datetime ? new Date(t.activity_datetime) : null;
+            if (!tDtRaw) return false;
+            const tDay = new Date(tDtRaw); tDay.setHours(0,0,0,0);
+            if (_filters.dateFrom) {
+                const from = new Date(_filters.dateFrom + 'T00:00:00');
+                if (tDay < from) return false;
+            }
+            if (_filters.dateTo) {
+                const to = new Date(_filters.dateTo + 'T23:59:59');
+                if (tDay > to) return false;
+            }
+        }
+
+        return true;
+    });
+
     _tbManager = new TableManager({
-        data: _mapForTable(tasks),
+        data: _mapForTable(filteredTasks),
         columns: [
-            { key: 'activity_type', label: 'Tipo',          type: 'string', searchable: true, filterable: true },
+            { key: 'activity_type', label: 'Tipo',          type: 'string', searchable: true, filterable: false },
             { key: 'company_name',  label: 'Empresa',        type: 'string', searchable: true },
             { key: 'title',         label: 'Título',         type: 'string', searchable: true },
             { key: 'description',   label: 'Descrição',      type: 'string', searchable: true },
-            { key: 'department',    label: 'Departamento',   type: 'string', searchable: true, filterable: true },
+            { key: 'department',    label: 'Departamento',   type: 'string', searchable: true, filterable: false },
             { key: 'assignees',     label: 'Responsáveis',   type: 'string', searchable: true },
             { key: 'created_by',    label: 'Criado por',     type: 'string', searchable: true },
             { key: 'activity_date', label: 'Data',           type: 'date',   sortable: true },
             { key: 'time_spent',    label: 'Tempo',          type: 'string' },
             { key: 'next_step',     label: 'Próximo Passo',  type: 'string', searchable: true },
-            { key: 'status',        label: 'Fase',         type: 'string', filterable: true },
+            { key: 'status',        label: 'Fase',         type: 'string', filterable: false },
         ],
         pageSize: 10,
         tableId: 'tb-list-table',
         renderRows:       (rows)  => _tbRenderRows(rows),
         renderPagination: (state) => _tbRenderPagination(state),
-        renderFilters:    ()      => _tbRenderActiveChips(),
     });
 
-    _tbRenderFiltersBar();
-
-    const searchEl = document.getElementById('tb-search-input');
-    if (searchEl && !searchEl.dataset.tbConn) {
-        searchEl.dataset.tbConn = '1';
-        searchEl.addEventListener('input', e => { if (_tbManager) _tbManager.setSearch(e.target.value); });
+    if (_filters.search) {
+        _tbManager.setSearch(_filters.search);
     }
-}
-
-function _tbRenderFiltersBar() {
-    const bar = document.getElementById('tb-filters-bar');
-    if (!bar) return;
-    bar.innerHTML = `
-        <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
-            <div class="search-wrapper" style="flex:1;min-width:220px;">
-                <i class="ph ph-magnifying-glass search-icon"></i>
-                <input type="text" id="tb-search-input" class="search-input" placeholder="Buscar em atividades...">
-            </div>
-            <select id="tb-fl-type" class="input-control" style="min-width:160px;max-width:190px;" onchange="tasksBoard.applyListFilter('activity_type',this.value)">
-                <option value="">Tipo: todos</option>
-                ${TB_ACTIVITY_TYPES.map(t => `<option value="${t}">${t}</option>`).join('')}
-            </select>
-            <select id="tb-fl-dept" class="input-control" style="min-width:150px;max-width:180px;" onchange="tasksBoard.applyListFilter('department',this.value)">
-                <option value="">Departamento: todos</option>
-                ${TB_DEPARTMENTS.map(d => `<option value="${d}">${d}</option>`).join('')}
-            </select>
-            <select id="tb-fl-status" class="input-control" style="min-width:140px;max-width:170px;" onchange="tasksBoard.applyListFilter('status',this.value)">
-                <option value="">Fase: todas</option>
-                ${TB_STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
-            </select>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="tasksBoard.clearListFilters()" title="Limpar filtros">
-                <i class="ph ph-funnel-simple-x"></i>
-            </button>
-        </div>
-        <div id="tb-active-chips" class="active-filters-bar" style="display:none;margin-top:0.5rem;"></div>
-    `;
 }
 
 function _tbRenderRows(rows) {
@@ -537,23 +690,8 @@ function _tbRenderPagination({ currentPage, totalPages, pageSize, totalRecords, 
     }
 }
 
-function _tbRenderActiveChips() {
-    if (!_tbManager) return;
-    const chips = document.getElementById('tb-active-chips');
-    if (!chips) return;
-    const active = _tbManager.getActiveFilters();
-    if (!active.length) { chips.style.display = 'none'; chips.innerHTML = ''; return; }
-    chips.style.display = 'flex';
-    chips.innerHTML = active.map(({ key, label, value }) => `
-        <div class="filter-chip">
-            <span><strong>${label}:</strong> ${value}</span>
-            <i class="ph ph-x-circle" onclick="tasksBoard.clearListFilter('${key}')"></i>
-        </div>
-    `).join('') + `<button class="btn-clear-all-filters" onclick="tasksBoard.clearListFilters()"><i class="ph ph-trash"></i> Limpar Tudo</button>`;
-}
-
 // ──────────────────────────────────────────────────────────────────────────────
-// FILTROS (Kanban)
+// FILTROS GLOBAIS
 // ──────────────────────────────────────────────────────────────────────────────
 
 export async function applyFilter(key, value) {
@@ -561,29 +699,28 @@ export async function applyFilter(key, value) {
     await _loadAndRender();
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// FILTROS (Lista — TableManager)
-// ──────────────────────────────────────────────────────────────────────────────
+export async function clearAllFilters() {
+    // Zera estado
+    _filters = { status: '', priority: '', prazo: '', search: '', dateFrom: '', dateTo: '' };
 
-export function applyListFilter(key, value) {
-    if (_tbManager) _tbManager.setFilter(key, value);
-}
-
-export function clearListFilter(key) {
-    if (!_tbManager) return;
-    _tbManager.setFilter(key, '');
-    const map = { activity_type: 'tb-fl-type', department: 'tb-fl-dept', status: 'tb-fl-status' };
-    const el = document.getElementById(map[key]);
-    if (el) el.value = '';
-}
-
-export function clearListFilters() {
-    if (!_tbManager) return;
-    _tbManager.clearFilters();
-    ['tb-fl-type', 'tb-fl-dept', 'tb-fl-status'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.value = '';
+    // Sincroniza elementos da UI
+    const ids = {
+        'tb-filter-status':    '',
+        'tb-filter-prazo':     '',
+        'tb-filter-priority':  '',
+        'tb-filter-date-from': '',
+        'tb-filter-date-to':   '',
+        'tb-global-search':    '',
+    };
+    Object.entries(ids).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
     });
-    const s = document.getElementById('tb-search-input'); if (s) s.value = '';
+
+    // Limpa o TableManager também (se estiver na view lista)
+    if (_tbManager) _tbManager.clearFilters?.();
+
+    await _loadAndRender();
 }
 
 export function deleteActivity(id) {
@@ -1969,6 +2106,6 @@ window._kbDrag = {
 // ──────────────────────────────────────────────────────────────────────────────
 
 window.tasksBoard = {
-    initTasksBoard, switchView, applyFilter, openNewActivity, openActivityDetail,
-    applyListFilter, clearListFilter, clearListFilters, deleteActivity,
+    initTasksBoard, switchView, applyFilter, clearAllFilters, openNewActivity, openActivityDetail,
+    deleteActivity,
 };

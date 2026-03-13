@@ -49,6 +49,8 @@ router.get('/:id/feature-permissions', async (req, res) => {
   }
 });
 
+import fs from 'fs';
+
 // ─── PUT /api/users/:id/feature-permissions ───────────────────────────────
 // Recebe array com as permissões CONCEDIDAS e faz upsert em batch.
 // Tudo que não vier no array é revogado (granted=false).
@@ -57,13 +59,19 @@ router.put('/:id/feature-permissions', requireMaster, async (req, res) => {
   const { permissions } = req.body; // string[]
   const master = req.usuarioAtual;
 
+  console.log(`[DEBUG] PUT /api/users/${id}/feature-permissions`);
+  console.log(`[DEBUG] Body:`, req.body);
+
   if (!Array.isArray(permissions)) {
+    fs.writeFileSync('/tmp/dati_fp_debug.log', JSON.stringify({ error: 'not_array', type: typeof permissions, body: req.body }));
     return res.status(400).json({ error: 'permissions deve ser um array de strings' });
   }
 
   // Valida que todas as chaves enviadas existem
   const invalid = permissions.filter(p => !FEATURE_PERMISSIONS[p]);
   if (invalid.length) {
+    console.log(`[DEBUG] Invalid permissions:`, invalid);
+    fs.writeFileSync('/tmp/dati_fp_debug.log', JSON.stringify({ error: 'invalid_perms', invalid, body: req.body }));
     return res.status(400).json({ error: `Permissões inválidas: ${invalid.join(', ')}` });
   }
 

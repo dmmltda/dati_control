@@ -8,14 +8,15 @@
  */
 
 import { colors, card } from '../../theme/tokens.js';
+import { initTooltipSystem, showTooltip, hideTooltip, updateTooltipPosition } from './Tooltip.js';
 
 /**
  * Calcula métricas dos chamados
  * @param {Array} chamados
  */
 function calcularMetricasChamados(chamados) {
-    const abertos = chamados.filter(c => c.status === 'Aberto').length;
-    const emAndamento = chamados.filter(c => c.status === 'Em Andamento').length;
+    const abertos = chamados.filter(c => c.status === 'Aberto');
+    const emAndamento = chamados.filter(c => c.status === 'Em Andamento');
     const resolvidos = chamados.filter(c => c.status === 'Resolvido' && c.resolvidoEm);
 
     let tempoMedio = 0;
@@ -27,7 +28,13 @@ function calcularMetricasChamados(chamados) {
         tempoMedio = Math.round(totalHoras / resolvidos.length);
     }
 
-    return { abertos, emAndamento, tempoMedio };
+    return {
+        abertos: abertos.length, 
+        emAndamento: emAndamento.length, 
+        tempoMedio,
+        chamadosAbertos: abertos,
+        chamadosEmAndamento: emAndamento
+    };
 }
 
 /**
@@ -37,6 +44,7 @@ function calcularMetricasChamados(chamados) {
 function renderMiniCards({ abertos, emAndamento, tempoMedio }) {
     const cardDados = [
         {
+            id: 'hd-card-abertos',
             label: 'Abertos',
             value: abertos,
             cor: colors.danger,
@@ -45,6 +53,7 @@ function renderMiniCards({ abertos, emAndamento, tempoMedio }) {
             sub: 'aguardando atendimento',
         },
         {
+            id: 'hd-card-emandamento',
             label: 'Em Andamento',
             value: emAndamento,
             cor: colors.warning,
@@ -53,6 +62,7 @@ function renderMiniCards({ abertos, emAndamento, tempoMedio }) {
             sub: 'sendo tratados',
         },
         {
+            id: 'hd-card-tempo',
             label: 'Tempo Médio',
             value: `${tempoMedio}h`,
             cor: colors.primary,
@@ -63,13 +73,14 @@ function renderMiniCards({ abertos, emAndamento, tempoMedio }) {
     ];
 
     return cardDados.map(d => `
-    <div style="
+    <div id="${d.id}" style="
       background: ${d.bg};
       border: 1px solid ${d.cor}30;
       border-radius: 10px;
       padding: 1rem 1.25rem;
       text-align: center;
       flex: 1;
+      transition: background 150ms;
     ">
       <div style="font-size: 1.4rem; margin-bottom: 0.3rem;">${d.emoji}</div>
       <div style="font-size: 1.6rem; font-weight: 800; color: ${d.cor}; line-height: 1;">${d.value}</div>
@@ -147,8 +158,10 @@ function renderLineChart(timeline) {
         <path d="${makePath('resolvidos')}" fill="none" stroke="${colors.success}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         <!-- Pontos -->
         ${timeline.map((d, i) => `
-          <circle cx="${toX(i)}" cy="${toY(d.abertos)}" r="4" fill="${colors.danger}" stroke="white" stroke-width="2"/>
-          <circle cx="${toX(i)}" cy="${toY(d.resolvidos)}" r="4" fill="${colors.success}" stroke="white" stroke-width="2"/>
+          <circle class="hd-chart-point" data-dia="${d.dia}" data-tipo="Abertos" data-count="${d.abertos}"
+            cx="${toX(i)}" cy="${toY(d.abertos)}" r="4" fill="${colors.danger}" stroke="white" stroke-width="2" style="cursor:pointer; transition:r 0.2s" onmouseenter="this.setAttribute('r', '6')" onmouseleave="this.setAttribute('r', '4')"/>
+          <circle class="hd-chart-point" data-dia="${d.dia}" data-tipo="Resolvidos" data-count="${d.resolvidos}"
+            cx="${toX(i)}" cy="${toY(d.resolvidos)}" r="4" fill="${colors.success}" stroke="white" stroke-width="2" style="cursor:pointer; transition:r 0.2s" onmouseenter="this.setAttribute('r', '6')" onmouseleave="this.setAttribute('r', '4')"/>
         `).join('')}
         <!-- Labels X -->
         ${labels}
@@ -224,6 +237,8 @@ function renderChamadosCriticos(chamados) {
  * @param {Array}  timeline
  */
 export function renderHelpDesk(containerId, chamados, timeline) {
+    initTooltipSystem();
+
     const el = document.getElementById(containerId);
     if (!el) return;
 
@@ -270,4 +285,58 @@ export function renderHelpDesk(containerId, chamados, timeline) {
       </div>
     </section>
   `;
+
+    // ─── Attach de Tooltips ─────────────────────────────────────────────────
+    setTimeout(() => {
+        const cardsInfo = [
+            { id: 'hd-card-abertos', dados: metricas.chamadosAbertos, emoji: '🔴', titulo: 'Abertos', cor: colors.danger, bg: 'rgba(239,68,68,0.14)' },
+            { id: 'hd-card-emandamento', dados: metricas.chamadosEmAndamento, emoji: '🟡', titulo: 'Em Andamento', cor: colors.warning, bg: 'rgba(245,158,11,0.14)' },
+        ];
+
+        cardsInfo.forEach(info => {
+            const card = el.querySelector(`#${info.id}`);
+            if (!card) return;
+
+            const items = info.dados.map(c => ({
+                nome: c.titulo,
+                dotCor: info.cor,
+                badge: c.empresa?.substring(0, 15) || 'Sem cliente',
+                badgeBg: `${info.cor}22`,
+                badgeCor: info.cor
+            }));
+
+            card.style.cursor = 'pointer';
+            
+            // Highlight color no hover
+            const originalBg = card.style.background;
+            card.addEventListener('mouseenter', ev => {
+                card.style.background = info.bg;
+                showTooltip(ev, { emoji: info.emoji, titulo: info.titulo, items });
+            });
+            card.addEventListener('mousemove', ev => updateTooltipPosition(ev));
+            card.addEventListener('mouseleave', () => {
+                card.style.background = originalBg;
+                hideTooltip();
+            });
+        });
+
+        const points = el.querySelectorAll('.hd-chart-point');
+        points.forEach(pt => {
+            const dia = pt.getAttribute('data-dia');
+            const tipo = pt.getAttribute('data-tipo');
+            const count = pt.getAttribute('data-count');
+            const cor = tipo === 'Abertos' ? colors.danger : colors.success;
+            const emoji = tipo === 'Abertos' ? '🔴' : '🟢';
+
+            pt.addEventListener('mouseenter', ev => showTooltip(ev, {
+                emoji,
+                titulo: `${tipo} em ${dia}`,
+                stat: count,
+                statLabel: 'Total',
+                items: []
+            }));
+            pt.addEventListener('mousemove', ev => updateTooltipPosition(ev));
+            pt.addEventListener('mouseleave', () => hideTooltip());
+        });
+    }, 0);
 }

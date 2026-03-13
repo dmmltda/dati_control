@@ -7,6 +7,7 @@
  */
 
 import { colors, card } from '../../theme/tokens.js';
+import { initTooltipSystem, showTooltip, hideTooltip, updateTooltipPosition } from './Tooltip.js';
 
 /**
  * Renderiza uma ProgressBar inline
@@ -49,12 +50,18 @@ function renderProgressBar(progresso, atrasado) {
  */
 function calcularMetricas(onboardings) {
     const total = onboardings.length;
-    const atrasados = onboardings.filter(o => o.atrasado).length;
+    const atrasados = onboardings.filter(o => o.atrasado);
     const progressoMedio = total > 0
         ? Math.round(onboardings.reduce((acc, o) => acc + o.progresso, 0) / total)
         : 0;
 
-    return { total, atrasados, progressoMedio };
+    return { 
+        total, 
+        atrasadosCount: atrasados.length, 
+        progressoMedio,
+        listaTodos: onboardings,
+        listaAtrasados: atrasados
+    };
 }
 
 /**
@@ -129,10 +136,12 @@ function renderListaAtrasados(onboardings) {
  * @param {Array}  onboardings
  */
 export function renderOnboarding(containerId, onboardings) {
+    initTooltipSystem();
+
     const el = document.getElementById(containerId);
     if (!el) return;
 
-    const { total, atrasados, progressoMedio } = calcularMetricas(onboardings);
+    const { total, atrasadosCount, progressoMedio, listaTodos, listaAtrasados } = calcularMetricas(onboardings);
 
     el.innerHTML = `
     <section style="
@@ -144,7 +153,7 @@ export function renderOnboarding(containerId, onboardings) {
       <!-- Cabeçalho -->
       <div style="margin-bottom: 1.25rem;">
         <h2 style="
-          font-size: 1rem; font-weight: 800; color: ${colors.textMain};
+          font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
           display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;
         ">
           <span style="font-size: 1.1rem;">🚀</span>
@@ -159,30 +168,33 @@ export function renderOnboarding(containerId, onboardings) {
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
 
         <!-- Em onboarding ativo -->
-        <div style="
+        <div id="onb-card-total" style="
           background: rgba(15,52,96,0.06);
           border: 1px solid rgba(15,52,96,0.15);
           border-radius: 10px; padding: 1rem; text-align: center;
+          transition: background 150ms; cursor: pointer;
         ">
           <div style="font-size: 1.5rem; font-weight: 800; color: ${colors.primary};">${total}</div>
           <div style="font-size: 0.7rem; color: ${colors.textMuted}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem;">Em Onboarding</div>
         </div>
 
         <!-- Atrasados -->
-        <div style="
-          background: ${atrasados > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)'};
-          border: 1px solid ${atrasados > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'};
+        <div id="onb-card-atrasados" style="
+          background: ${atrasadosCount > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)'};
+          border: 1px solid ${atrasadosCount > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'};
           border-radius: 10px; padding: 1rem; text-align: center;
+          transition: background 150ms; cursor: pointer;
         ">
-          <div style="font-size: 1.5rem; font-weight: 800; color: ${atrasados > 0 ? colors.danger : colors.success};">${atrasados}</div>
+          <div style="font-size: 1.5rem; font-weight: 800; color: ${atrasadosCount > 0 ? colors.danger : colors.success};">${atrasadosCount}</div>
           <div style="font-size: 0.7rem; color: ${colors.textMuted}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem;">Atrasados</div>
         </div>
 
         <!-- Progresso médio -->
-        <div style="
+        <div id="onb-card-progresso" style="
           background: rgba(232,131,42,0.06);
           border: 1px solid rgba(232,131,42,0.15);
           border-radius: 10px; padding: 1rem; text-align: center;
+          transition: background 150ms; cursor: pointer;
         ">
           <div style="font-size: 1.5rem; font-weight: 800; color: ${colors.accent};">${progressoMedio}%</div>
           <div style="font-size: 0.7rem; color: ${colors.textMuted}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.15rem;">Prog. Médio</div>
@@ -207,15 +219,15 @@ export function renderOnboarding(containerId, onboardings) {
       <!-- Lista de atrasados -->
       <div>
         <h3 style="
-          font-size: 0.82rem; font-weight: 700; color: ${colors.textMain};
+          font-size: 12.5px; font-weight: 700; color: ${colors.textMain};
           margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.4rem;
         ">
           ⚠️ Onboardings Atrasados
-          ${atrasados > 0 ? `<span style="
+          ${atrasadosCount > 0 ? `<span style="
             background: rgba(239,68,68,0.15); color: ${colors.danger};
             font-size: 0.68rem; font-weight: 800;
             padding: 1px 7px; border-radius: 9999px;
-          ">${atrasados}</span>` : ''}
+          ">${atrasadosCount}</span>` : ''}
         </h3>
         <div style="max-height: 260px; overflow-y: auto;">
           ${renderListaAtrasados(onboardings)}
@@ -237,4 +249,41 @@ export function renderOnboarding(containerId, onboardings) {
       </div>
     </section>
   `;
+
+    // ─── Attach de Tooltips nos Cards ───────────────────────────────────────
+    setTimeout(() => {
+        const cardsInfo = [
+            { id: 'onb-card-total', dados: listaTodos, emoji: '🚀', titulo: 'Em Onboarding', cor: colors.primary, bg: 'rgba(15,52,96,0.14)' },
+            { id: 'onb-card-atrasados', dados: listaAtrasados, emoji: '⚠️', titulo: 'Atrasados', cor: colors.danger, bg: 'rgba(239,68,68,0.14)' },
+            { id: 'onb-card-progresso', dados: listaTodos, emoji: '📊', titulo: 'Progressos', cor: colors.accent, bg: 'rgba(232,131,42,0.14)' },
+        ];
+
+        cardsInfo.forEach(info => {
+            const card = el.querySelector(`#${info.id}`);
+            if (!card) return;
+
+            // Ordenar por progresso para ficar visualmente bonitinho no tooltip
+            const dadosS = [...info.dados].sort((a,b) => b.progresso - a.progresso);
+
+            const items = dadosS.map(c => ({
+                nome: c.empresa,
+                dotCor: info.cor,
+                badge: c.responsavel?.split(' ')[0] || '—',
+                badgeBg: `${info.cor}22`,
+                badgeCor: info.cor,
+                nps: `${c.progresso}%`
+            }));
+
+            const originalBg = card.style.background;
+            card.addEventListener('mouseenter', ev => {
+                card.style.background = info.bg;
+                showTooltip(ev, { emoji: info.emoji, titulo: info.titulo, items });
+            });
+            card.addEventListener('mousemove', ev => updateTooltipPosition(ev));
+            card.addEventListener('mouseleave', () => {
+                card.style.background = originalBg;
+                hideTooltip();
+            });
+        });
+    }, 0);
 }

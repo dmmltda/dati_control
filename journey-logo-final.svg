@@ -1,16 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50" width="200" height="50">
   <defs>
     <style>
-      @keyframes draw {
-        0%        { stroke-dashoffset: 60; opacity: 0; }
-        15%       { opacity: 1; }
-        60%       { stroke-dashoffset: 0; opacity: 1; }
-        85%, 100% { stroke-dashoffset: 0; opacity: 0.25; }
+      @keyframes drawSequence {
+        /* Phase 1: Mover da esquerda para direita (exato como original) */
+        0%      { stroke-dashoffset: 60; opacity: 0; }
+        3.75%   { opacity: 1; }
+        15%     { stroke-dashoffset: 0; opacity: 1; }
+        21.25%  { opacity: 0.25; }
+        25%     { stroke-dashoffset: 0; opacity: 0.25; }
+
+        /* Phase 2: Recolher de trás para frente (Apaga da esquerda) */
+        26%     { opacity: 1; }
+        40%     { stroke-dashoffset: 60; opacity: 1; }
+        42%     { opacity: 0; }
+        45%     { stroke-dashoffset: -60; opacity: 0; } /* move oculto p/ o outro lado */
+        50%     { stroke-dashoffset: -60; opacity: 0; }
+
+        /* Phase 3: Mover da direita para esquerda */
+        53.75%  { opacity: 1; }
+        65%     { stroke-dashoffset: 0; opacity: 1; }
+        71.25%  { opacity: 0.25; }
+        75%     { stroke-dashoffset: 0; opacity: 0.25; }
+
+        /* Phase 4: Recolher da esquerda para a direita (Apaga da direita) */
+        76%     { opacity: 1; }
+        90%     { stroke-dashoffset: -60; opacity: 1; }
+        92%     { opacity: 0; }
+        95%     { stroke-dashoffset: 60; opacity: 0; } /* volta oculto pro começo */
+        100%    { stroke-dashoffset: 60; opacity: 0; }
       }
       .journey-icon path {
         stroke-dasharray: 60;
         stroke-dashoffset: 60;
-        animation: draw 4.5s ease-in-out infinite;
+        animation: drawSequence 18s ease-in-out infinite;
       }
     </style>
   </defs>

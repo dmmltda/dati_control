@@ -266,22 +266,31 @@ select.input-control:disabled {
     border-bottom: 1px solid var(--glass-border);
     background: rgba(15, 23, 42, 0.4);
     flex-shrink: 0;
+    min-width: 0; /* safe flex-shrink */
+    box-sizing: border-box;
 }
 
 .csel-search-icon {
     color: var(--text-muted);
     font-size: 1rem;
     flex-shrink: 0;
+    margin: 0;
+    padding: 0;
+    position: static !important;
+    transform: none !important;
 }
 
 .csel-search {
     flex: 1;
+    min-width: 0; /* important for flex inputs */
+    width: 100%;
     background: transparent;
     border: none;
     outline: none;
     color: var(--text-main);
     font-size: 0.875rem;
     padding: 0;
+    box-sizing: border-box;
 }
 
 .csel-search::placeholder {
@@ -3073,4 +3082,329 @@ span.flatpickr-weekday,
 @keyframes spin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   FLATPICKR PREMIUM THEME V2 (Calendar Footer & Styling)
+   ============================================================ */
+.premium-cal-theme {
+    background: #0d1320 !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8) !important;
+    padding: 1rem 0.5rem 0.5rem 0.5rem !important;
+    font-family: inherit !important;
+    width: 290px !important;
+    overflow: visible !important; /* Allow CustomSelect dropdown to escape */
+}
+
+.premium-cal-theme .flatpickr-months,
+.premium-cal-theme .flatpickr-month,
+.premium-cal-theme .flatpickr-weekdays,
+.premium-cal-theme .flatpickr-weekdaycontainer,
+.premium-cal-theme .flatpickr-innerContainer,
+.premium-cal-theme .flatpickr-rContainer,
+.premium-cal-theme .flatpickr-days {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+.premium-cal-theme .flatpickr-month {
+    height: 44px !important;
+    margin-bottom: 0.5rem !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    position: relative !important;
+    overflow: visible !important;
+}
+
+.premium-cal-theme .flatpickr-current-month {
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    transform: none !important;
+}
+
+/* Month Trigger (replaces native select) */
+.premium-month-trigger {
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+    color: #fff !important;
+    cursor: pointer;
+    margin-right: 0.3rem;
+    user-select: none;
+    position: relative;
+    z-index: 2;
+}
+
+.premium-month-trigger:hover {
+    color: #a5b4fc;
+}
+
+/* Month Popup Inline */
+.premium-month-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+    width: 150px;
+    z-index: 99999;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.premium-month-popup.open {
+    display: flex;
+}
+
+.premium-month-item {
+    padding: 10px 16px;
+    font-size: 0.875rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-weight: 500;
+}
+
+.premium-month-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: #e2e8f0;
+}
+
+.premium-month-item.active {
+    color: #fff;
+    font-weight: 700;
+    background: transparent;
+    position: relative;
+}
+
+.premium-month-item.active::before {
+    content: '✓';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #818cf8;
+    font-size: 0.8rem;
+}
+
+/* Hide the fallback native select */
+.premium-cal-theme select.flatpickr-monthDropdown-months {
+    display: none !important;
+}
+
+.premium-cal-theme .numInputWrapper {
+    width: 60px !important;
+    color: #4b5563 !important; /* Muted gray for year */
+}
+
+.premium-cal-theme input.cur-year {
+    font-weight: 600 !important;
+    color: #4b5563 !important;
+    font-size: 1.1rem !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* Subtle arrows for the year */
+.premium-cal-theme .numInputWrapper span.arrowUp,
+.premium-cal-theme .numInputWrapper span.arrowDown {
+    border: none !important;
+    background: transparent !important;
+}
+
+.premium-cal-theme .numInputWrapper span.arrowUp::after,
+.premium-cal-theme .numInputWrapper span.arrowDown::after {
+    border-color: #4b5563 transparent transparent transparent !important; 
+}
+.premium-cal-theme .numInputWrapper span.arrowUp::after {
+    border-color: transparent transparent #4b5563 transparent !important; 
+}
+.premium-cal-theme .numInputWrapper span:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.premium-cal-theme.arrowTop::before,
+.premium-cal-theme.arrowTop::after,
+.premium-cal-theme.arrowBottom::before,
+.premium-cal-theme.arrowBottom::after {
+    display: none !important;
+}
+
+/* Weekdays (DOM SEG TER...) */
+.premium-cal-theme .flatpickr-weekdays {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+    background: transparent !important;
+    height: auto !important;
+}
+
+.premium-cal-theme .flatpickr-weekdaycontainer {
+    padding-bottom: 0;
+}
+
+.premium-cal-theme span.flatpickr-weekday {
+    color: #4b5563 !important; /* Dimm text color */
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em;
+    text-transform: uppercase !important;
+    background: transparent !important;
+}
+
+/* Nav Buttons (Using native elements styled as boxes) */
+.premium-cal-theme .flatpickr-prev-month,
+.premium-cal-theme .flatpickr-next-month {
+    top: 14px !important;
+    width: 32px !important;
+    height: 32px !important;
+    background: #151a28 !important; /* Dark box for arrows */
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    z-index: 5 !important;
+    transition: all 0.2s ease !important;
+}
+
+.premium-cal-theme .flatpickr-prev-month { left: 16px !important; }
+.premium-cal-theme .flatpickr-next-month { right: 16px !important; }
+
+.premium-cal-theme .flatpickr-prev-month:hover,
+.premium-cal-theme .flatpickr-next-month:hover {
+    background: #1e2638 !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.premium-cal-theme .flatpickr-prev-month svg,
+.premium-cal-theme .flatpickr-next-month svg {
+    width: 10px !important;
+    height: 10px !important;
+    fill: #64748b !important;
+}
+
+.premium-cal-theme .flatpickr-prev-month:hover svg,
+.premium-cal-theme .flatpickr-next-month:hover svg {
+    fill: #fff !important;
+}
+
+/* Hide the injected nav div if it's there temporarily */
+.premium-cal-theme .premium-nav-btn {
+    display: contents !important;
+}
+
+/* Days */
+.premium-cal-theme .flatpickr-days {
+    border: none !important;
+}
+.premium-cal-theme .dayContainer {
+    width: 270px !important;
+    min-width: 270px !important;
+    max-width: 270px !important;
+    justify-content: space-between !important;
+}
+.premium-cal-theme .flatpickr-day {
+    color: #cbd5e1 !important;
+    border-radius: 8px !important; 
+    border: 1px solid transparent !important;
+    font-weight: 600 !important;
+    margin: 2px 0 !important;
+    max-width: 34px !important;
+    height: 34px !important;
+    line-height: 34px !important;
+    font-size: 0.85rem !important;
+}
+
+.premium-cal-theme .flatpickr-day.prevMonthDay, 
+.premium-cal-theme .flatpickr-day.nextMonthDay {
+    color: #1e293b !important; /* Very dim for out-of-month days */
+}
+
+.premium-cal-theme .flatpickr-day:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #fff !important;
+}
+
+/* Today */
+.premium-cal-theme .flatpickr-day.today {
+    color: #a5b4fc !important; /* Blue text */
+    font-weight: 700 !important;
+    border-color: transparent !important;
+    position: relative;
+    background: transparent !important;
+}
+
+.premium-cal-theme .flatpickr-day.today::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #60a5fa !important; /* Vibrant blue dot tightly packed */
+}
+
+/* Selected */
+.premium-cal-theme .flatpickr-day.selected,
+.premium-cal-theme .flatpickr-day.selected:hover {
+    background: #5b52f6 !important; /* Purple/Indigo match */
+    color: #fff !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(91, 82, 246, 0.4) !important;
+}
+
+/* Footer Container */
+.premium-cal-theme .flatpickr-premium-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0.5rem 0.25rem 0.5rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.premium-cal-theme .premium-left-date {
+    font-size: 0.75rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+.premium-cal-theme .premium-today-btn {
+    background: transparent;
+    border: none;
+    color: #a5b4fc;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.premium-cal-theme .premium-today-btn:hover {
+    color: #fff;
 }

@@ -111,7 +111,7 @@ export function renderSalesFunnel(containerId, empresas) {
     ">
       <!-- Cabeçalho -->
       <div style="margin-bottom: 1.25rem;">
-        <h2 style="font-size: 1rem; font-weight: 800; color: ${colors.textMain};
+        <h2 style="font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
           display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;">
           <span style="font-size: 1.1rem;">📊</span>
           Funil de Vendas
@@ -126,7 +126,9 @@ export function renderSalesFunnel(containerId, empresas) {
         ${dados.map((d, i) => {
     const pct = Math.round((d.quantidade / maxQtd) * 100);
     const cor = funnelColors[i] || colors.primary;
-    const taxa = i === 0 ? '—' : `${d.taxa}% da etapa anterior`;
+    const taxaHtml = i === 0 
+      ? `<div style="width: 140px; text-align: right;">—</div>`
+      : `<div style="width: 140px; display: flex;"><span style="width: 32px; font-size: 11.5px; text-align: right; display: inline-block;">${d.taxa}%</span><span style="font-size: 11px; margin-left: 4px; text-align: left; display: inline-block;">da etapa anterior</span></div>`;
 
     return `
             <div data-funil-index="${i}" style="
@@ -139,12 +141,12 @@ export function renderSalesFunnel(containerId, empresas) {
 
               <!-- Label e quantidade -->
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
-                <span style="font-size: 0.8rem; font-weight: 600; color: ${colors.textMain}; display:flex; align-items:center; gap:5px;">
+                <span style="font-size: 12.5px; font-weight: 600; color: ${colors.textMain}; display:flex; align-items:center; gap:5px;">
                   ${d.emoji} ${d.label}
                 </span>
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                  <span style="font-size: 0.72rem; color: ${colors.textMuted};">${taxa}</span>
-                  <span style="font-size: 0.85rem; font-weight: 800; color: ${cor}; min-width: 28px; text-align: right;">${d.quantidade}</span>
+                  <div style="font-size: 11.5px; color: ${colors.textMuted};">${taxaHtml}</div>
+                  <span style="font-size: 11.5px; font-weight: 800; color: ${cor}; min-width: 28px; text-align: right;">${d.quantidade}</span>
                 </div>
               </div>
 
@@ -159,7 +161,7 @@ export function renderSalesFunnel(containerId, empresas) {
               </div>
 
               <!-- Valor estimado -->
-              <div style="margin-top: 0.15rem; font-size: 0.7rem; color: ${colors.textMuted}; text-align: right;">
+              <div style="margin-top: 0.15rem; font-size: 11px; color: ${colors.textMuted}; text-align: right;">
                 ${formatarValor(d.valorTotal)}/mês estimado
               </div>
             </div>

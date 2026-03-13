@@ -170,7 +170,8 @@ export async function loadCities(uf, defaultCity = '') {
 
 export function updateStatusStyle(select) {
     if (!select) return;
-    select.className = 'status-select';
+    const hasNativeOnly = select.classList.contains('native-only');
+    select.className = hasNativeOnly ? 'status-select native-only' : 'status-select';
     const status = select.value;
     const config = STATUS_CONFIG[status];
     if (config) {

@@ -81,8 +81,8 @@ function renderLegenda(segmentos) {
       <div data-health-leg="${seg.key}" style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; cursor: pointer; padding: 3px 5px; border-radius: 6px; transition: background 120ms;">
         <span style="width: 12px; height: 12px; border-radius: 50%; background: ${cor}; flex-shrink: 0;"></span>
         <div style="flex: 1;">
-          <div style="font-size: 0.8rem; font-weight: 600; color: ${colors.textMain};">${seg.key}</div>
-          <div style="font-size: 0.72rem; color: ${colors.textMuted};">${seg.count} clientes · ${seg.pct}%</div>
+          <div style="font-size: 12.5px; font-weight: 600; color: ${colors.textMain};">${seg.key}</div>
+          <div style="font-size: 11px; color: ${colors.textMuted};">${seg.count} clientes · ${seg.pct}%</div>
         </div>
       </div>
     `;
@@ -90,8 +90,9 @@ function renderLegenda(segmentos) {
 }
 
 function renderTabelaMinNPS(empresas) {
+  const s = (e) => (e.status || '').toLowerCase().trim();
   const ativos = empresas
-    .filter(e => e.status === 'Cliente Ativo' && e.nps !== null && e.nps !== undefined)
+    .filter(e => (s(e) === 'ativo' || s(e) === 'cliente ativo') && e.nps !== null && e.nps !== undefined && e.nps !== '')
     .sort((a, b) => a.nps - b.nps)
     .slice(0, 5);
 
@@ -108,7 +109,7 @@ function renderTabelaMinNPS(empresas) {
   const healthBadge = (hs) => {
     const cor = healthColors[hs] || colors.textMuted;
     const emoji = { 'Saudável': '🟢', 'Em Atenção': '🟡', 'Em Risco': '🔴' }[hs] || '⚪';
-    return `<span style="background:${cor}18;color:${cor};font-size:0.68rem;font-weight:700;padding:2px 7px;border-radius:9999px;">${emoji} ${hs}</span>`;
+    return `<span style="background:${cor}18;color:${cor};font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:9999px;">${emoji} ${hs}</span>`;
   };
 
   const rows = ativos.map(e => `
@@ -118,15 +119,15 @@ function renderTabelaMinNPS(empresas) {
         data-responsavel="${e.responsavel?.nome || '—'}"
         style="cursor:default;"
         onmouseenter="this.style.background='rgba(255,255,255,0.04)'" onmouseleave="this.style.background='transparent'">
-      <td style="padding: 0.65rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: ${colors.textMain};
+      <td style="padding: 0.65rem 0.75rem; font-size: 12.5px; font-weight: 600; color: ${colors.textMain};
         max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${e.nome}">
         ${e.nome}
       </td>
       <td style="padding: 0.65rem 0.75rem; text-align: center;">
-        <span style="font-size: 1.1rem; font-weight: 800; color: ${npsColor(e.nps)};">${e.nps}</span>
+        <span style="font-size: 14px; font-weight: 800; color: ${npsColor(e.nps)};">${e.nps}</span>
       </td>
       <td style="padding: 0.65rem 0.75rem;">${healthBadge(e.healthScore)}</td>
-      <td style="padding: 0.65rem 0.75rem; font-size: 0.77rem; color: ${colors.textMuted};">
+      <td style="padding: 0.65rem 0.75rem; font-size: 11.5px; color: ${colors.textMuted};">
         ${e.responsavel?.nome || '—'}
       </td>
     </tr>
@@ -137,10 +138,10 @@ function renderTabelaMinNPS(empresas) {
       <table id="health-nps-table" style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="border-bottom: 2px solid ${colors.border};">
-            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 0.68rem; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Empresa</th>
-            <th style="padding: 0.5rem 0.75rem; text-align: center; font-size: 0.68rem; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">NPS</th>
-            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 0.68rem; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Saúde</th>
-            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 0.68rem; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Responsável</th>
+            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 11.5px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Empresa</th>
+            <th style="padding: 0.5rem 0.75rem; text-align: center; font-size: 11.5px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">NPS</th>
+            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 11.5px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Saúde</th>
+            <th style="padding: 0.5rem 0.75rem; text-align: left; font-size: 11.5px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">Responsável</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -247,7 +248,7 @@ export function renderHealthScore(containerId, empresas) {
       flex-direction: column;
     ">
       <div style="margin-bottom: 1.25rem;">
-        <h2 style="font-size: 1rem; font-weight: 800; color: ${colors.textMain};
+        <h2 style="font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
           display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;">
           <span style="font-size: 1.1rem;">💚</span> Health Score
         </h2>
@@ -265,7 +266,7 @@ export function renderHealthScore(containerId, empresas) {
       <div style="border-top: 1px solid ${colors.border}; margin-bottom: 1rem;"></div>
 
       <div>
-        <h3 style="font-size: 0.82rem; font-weight: 700; color: ${colors.textMain};
+        <h3 style="font-size: 12.5px; font-weight: 700; color: ${colors.textMain};
           margin: 0 0 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
           ⚠️ Clientes com Menor NPS
         </h3>

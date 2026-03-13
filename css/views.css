@@ -159,35 +159,46 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   MINHAS ATIVIDADES — Header fixo + conteúdo rolável (Kanban/Lista)
+   MINHAS ATIVIDADES — Header fixo + Kanban/Lista rolam abaixo
 ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Remove padding do main-content quando a view está ativa */
+/* O main-content perde o scroll próprio quando a view está ativa */
 .main-content:has(#view-minhas-tarefas:not([style*="none"])) {
     overflow: hidden;
     padding: 0;
 }
 
-/* View ocupa toda a altura e define seu próprio padding */
+/* A view vira um flex-column que ocupa toda a altura */
 #view-minhas-tarefas:not([style*="none"]) {
     display: flex !important;
     flex-direction: column;
     height: 100%;
-    padding: 1.5rem 2rem 0;
     overflow: hidden;
 }
 
-/* Evita que o cabeçalho fixo e a área de filtros encolham */
-#view-minhas-tarefas > div:not(#tb-content) {
+/* Header (título + filtros) — não encolhe jamais */
+#tb-sticky-header {
     flex-shrink: 0;
+    padding: 1.5rem 2rem 1rem;
+    background: var(--dark, #0a0f1e);
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    /* remove position:sticky — o flex-shrink já mantém no topo */
+    position: static !important;
+    z-index: auto !important;
 }
 
-/* Conteúdo (Kanban ou Lista) — preenche e rola */
+/* Visual de "grudado" quando conteúdo está rolando abaixo */
+#tb-sticky-header.is-stuck {
+    border-bottom-color: var(--dark-border);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* Conteúdo (Kanban ou Lista) — cresce e rola */
 #view-minhas-tarefas #tb-content {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
-    padding-bottom: 1.5rem; /* margem de respiro na base */
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -246,13 +257,44 @@
 
 #view-reports { display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden; }
 
-/* A view ocupa toda a área disponível e empilha em coluna */
-#view-audit-log.audit-log-view {
-    display: flex;
+/* View preenche toda a altura e adiciona padding próprio */
+#view-audit-log:not([style*="none"]) {
+    display: flex !important;
     flex-direction: column;
     height: 100%;
-    padding: 0;
+    padding: 1.5rem 2rem 1.5rem;
     overflow: hidden;
+}
+
+/* Glass-panel cresce para preencher espaço abaixo do top-bar */
+#view-audit-log > .glass-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Filtros e toolbar — altura fixa, não encolhem */
+#view-audit-log .filters,
+#view-audit-log .bulk-toolbar,
+#view-audit-log .rpt-filters,
+#view-audit-log .rpt-info-bar {
+    flex-shrink: 0;
+}
+
+/* Tabela — cresce e rola verticalmente */
+#view-audit-log .company-table-container {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* Paginação — pinada na base do panel */
+#view-audit-log #pagination-audit {
+    flex-shrink: 0;
 }
 
 /* Quando o audit-log está ativo, desabilita o scroll/padding do main-content */
@@ -302,25 +344,35 @@
     position: relative;
     flex: 1;
     min-width: 180px;
+    display: flex;
+    align-items: center;
+    padding: 0 0.6rem;
+    height: 32px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--dark-border);
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+}
+.rpt-filter-search:focus-within {
+    border-color: var(--primary);
 }
 .rpt-filter-search i {
-    position: absolute;
-    left: 10px; top: 50%; transform: translateY(-50%);
-    color: var(--text-muted); font-size: 14px; pointer-events: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    margin-right: 0.4rem;
+    flex-shrink: 0;
 }
 .rpt-filter-search input {
-    width: 100%;
-    padding: 7px 10px 7px 32px;
-    background: var(--dark-surface);
-    border: 1px solid var(--dark-border);
-    border-radius: 8px;
+    flex: 1;
+    padding: 0;
+    height: 100%;
+    background: transparent;
+    border: none;
     color: var(--text-main);
-    font-size: 13px;
+    font-size: 0.85rem;
     font-family: 'Plus Jakarta Sans', sans-serif;
     outline: none;
-    transition: border-color 0.2s;
 }
-.rpt-filter-search input:focus { border-color: var(--primary); }
 .rpt-filters select {
     padding: 7px 2rem 7px 10px;
     background: rgba(15, 23, 42, 0.55);
@@ -354,24 +406,32 @@
 }
 .rpt-date-range span { font-size: 11px; color: var(--text-muted); }
 .rpt-date-range input {
-    padding: 6px 10px 6px 32px;
-    background-color: var(--dark-surface) !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-position: 8px center !important;
-    background-size: 16px !important;
-    border: 1px solid var(--dark-border) !important;
+    padding: 0 10px;
+    height: 32px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1.5px solid var(--dark-border);
     border-radius: 8px;
-    color: var(--text-main) !important;
-    font-size: 13px;
+    color: var(--text-main);
+    font-size: 12px;
     font-family: 'Plus Jakarta Sans', sans-serif;
     outline: none;
     cursor: pointer;
     min-height: 32px;
-    min-width: 130px;
-    box-shadow: none !important;
+    min-width: 120px;
+    box-shadow: none;
+    color-scheme: dark;
+    transition: var(--transition);
 }
-.rpt-date-range input:focus { border-color: var(--primary) !important; color: var(--text-main) !important; }
+.rpt-date-range input:hover { border-color: rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.75); }
+.rpt-date-range input:focus { border-color: var(--primary); background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); color: var(--text-main); }
+
+/* Adiciona suporte para os botões CustomSelect no painel de relatórios (32px de altura) */
+.rpt-filters .csel-trigger {
+    min-height: 32px;
+    height: 32px;
+    padding: 0 0.6rem;
+    font-size: 0.85rem;
+}
 
 /* ── Info bar ────────────────────────────────────────────────────────────────── */
 .rpt-info-bar {
@@ -548,6 +608,49 @@
     color: var(--text-muted);
 }
 
+
+/* ── Filtros da view Atividades (padrão plataforma — inline com ícone) ──────── */
+.act-filter-select-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1.5px solid var(--dark-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+.act-filter-select-wrap:hover {
+    border-color: rgba(255,255,255,0.2);
+    background: rgba(15, 23, 42, 0.75);
+}
+.act-filter-select-wrap:focus-within {
+    border-color: var(--primary);
+    background: rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+.act-filter-select-wrap select {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-main);
+    font-size: 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    padding: 0;
+    line-height: 1;
+    min-width: 60px;
+    max-width: 140px;
+}
+.act-filter-select-wrap select option {
+    background: #1e293b;
+    color: var(--text-main);
+}
 
 /* ── btn-ghost (mantido para compatibilidade) ───────────────────────────────── */
 .btn-ghost {
