@@ -703,6 +703,9 @@
                             <button type="button" class="tab-menu-btn" id="btn-tab-atividades" data-tab="tab-atividades" data-tab-view="company_tab.activities" data-tab-edit="company_edit.activities">
                                 <i class="ph ph-activity"></i> Atividades
                             </button>
+                            <button type="button" class="tab-menu-btn" id="btn-tab-monthly-report" data-tab="tab-monthly-report" data-tab-view="company_tab.activities">
+                                <i class="ph ph-chart-bar"></i> Relatório
+                            </button>
 
                             <!-- Abas legadas — mantidas ocultas para preservar código existente -->
                             <button type="button" class="tab-menu-btn" data-tab="tab-reunioes" style="display:none;">
@@ -1642,6 +1645,15 @@
                                 </div>
                             </div>
 
+                            <!-- Tab: Relatório Mensal — Chamados, Help Desk, Rotinas DATI Import -->
+                            <div id="tab-monthly-report" class="tab-content glass-panel form-section" style="margin-top: 0; padding: 1.25rem;">
+                                <!-- Preenchido dinamicamente por js/modules/monthly-report.js -->
+                                <div style="padding: 2rem; text-align:center; color: var(--text-muted); font-size:14px;">
+                                    <i class="ph ph-chart-bar" style="font-size:32px; display:block; margin-bottom:0.75rem;"></i>
+                                    Selecione esta aba para carregar o relatório mensal.
+                                </div>
+                            </div>
+
                             <!-- Tab: Reuniões (legada — mantida para não quebrar código existente) -->
                             <div id="tab-reunioes" class="tab-content glass-panel form-section" style="margin-top:0;">
                                 <div class="form-header">
@@ -1973,63 +1985,124 @@
                         </div>
                     </div>
 
-                    <!-- FILTROS -->
-                    <div class="rpt-filters">
-                        <div class="rpt-filter-search">
-                            <i class="ph ph-magnifying-glass"></i>
-                            <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off" />
+                    <!-- TABS TOGGLE -->
+                    <div class="rpt-tabs-toggle">
+                        <button id="rpt-tab-empresas" class="rpt-tab-btn active" onclick="window._rptSwitchTab('empresas')">
+                            <i class="ph ph-buildings"></i> Tabela de Empresas
+                        </button>
+                        <button id="rpt-tab-aderencia" class="rpt-tab-btn" onclick="window._rptSwitchTab('aderencia')">
+                            <i class="ph ph-chart-bar"></i> Aderência Mensal
+                        </button>
+                    </div>
+
+                    <!-- PAINEL: Tabela de Empresas -->
+                    <div id="rpt-panel-empresas">
+                        <!-- FILTROS -->
+                        <div class="rpt-filters">
+                            <div class="rpt-filter-search">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off" />
+                            </div>
+                            <select id="rpt-filter-status" data-icon="ph-funnel-simple" data-prefix="Status:"><option value="">Status</option></select>
+                            <select id="rpt-filter-tipo" data-icon="ph-squares-four" data-prefix="Tipo:"><option value="">Tipo</option></select>
+                            <select id="rpt-filter-segmento" data-icon="ph-briefcase" data-prefix="Segmento:"><option value="">Segmento</option></select>
+                            <select id="rpt-filter-health" data-icon="ph-heartbeat" data-prefix="Health Score:"><option value="">Health Score</option></select>
+                            <select id="rpt-filter-cs" data-icon="ph-user" data-prefix="Responsável:"><option value="">Responsável</option></select>
+                            <div class="rpt-date-range">
+                                <input type="date" id="rpt-filter-date-from" title="Criado de" />
+                                <span>até</span>
+                                <input type="date" id="rpt-filter-date-to"   title="Criado até" />
+                            </div>
+                            <button id="btn-rpt-clear" class="btn-ghost btn-sm">
+                                <i class="ph ph-x"></i> Limpar
+                            </button>
                         </div>
-                        <select id="rpt-filter-status" data-icon="ph-funnel-simple" data-prefix="Status:"><option value="">Status</option></select>
-                        <select id="rpt-filter-tipo" data-icon="ph-squares-four" data-prefix="Tipo:"><option value="">Tipo</option></select>
-                        <select id="rpt-filter-segmento" data-icon="ph-briefcase" data-prefix="Segmento:"><option value="">Segmento</option></select>
-                        <select id="rpt-filter-health" data-icon="ph-heartbeat" data-prefix="Health Score:"><option value="">Health Score</option></select>
-                        <select id="rpt-filter-cs" data-icon="ph-user" data-prefix="Responsável:"><option value="">Responsável</option></select>
-                        <div class="rpt-date-range">
-                            <input type="date" id="rpt-filter-date-from" title="Criado de" />
-                            <span>até</span>
-                            <input type="date" id="rpt-filter-date-to"   title="Criado até" />
+
+                        <!-- INFO BAR -->
+                        <div class="rpt-info-bar">
+                            <span id="rpt-count" class="rpt-count-badge">0 empresas</span>
                         </div>
-                        <button id="btn-rpt-clear" class="btn-ghost btn-sm">
-                            <i class="ph ph-x"></i> Limpar
-                        </button>
+
+                        <!-- TABELA -->
+                        <div class="rpt-table-wrap">
+                            <table id="rpt-table" class="rpt-table">
+                                <thead id="rpt-thead"></thead>
+                                <tbody id="rpt-tbody">
+                                    <tr><td colspan="99" class="rpt-loading">
+                                        <div class="rpt-spinner"></div>
+                                        <span>Carregando dados…</span>
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- PAGINAÇÃO -->
+                        <div class="rpt-pagination">
+                            <button id="rpt-prev" class="btn-ghost btn-sm" disabled>
+                                <i class="ph ph-caret-left"></i> Anterior
+                            </button>
+                            <span id="rpt-page-info">Página 1</span>
+                            <button id="rpt-next" class="btn-ghost btn-sm">
+                                Próxima <i class="ph ph-caret-right"></i>
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- INFO BAR -->
-                    <div class="rpt-info-bar">
-                        <span id="rpt-count" class="rpt-count-badge">0 empresas</span>
+                    <!-- PAINEL: Aderência Mensal -->
+                    <div id="rpt-panel-aderencia" style="display:none;">
+                        <!-- Toolbar de mês -->
+                        <div class="rpt-adh-toolbar">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <button id="rpt-adh-prev" class="mr-nav-btn" title="Mês anterior">
+                                    <i class="ph ph-caret-left"></i>
+                                </button>
+                                <span id="rpt-adh-month-label" style="min-width:80px; text-align:center; font-size:15px; font-weight:700; color:var(--text-main);"></span>
+                                <button id="rpt-adh-next" class="mr-nav-btn" title="Próximo mês">
+                                    <i class="ph ph-caret-right"></i>
+                                </button>
+                            </div>
+                            <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                                <select id="rpt-adh-filter-cs" style="padding:6px 10px; border-radius:8px; border:1px solid var(--dark-border); background:var(--dark-surface); color:var(--text-main); font-family:inherit; font-size:12px;">
+                                    <option value="">Todos os CS</option>
+                                </select>
+                                <select id="rpt-adh-filter-hs" style="padding:6px 10px; border-radius:8px; border:1px solid var(--dark-border); background:var(--dark-surface); color:var(--text-main); font-family:inherit; font-size:12px;">
+                                    <option value="">Todos os Health Scores</option>
+                                    <option value="Saudável">🟢 Saudável</option>
+                                    <option value="Atenção">🟡 Atenção</option>
+                                    <option value="Risco">🔴 Risco</option>
+                                </select>
+                                <button id="rpt-adh-refresh" class="btn btn-primary btn-sm">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tabela de aderência -->
+                        <div class="rpt-table-wrap" style="margin-top:1rem;">
+                            <table class="rpt-table" id="rpt-adh-table">
+                                <thead>
+                                    <tr>
+                                        <th>Empresa</th>
+                                        <th>CS</th>
+                                        <th style="text-align:center;">Chamados</th>
+                                        <th style="text-align:center;">Saldo HD</th>
+                                        <th style="text-align:center;">Aderência</th>
+                                        <th style="text-align:center;">Status</th>
+                                        <th style="text-align:center;">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rpt-adh-tbody">
+                                    <tr><td colspan="7" class="rpt-loading">
+                                        <div class="rpt-spinner"></div>
+                                        <span>Carregando...</span>
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    <!-- TABELA -->
-                    <div class="rpt-table-wrap">
-                        <table id="rpt-table" class="rpt-table">
-                            <thead id="rpt-thead"></thead>
-                            <tbody id="rpt-tbody">
-                                <tr><td colspan="99" class="rpt-loading">
-                                    <div class="rpt-spinner"></div>
-                                    <span>Carregando dados…</span>
-                                </td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- PAGINAÇÃO -->
-                    <div class="rpt-pagination">
-                        <button id="rpt-prev" class="btn-ghost btn-sm" disabled>
-                            <i class="ph ph-caret-left"></i> Anterior
-                        </button>
-                        <span id="rpt-page-info">Página 1</span>
-                        <button id="rpt-next" class="btn-ghost btn-sm">
-                            Próxima <i class="ph ph-caret-right"></i>
-                        </button>
-                    </div>
-
-                </div>
-            </div>
-
-
-            <!-- ══════════════════════════════════════════════════════════════ -->
-            <!-- Catálogo de Produtos DATI                                     -->
-            <!-- ══════════════════════════════════════════════════════════════ -->
+                </div><!-- /rpt-container -->
+            </div><!-- /#view-reports -->
 
 
             <!-- ═══════════════════════════════════════════════════════════════

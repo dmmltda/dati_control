@@ -33,6 +33,7 @@ import { initSettingsGabi } from './modules/settings-gabi.js';
 import * as logTestes from './modules/log-testes.js';
 import * as logAgendamento from './modules/log-agendamento.js';
 import * as reports from './modules/reports.js';
+import { initMonthlyReport } from './modules/monthly-report.js';
 import * as auditLog from './modules/audit-log.js';
 import { initNotifications } from './modules/notifications.js';
 
@@ -434,6 +435,14 @@ function handleTabActions(target) {
                 const companyId = document.getElementById('company-id')?.value;
                 if (companyId) {
                     activities.initActivitiesTab(companyId);
+                }
+            }
+
+            // Inicializa a aba Relatório Mensal ao navegar para ela
+            if (tabId === 'tab-monthly-report') {
+                const companyId = document.getElementById('company-id')?.value;
+                if (companyId) {
+                    initMonthlyReport(companyId);
                 }
             }
         }

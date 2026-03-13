@@ -24,6 +24,7 @@ import gabiRouter from './routes/gabi.js';
 import testRunsRouter from './routes/test-runs.js';
 import testScheduleRouter from './routes/test-schedule.js';
 import reportsRouter from './routes/reports.js';
+import monthlyReportRouter from './routes/monthly-report.js';
 import auditRouter from './routes/audit.js';
 import googleMeetRouter, { syncPendingRecordings } from './routes/google-meet.js';
 import whatsappRouter from './routes/whatsapp.js';
@@ -36,7 +37,36 @@ import { init as initScheduler } from './services/test-scheduler.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+// ── Carrega variáveis de ambiente ────────────────────────────────────────────────────
+// dotenvx falha silenciosamente neste ambiente (injecting env: 0).
+// Lê o arquivo manualmente e injeta em process.env apenas o que ainda não foi definido.
+function loadEnvFile(filePath) {
+    try {
+        const content = readFileSync(filePath, 'utf-8');
+        let count = 0;
+        for (const line of content.split('\n')) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const eqIdx = trimmed.indexOf('=');
+            if (eqIdx === -1) continue;
+            const key = trimmed.substring(0, eqIdx).trim();
+            const val = trimmed.substring(eqIdx + 1).trim().replace(/^["']|["']$/g, '');
+            if (key && val && !process.env[key]) {
+                process.env[key] = val;
+                count++;
+            }
+        }
+        if (count > 0) console.log(`[env] ✅ ${count} variáveis carregadas de ${filePath}`);
+    } catch (e) {
+        // arquivo opcional — não falha
+    }
+}
+
+// Carrega server/.env primeiro (DATABASE_URL, GEMINI_API_KEY, CLERK_SECRET_KEY, etc.)
+// depois root .env como fallback
+loadEnvFile(path.join(__dirname, '.env'));        // server/.env
+loadEnvFile(path.join(__dirname, '..', '.env'));  // root .env (fallback)
+
 
 const app = express();
 const prisma = new PrismaClient({
@@ -542,6 +572,7 @@ app.use('/api/test-runs', testRunsRouter);
 // test-schedule: agendamento e trigger manual (master only via rota)
 app.use('/api/test-schedule', extractUsuario, testScheduleRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/monthly-report', monthlyReportRouter);
 app.use('/api/audit-logs', extractUsuario, auditRouter);
 app.use('/api/google-meet', extractUsuario, googleMeetRouter);
 app.use('/api/whatsapp', whatsappRouter);

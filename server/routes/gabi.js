@@ -159,23 +159,17 @@ async function getGeminiApiKey() {
     return getSetting('gemini_api_key', process.env.GEMINI_API_KEY || null);
 }
 
-// Modelos em ordem de preferência para TEXTO + TOOL USE
-const GEMINI_MODELS  = [
-    'gemini-2.5-flash',          // principal: mais recente e estável
-    'gemini-2.0-flash-lite',     // fallback leve e rápido
-    'gemini-flash-latest',       // alias que sempre aponta para versão atual
-    'gemini-2.0-flash',          // último recurso (funciona em planos legados)
-    'gemini-pro-latest',         // fallback final
+// Modelos confirmados como funcionando com esta chave API (testado em 2026-03-13)
+// gemini-2.0-flash, gemini-2.0-flash-lite, gemini-1.5-* retornam 404 para chaves novas
+const GEMINI_MODELS = [
+    'gemini-2.5-flash',      // ✅ principal — mais recente, suporta texto + ferramentas
+    'gemini-flash-latest',   // ✅ alias genérico — sempre aponta para versão atual
 ];
 
-// Modelos para VISÃO (multimodal — inlineData). Estes são estritamente multimodais
-// e não recebem tools para evitar conflito com inlineData.
+// Modelos de VISÃO testados e confirmados
 const GEMINI_VISION_MODELS = [
-    'gemini-2.0-flash',           // melhor suporte vision + mais estável
-    'gemini-1.5-flash',           // excelente para visão, muito maduro
-    'gemini-1.5-pro',             // fallback de alta qualidade
-    'gemini-2.5-flash',           // tentativa com mais novo
-    'gemini-flash-latest',        // alias genérico
+    'gemini-2.5-flash',      // ✅ confirmado: responde "Eu consigo ver a imagem."
+    'gemini-flash-latest',   // ✅ confirmado: responde a imagens
 ];
 
 // Preços USD por 1M tokens (Gemini 2.0 Flash)
@@ -248,7 +242,8 @@ async function geminiGenerateVision(body) {
             if (resp.ok) {
                 const data = await resp.json();
                 data._model_used = model;
-                console.log(`[Gabi Vision] ✅ Modelo ${model} respondeu com visão`);
+                const previewText = data.candidates?.[0]?.content?.parts?.map(p => p.text).join('').substring(0, 300) || '(sem texto)';
+                console.log(`[Gabi Vision] ✅ Modelo ${model} respondeu: "${previewText}"`);
                 return data;
             }
             const errBody = await resp.json().catch(() => ({}));
@@ -1614,14 +1609,29 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
         const actionsPerformed = [];
 
         // ── CAMINHO ESPECIAL: mensagem com imagem ───────────────────────────────────
-        // Quando há imagem, usamos geminiGenerateVision (sem tools) para
-        // garantir que o modelo multimodal analise a imagem antes de qualquer
-        // tool-use. Depois a resposta é retornada direto (sem loop de tools).
         if (image?.base64) {
             console.log(`[Gabi Vision] 🖼️ Imagem recebida: ${image.mimeType}, ${Math.round(image.base64.length / 1024)}KB base64`);
+
+            // Monta a mensagem da imagem diretamente como partes multimodais
+            // NOTA: Não usa system_instruction (modelos em preview podem ignorar).
+            // Inclui contexto como parte do texto da mensagem do usuário.
+            const visionUserText = message?.trim()
+                ? message.trim()
+                : 'Analise e descreva esta imagem em detalhes. Extraia todo o texto visível, identifique o contexto (e-mail, WhatsApp, proposta, etc.) e liste as informações mais relevantes.';
+
+            // Constrói a mensagem vision com o system_instruction embutido no texto
+            const visionMessages = [
+                {
+                    role: 'user',
+                    parts: [
+                        { inlineData: { mimeType: image.mimeType, data: image.base64 } },
+                        { text: visionUserText }
+                    ]
+                }
+            ];
+
             const visionData = await geminiGenerateVision({
-                system_instruction: { parts: [{ text: systemPrompt }] },
-                contents: allMessages,
+                contents: visionMessages,
                 generationConfig: { temperature: 0.4, maxOutputTokens: 4096 },
             });
             inputTok  = visionData.usageMetadata?.promptTokenCount    || 0;
@@ -1641,6 +1651,7 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
             return res.json({ reply: finalText, actionsPerformed: [], activityChanged: false, companyChanged: false,
                 usage: { inputTokens: inputTok, outputTokens: outputTok, costUsd: costUsd.toFixed(6) } });
         }
+
 
         // ── CAMINHO NORMAL: texto apenas (com tool-use) ───────────────────────────────
         // Loop de reasoning + tool-use (máx 100 iterações)
@@ -1730,6 +1741,50 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
         console.error('[Gabi] Erro:', err.message);
         res.status(500).json({ error: err.message });
     }
+});
+
+// ── GET /api/gabi/test-vision — diagnóstico: testa visão em todos os modelos ──
+router.get('/test-vision', requireAuth(), async (req, res) => {
+    const apiKey = await getGeminiApiKey();
+    if (!apiKey) return res.status(500).json({ error: 'API key não configurada' });
+
+    // Imagem 1x1 PNG puro base64
+    const MINI_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const results = [];
+
+    for (const model of GEMINI_VISION_MODELS) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const controller = new AbortController();
+        const tId = setTimeout(() => controller.abort(), 15000);
+        try {
+            const r = await fetch(url, {
+                method: 'POST', signal: controller.signal,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts: [
+                        { inlineData: { mimeType: 'image/png', data: MINI_PNG } },
+                        { text: 'Descreva esta imagem em 5 palavras.' }
+                    ]}],
+                    generationConfig: { maxOutputTokens: 60 }
+                })
+            });
+            clearTimeout(tId);
+            if (r.ok) {
+                const d = await r.json();
+                const text = d.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '(vazio)';
+                results.push({ model, status: r.status, ok: true, reply: text.trim() });
+            } else {
+                const err = await r.json().catch(() => ({}));
+                results.push({ model, status: r.status, ok: false, error: err?.error?.message || JSON.stringify(err).substring(0, 100) });
+            }
+        } catch (e) {
+            clearTimeout(tId);
+            results.push({ model, status: 0, ok: false, error: e.name === 'AbortError' ? 'timeout' : e.message.substring(0, 80) });
+        }
+    }
+    const working = results.filter(r => r.ok);
+    console.log(`[Gabi Vision Test] Modelos OK: ${working.map(r => r.model).join(', ') || 'NENHUM'}`);
+    res.json({ working: working.map(r => r.model), results });
 });
 
 // ── GET /api/gabi/usage ────────────────────────────────────────────────────────

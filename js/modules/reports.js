@@ -557,3 +557,262 @@ function showError(msg) {
 window._rptOpenCompany = (id) => {
   if (typeof window.openCompany === 'function') window.openCompany(id);
 };
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ADERÊNCIA MENSAL — Visão de todas as empresas por mês
+// ══════════════════════════════════════════════════════════════════════════════
+
+const _adh = {
+  month: null,   // YYYY-MM
+  data:  [],     // rows da API /api/monthly-report/overview
+};
+
+function _adhTodayYYYYMM() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _adhFormatLabel(yyyyMM) {
+  if (!yyyyMM) return '—';
+  const [year, month] = yyyyMM.split('-').map(Number);
+  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  return `${months[month - 1]}/${year}`;
+}
+
+function _adhPrev(m) {
+  const [y, mo] = m.split('-').map(Number);
+  const d = new Date(y, mo - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _adhNext(m) {
+  const [y, mo] = m.split('-').map(Number);
+  const d = new Date(y, mo, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _adhUpdateMonthLabel() {
+  const el = document.getElementById('rpt-adh-month-label');
+  if (el) el.textContent = _adhFormatLabel(_adh.month);
+}
+
+async function _adhFetch() {
+  const token = await getAuthToken();
+  const res = await fetch(`/api/monthly-report/overview?month=${_adh.month}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function _adhStatusIcon(status) {
+  switch (status) {
+    case 'verde':    return '<span style="font-size:16px;" title="OK">✅</span>';
+    case 'amarelo':  return '<span style="font-size:16px;" title="Atenção">⚠️</span>';
+    case 'vermelho': return '<span style="font-size:16px;" title="HD negativo">❌</span>';
+    default:         return '<span style="font-size:16px; opacity:.4;" title="Sem dados">—</span>';
+  }
+}
+
+async function _adhLoad() {
+  const tbody = document.getElementById('rpt-adh-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="7" class="rpt-loading"><div class="rpt-spinner"></div><span>Carregando...</span></td></tr>`;
+
+  try {
+    _adh.data = await _adhFetch();
+    _adhRender();
+  } catch (err) {
+    console.error('[monthly-report/overview]', err);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty rpt-error-cell"><i class="ph ph-warning"></i> Erro ao carregar aderência mensal.</td></tr>`;
+  }
+}
+
+function _adhRender() {
+  const tbody  = document.getElementById('rpt-adh-tbody');
+  if (!tbody) return;
+
+  let rows = [..._adh.data];
+
+  // Filtro CS
+  const csFilter = document.getElementById('rpt-adh-filter-cs')?.value || '';
+  if (csFilter) rows = rows.filter(r => r.cs === csFilter);
+
+  const hs = document.getElementById('rpt-adh-filter-hs')?.value || '';
+  // HS filter não está disponível no endpoint overview ainda, mas se passado
+  // na API futura virá no campo health_score
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="rpt-empty">Nenhum dado encontrado para este mês.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="font-weight:600;">${_escHtml(r.nome)}</td>
+      <td style="color:var(--text-muted);">${_escHtml(r.cs || '—')}</td>
+      <td style="text-align:center;">${r.chamados}</td>
+      <td style="text-align:center; font-weight:600;
+          color:${r.saldo_hd_minutos >= 0 ? '#10b981' : '#ef4444'};">${_escHtml(r.saldo_hd_formatado)}</td>
+      <td style="text-align:center; color:var(--text-muted);">${r.aderencia_geral !== null ? r.aderencia_geral + '%' : '<span style="opacity:.4">—</span>'}</td>
+      <td style="text-align:center;">${_adhStatusIcon(r.status)}</td>
+      <td style="text-align:center;">
+        <button class="btn-ghost btn-sm"
+          onclick="window._rptAbrirRelatorio('${r.id}')"
+          title="Ver relatório de ${_escHtml(r.nome)}"
+          style="font-size:12px; padding:4px 8px;">
+          <i class="ph ph-arrow-right"></i> Ver
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  // Preenche o select de CS dinamicamente
+  const csSelect = document.getElementById('rpt-adh-filter-cs');
+  if (csSelect && csSelect.options.length === 1) {
+    const csSet = new Set(_adh.data.map(r => r.cs).filter(Boolean));
+    csSet.forEach(cs => {
+      const opt = document.createElement('option');
+      opt.value = cs;
+      opt.textContent = cs;
+      csSelect.appendChild(opt);
+    });
+  }
+}
+
+function _escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s || '');
+  return d.innerHTML;
+}
+
+// Navega para a aba Relatório do cliente
+window._rptAbrirRelatorio = function(companyId) {
+  // 1) Abre o formulário da empresa
+  if (typeof window.nav?.openCompanyForm === 'function') {
+    window.nav.openCompanyForm(companyId);
+  }
+  // 2) Aguarda o DOM renderizar e clica no botão da aba Relatório
+  setTimeout(() => {
+    const btn = document.getElementById('btn-tab-monthly-report');
+    if (btn) btn.click();
+  }, 400);
+};
+
+function _adhInitEventListeners() {
+  document.getElementById('rpt-adh-prev')?.addEventListener('click', async () => {
+    _adh.month = _adhPrev(_adh.month);
+    _adhUpdateMonthLabel();
+    await _adhLoad();
+  });
+  document.getElementById('rpt-adh-next')?.addEventListener('click', async () => {
+    _adh.month = _adhNext(_adh.month);
+    _adhUpdateMonthLabel();
+    await _adhLoad();
+  });
+  document.getElementById('rpt-adh-refresh')?.addEventListener('click', async () => {
+    await _adhLoad();
+  });
+  document.getElementById('rpt-adh-filter-cs')?.addEventListener('change', _adhRender);
+  document.getElementById('rpt-adh-filter-hs')?.addEventListener('change', _adhRender);
+}
+
+// ── Tab switcher (Tabela de Empresas | Aderência Mensal) ──────────────────────
+let _tabListenersOk = false;
+let _adhLoaded = false;
+
+window._rptSwitchTab = function(tab) {
+  const panelEmpresas  = document.getElementById('rpt-panel-empresas');
+  const panelAderencia = document.getElementById('rpt-panel-aderencia');
+  const btnEmpresas    = document.getElementById('rpt-tab-empresas');
+  const btnAderencia   = document.getElementById('rpt-tab-aderencia');
+
+  // Mostra / esconde botões do header que fazem sentido só para a tabela
+  const headerActions = document.querySelector('.rpt-header-actions');
+
+  if (tab === 'empresas') {
+    if (panelEmpresas)  panelEmpresas.style.display  = '';
+    if (panelAderencia) panelAderencia.style.display = 'none';
+    btnEmpresas?.classList.add('active');
+    btnAderencia?.classList.remove('active');
+    if (headerActions) headerActions.style.display = '';
+  } else {
+    if (panelEmpresas)  panelEmpresas.style.display  = 'none';
+    if (panelAderencia) panelAderencia.style.display = '';
+    btnEmpresas?.classList.remove('active');
+    btnAderencia?.classList.add('active');
+    if (headerActions) headerActions.style.display = 'none';
+
+    // Inicializa o painel de aderência na primeira vez
+    if (!_adhLoaded) {
+      _adhLoaded = true;
+      _adh.month = _adhTodayYYYYMM();
+      _adhUpdateMonthLabel();
+      _adhInitEventListeners();
+    }
+    _adhLoad();
+  }
+};
+
+// Injeta CSS para as abas de relatório
+(function _injectReportTabStyles() {
+  if (document.getElementById('rpt-tab-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'rpt-tab-styles';
+  style.textContent = `
+    .rpt-tabs-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--dark-border);
+      padding-bottom: 0.75rem;
+    }
+    .rpt-tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 8px 14px;
+      border: 1px solid var(--dark-border);
+      border-radius: 8px;
+      background: var(--dark-surface);
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, border-color 0.18s;
+    }
+    .rpt-tab-btn.active {
+      background: rgba(79,70,229,0.12);
+      border-color: var(--primary);
+      color: var(--text-main);
+    }
+    .rpt-tab-btn:hover:not(.active) {
+      background: var(--dark-border);
+      color: var(--text-main);
+    }
+    .rpt-adh-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      padding: 0.75rem 0;
+    }
+    /* mr-nav-btn available from monthly-report module — fallback if not loaded */
+    .mr-nav-btn {
+      background: var(--dark-surface);
+      border: 1px solid var(--dark-border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px 8px;
+      font-size: 14px;
+      display: inline-flex; align-items: center;
+      transition: background 0.18s, color 0.18s;
+    }
+    .mr-nav-btn:hover { background: var(--dark-border); color: var(--text-main); }
+  `;
+  document.head.appendChild(style);
+})();
+
