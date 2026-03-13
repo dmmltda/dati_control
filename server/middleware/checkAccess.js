@@ -15,7 +15,9 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import { FEATURE_PERMISSIONS } from '../constants/permissions.js';
 const prisma = new PrismaClient();
+
 
 /**
  * Factory que retorna o middleware de verificação de acesso.
@@ -88,4 +90,53 @@ export function requireMaster(req, res, next) {
         });
     }
     next();
+}
+
+/**
+ * Middleware factory: bloqueia acesso se o usuário standard não tiver a feature permission.
+ * Master bypassa automaticamente.
+ *
+ * Uso:
+ *   app.get('/api/gabi/...', extractUsuario, requireFeature('gabi.view'), handler)
+ */
+export function requireFeature(permissionKeys) {
+    const keys = Array.isArray(permissionKeys) ? permissionKeys : [permissionKeys];
+    
+    // Validar se todas as keys existem
+    for (const k of keys) {
+        if (!FEATURE_PERMISSIONS[k]) {
+            console.warn(`[requireFeature] Permissão desconhecida: "${k}"`);
+        }
+    }
+
+    return async function (req, res, next) {
+        const usuario = req.usuarioAtual;
+        if (!usuario) return res.status(401).json({ error: 'Não autenticado' });
+
+        // master tem tudo
+        if (usuario.user_type === 'master') return next();
+
+        try {
+            const rows = await prisma.user_feature_permissions.findMany({
+                where: {
+                    user_id: usuario.id,
+                    permission: { in: keys },
+                    granted: true
+                },
+            });
+
+            if (rows.length === 0) {
+                const featureNames = keys.map(k => FEATURE_PERMISSIONS[k] || k).join(' ou ');
+                return res.status(403).json({
+                    error: 'Acesso negado',
+                    message: `Você não tem permissão para acessar: ${featureNames}`,
+                });
+            }
+
+            return next();
+        } catch (err) {
+            console.error('[requireFeature] Erro:', err);
+            return res.status(500).json({ error: 'Erro ao verificar permissões' });
+        }
+    };
 }

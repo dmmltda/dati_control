@@ -46,11 +46,19 @@ h3,
 h4 {
     color: var(--text-main);
     font-weight: 600;
-    margin-bottom: 1rem;
+    margin-bottom: 0.429rem; /* ≈ 6px (base: 14px) */
 }
 
 h1 {
-    font-size: 2rem;
+    font-size: 1.571rem; /* ≈ 22px (base: 14px) */
+}
+
+/* Ícones nos títulos de página — sempre no mesmo tamanho do título */
+.top-bar h1 i,
+.top-bar h2 i,
+.rpt-header h2 i {
+    font-size: 1.571rem; /* ≈ 22px — igual ao título */
+    flex-shrink: 0;
 }
 
 h2 {
@@ -65,4 +73,12 @@ p {
     color: var(--text-muted);
     margin-bottom: 1rem;
     line-height: 1.6;
+}
+
+/* Subtítulos de página — padronizados em 12px */
+.top-bar p,
+.rpt-header p {
+    font-size: 0.857rem !important; /* ≈ 12px (base: 14px) */
+    color: var(--text-muted);
+    margin: 0;
 }

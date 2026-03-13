@@ -18,6 +18,7 @@
 
 import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
+import { confirmar } from './confirmar.js';
 
 // ─── Estado interno ────────────────────────────────────────────────────────
 let _usuarios = [];      // cache completo carregado da API
@@ -109,7 +110,7 @@ function _renderTabela(lista) {
                 </td>
                 <td>
                     <div style="font-weight:600; color:#e2e8f0; font-size:0.875rem;">${u.nome}</div>
-                    <div style="color:#64748b; font-size:0.75rem;">${u.email}</div>
+                    <div style="color:#64748b; font-size:0.786rem; margin-top:0.286rem;">${u.email}</div>
                     ${u.department ? `<div style="color:#8b98b4; font-size:0.7rem;">${u.department}</div>` : ''}
                 </td>
                 <td style="text-align:center;">
@@ -147,10 +148,23 @@ function _renderTabela(lista) {
                             ${isMaster ? '→ Standard' : '→ Master'}
                         </button>
                         <button class="btn btn-secondary"
+                            style="padding:0.3rem 0.6rem; font-size:0.75rem; color:#a78bfa;"
+                            title="Gerenciar permissões"
+                            onclick="window._gerenciarPermissoes('${u.id}', '${u.nome.replace(/'/g, "&#39;")}', ${isMaster})">
+                            <i class="ph ph-shield-check"></i>
+                        </button>
+
+                        <button class="btn btn-secondary"
                             style="padding:0.3rem 0.6rem; font-size:0.75rem; color:${isAtivo ? '#ef4444' : '#10b981'};"
                             title="${isAtivo ? 'Desativar usuário' : 'Reativar usuário'}"
                             onclick="window._alterarStatusUsuario('${u.id}', ${!isAtivo}, '${u.nome}')">
                             <i class="ph ph-${isAtivo ? 'user-minus' : 'user-plus'}"></i>
+                        </button>
+                        <button class="btn btn-secondary"
+                            style="padding:0.3rem 0.6rem; font-size:0.75rem; color:#ef4444;"
+                            title="Deletar usuário permanentemente"
+                            onclick="window._deletarUsuario('${u.id}', '${u.nome.replace(/'/g, "&#39;")}')">
+                            <i class="ph ph-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -187,52 +201,78 @@ window._usersSearch = function (query) {
 };
 
 // ─── Ações: Alterar tipo ───────────────────────────────────────────────────
-window._alterarTipoUsuario = async function (userId, novoTipo, nome) {
+window._alterarTipoUsuario = function (userId, novoTipo, nome) {
     const confirmMsg = novoTipo === 'master'
         ? `Tornar "${nome}" um Master? Ele terá acesso total ao sistema.`
         : `Tornar "${nome}" Standard? Você precisará configurar as empresas que ele pode acessar.`;
 
-    if (!confirm(confirmMsg)) return;
+    confirmar(confirmMsg, async () => {
+        try {
+            const token = await getAuthToken();
+            const res = await fetch(`/api/users/${userId}`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_type: novoTipo }),
+            });
+            if (!res.ok) throw new Error((await res.json()).error || 'Erro desconhecido');
 
-    try {
-        const token = await getAuthToken();
-        const res = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_type: novoTipo }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error || 'Erro desconhecido');
-
-        showToast(`${nome} agora é ${novoTipo === 'master' ? 'Master' : 'Standard'}.`, 'success');
-        await _carregarUsuarios();
-        _renderTabela(_filtrado);
-        _atualizarKPIs();
-    } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-    }
+            showToast(`${nome} agora é ${novoTipo === 'master' ? 'Master' : 'Standard'}.`, 'success');
+            await _carregarUsuarios();
+            _renderTabela(_filtrado);
+            _atualizarKPIs();
+        } catch (err) {
+            showToast('Erro: ' + err.message, 'error');
+        }
+    });
 };
 
 // ─── Ações: Alterar status (ativo/inativo) ─────────────────────────────────
-window._alterarStatusUsuario = async function (userId, novoAtivo, nome) {
+window._alterarStatusUsuario = function (userId, novoAtivo, nome) {
     const msg = novoAtivo ? `Reativar "${nome}"?` : `Desativar "${nome}"? Ele perderá o acesso imediatamente.`;
-    if (!confirm(msg)) return;
 
-    try {
-        const token = await getAuthToken();
-        const res = await fetch(`/api/users/${userId}`, {
-            method: 'PUT',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ativo: novoAtivo }),
-        });
-        if (!res.ok) throw new Error((await res.json()).error || 'Erro desconhecido');
+    confirmar(msg, async () => {
+        try {
+            const token = await getAuthToken();
+            const res = await fetch(`/api/users/${userId}`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ativo: novoAtivo }),
+            });
+            if (!res.ok) throw new Error((await res.json()).error || 'Erro desconhecido');
 
-        showToast(`${nome} ${novoAtivo ? 'reativado' : 'desativado'}.`, 'success');
-        await _carregarUsuarios();
-        _renderTabela(_filtrado);
-        _atualizarKPIs();
-    } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-    }
+            showToast(`${nome} ${novoAtivo ? 'reativado' : 'desativado'}.`, 'success');
+            await _carregarUsuarios();
+            _renderTabela(_filtrado);
+            _atualizarKPIs();
+        } catch (err) {
+            showToast('Erro: ' + err.message, 'error');
+        }
+    });
+};
+
+// ─── Ações: Deletar usuário permanentemente ───────────────────────────────
+window._deletarUsuario = function (userId, nome) {
+    confirmar(
+        `⚠️ Deletar "${nome}" permanentemente?\n\nEssa ação é irreversível e removerá o usuário do banco de dados.`,
+        async () => {
+            try {
+                const token = await getAuthToken();
+                const res = await fetch(`/api/users/${userId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                if (!res.ok) throw new Error((await res.json()).error || 'Erro ao deletar');
+
+                showToast(`"${nome}" foi deletado.`, 'success');
+                await _carregarUsuarios();
+                _renderTabela(_usuarios);
+                _atualizarKPIs();
+            } catch (err) {
+                showToast('Erro: ' + err.message, 'error');
+            }
+        },
+        { danger: true }
+    );
 };
 
 // ─── Modal de Convite ──────────────────────────────────────────────────────
@@ -483,3 +523,381 @@ function _showError(msg) {
         </td></tr>`;
     }
 }
+
+// ─── Gerenciamento de Feature Permissions ──────────────────────────────────
+
+const _PERMISSION_GROUPS = [
+    {
+        label: 'Navegação',
+        icon: 'ph-compass',
+        color: '#818cf8',
+        keys: [
+            ['dashboard.view',  'Dashboard',               'ph-squares-four'],
+            ['companies.view',  'Empresas',                'ph-users-three'],
+            ['my_tasks.view',   'Minhas Atividades',       'ph-check-circle'],
+            ['reports.view',    'Relatórios',              'ph-chart-bar'],
+            ['audit.view',      'Histórico de Alterações', 'ph-clock-counter-clockwise'],
+            ['test_logs.view',  'Log de Testes',           'ph-test-tube'],
+            ['gabi.view',       'Gabi AI',                 'ph-sparkle'],
+        ],
+    },
+    {
+        label: 'Visualizar Cliente (Abas)',
+        icon: 'ph-eye',
+        color: '#f472b6',
+        keys: [
+            ['company_tab.basic_data', 'Dados Básicos',    'ph-buildings'],
+            ['company_tab.products',   'Produtos DATI',    'ph-package'],
+            ['company_tab.contacts',   'Contatos',         'ph-users'],
+            ['company_tab.cs',         'Customer Success', 'ph-heartbeat'],
+            ['company_tab.activities', 'Atividades',       'ph-activity'],
+        ],
+    },
+    {
+        label: 'Edição',
+        icon: 'ph-pencil-simple',
+        color: '#34d399',
+        keys: [
+            ['company_edit.basic_data', 'Editar Básicos',     'ph-pencil'],
+            ['company_edit.products',   'Editar Produtos',    'ph-wrench'],
+            ['company_edit.contacts',   'Editar Contatos',    'ph-user-gear'],
+            ['company_edit.cs',         'Editar CS',          'ph-note-pencil'],
+            ['company_edit.activities', 'Editar Atividades',  'ph-plus-circle'],
+        ],
+    },
+];
+
+/**
+ * Abre o modal de permissões para um usuário.
+ * Para Masters: exibe modal informativo (acesso total).
+ * Para Standards: exibe modal editável com checkboxes.
+ */
+window._gerenciarPermissoes = async function (userId, nome, isMaster = false) {
+    // Masters têm acesso total — exibir modal informativo
+    if (isMaster) {
+        let modal = document.getElementById('modal-feature-permissions');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-feature-permissions';
+            Object.assign(modal.style, {
+                position: 'fixed', inset: '0', zIndex: '99999',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: 'rgba(8,14,32,0.88)', backdropFilter: 'blur(10px)',
+                opacity: '0', transition: 'opacity 0.2s ease',
+            });
+            modal.addEventListener('click', e => { if (e.target === modal) window._fecharModalPermissoes(); });
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = `
+            <div id="fp-panel" style="
+                background:#0f172a; border:1px solid rgba(255,255,255,0.09); border-radius:20px;
+                width:92%; max-width:420px; padding:2rem;
+                box-shadow:0 40px 80px rgba(0,0,0,0.7);
+                font-family:'Plus Jakarta Sans','DM Sans',sans-serif;
+                transform:scale(0.93) translateY(8px);
+                transition:transform 0.28s cubic-bezier(0.175,0.885,0.32,1.275);
+                text-align:center;">
+                <div style="width:52px;height:52px;border-radius:16px;margin:0 auto 1.25rem;
+                            background:linear-gradient(135deg,rgba(109,40,217,0.3),rgba(79,70,229,0.3));
+                            border:1px solid rgba(167,139,250,0.3);
+                            display:flex;align-items:center;justify-content:center;">
+                    <i class="ph ph-crown" style="color:#a78bfa;font-size:1.4rem;"></i>
+                </div>
+                <div style="font-weight:700;color:#e2e8f0;font-size:1rem;margin-bottom:0.4rem;">Acesso Master</div>
+                <div style="color:#64748b;font-size:0.82rem;margin-bottom:0.35rem;">${nome}</div>
+                <div style="color:#94a3b8;font-size:0.82rem;line-height:1.6;margin-bottom:1.75rem;">
+                    Usuários <strong style="color:#a78bfa;">Master</strong> possuem acesso irrestrito a todas as
+                    funcionalidades do sistema. Não é necessário configurar permissões individualmente.
+                </div>
+                <button onclick="window._fecharModalPermissoes()"
+                    style="padding:0.65rem 2rem;border-radius:8px;border:none;
+                           background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;
+                           cursor:pointer;font-size:0.85rem;font-weight:600;font-family:inherit;transition:all 0.2s;"
+                    onmouseover="this.style.filter='brightness(1.12)'"
+                    onmouseout="this.style.filter='brightness(1)'">Entendido</button>
+            </div>`;
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+            modal.querySelector('#fp-panel').style.transform = 'scale(1) translateY(0)';
+        });
+        if (!document.getElementById('fp-spin-style')) {
+            const s = document.createElement('style');
+            s.id = 'fp-spin-style';
+            s.textContent = '@keyframes fp-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+            document.head.appendChild(s);
+        }
+        return;
+    }
+
+    // Standard: modal editável
+    let modal = document.getElementById('modal-feature-permissions');
+
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'modal-feature-permissions';
+        Object.assign(modal.style, {
+            position: 'fixed', inset: '0', zIndex: '99999',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'rgba(8,14,32,0.88)', backdropFilter: 'blur(10px)',
+            opacity: '0', transition: 'opacity 0.2s ease',
+        });
+        modal.addEventListener('click', e => { if (e.target === modal) window._fecharModalPermissoes(); });
+        document.body.appendChild(modal);
+    }
+
+    // Inicia keyframe de spin
+    if (!document.getElementById('fp-spin-style')) {
+        const s = document.createElement('style');
+        s.id = 'fp-spin-style';
+        s.textContent = '@keyframes fp-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
+        document.head.appendChild(s);
+    }
+
+    // Skeleton do modal enquanto carrega
+    modal.innerHTML = `
+        <div id="fp-panel" style="
+            background: #0f172a;
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 20px;
+            width: 92%; max-width: 580px;
+            max-height: 88vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(167,139,250,0.08);
+            font-family: 'Plus Jakarta Sans','DM Sans',sans-serif;
+            transform: scale(0.93) translateY(8px);
+            transition: transform 0.28s cubic-bezier(0.175,0.885,0.32,1.275);
+            overflow: hidden;
+        ">
+            <!-- Cabeçalho -->
+            <div style="padding:1.25rem 1.5rem; border-bottom:1px solid rgba(255,255,255,0.07);
+                        display:flex; align-items:center; justify-content:space-between; flex-shrink:0;">
+                <div style="display:flex; align-items:center; gap:0.85rem;">
+                    <div style="width:40px; height:40px; border-radius:12px;
+                                background:linear-gradient(135deg,rgba(109,40,217,0.4),rgba(79,70,229,0.4));
+                                border:1px solid rgba(167,139,250,0.25);
+                                display:flex; align-items:center; justify-content:center;">
+                        <i class="ph ph-shield-check" style="color:#a78bfa; font-size:1.2rem;"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight:700; color:#e2e8f0; font-size:1rem; line-height:1.2;">Permissões de Acesso</div>
+                        <div style="color:#64748b; font-size:0.78rem; display:flex; align-items:center; gap:0.35rem; margin-top:0.15rem;">
+                            <i class="ph ph-user" style="font-size:0.7rem;"></i>
+                            ${nome}
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <span id="fp-count-badge" style="font-size:0.72rem; color:#a78bfa; background:rgba(167,139,250,0.1);
+                          border:1px solid rgba(167,139,250,0.2); padding:0.2rem 0.55rem; border-radius:20px; font-weight:600;">
+                        — permissões
+                    </span>
+                    <button onclick="window._fecharModalPermissoes()"
+                        style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+                               border-radius:8px; color:#64748b; cursor:pointer; padding:0.35rem 0.5rem;
+                               font-size:1rem; transition:all 0.15s; line-height:1;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#e2e8f0'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#64748b'">
+                        <i class="ph ph-x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Atalhos rápidos -->
+            <div style="padding:0.75rem 1.5rem; border-bottom:1px solid rgba(255,255,255,0.05);
+                        display:flex; align-items:center; gap:0.6rem; flex-shrink:0; background:rgba(255,255,255,0.015);">
+                <span style="font-size:0.75rem; color:#475569; margin-right:0.25rem;">Selecionar:</span>
+                <button onclick="window._fpGrantAll()"
+                    style="padding:0.3rem 0.7rem; border-radius:6px; border:1px solid rgba(52,211,153,0.3);
+                           background:rgba(52,211,153,0.07); color:#34d399; cursor:pointer; font-size:0.73rem;
+                           font-weight:600; font-family:inherit; transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(52,211,153,0.15)'"
+                    onmouseout="this.style.background='rgba(52,211,153,0.07)'">
+                    <i class="ph ph-check-square"></i> Todas
+                </button>
+                <button onclick="window._fpRevokeAll()"
+                    style="padding:0.3rem 0.7rem; border-radius:6px; border:1px solid rgba(239,68,68,0.25);
+                           background:rgba(239,68,68,0.06); color:#f87171; cursor:pointer; font-size:0.73rem;
+                           font-weight:600; font-family:inherit; transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(239,68,68,0.14)'"
+                    onmouseout="this.style.background='rgba(239,68,68,0.06)'">
+                    <i class="ph ph-x-square"></i> Nenhuma
+                </button>
+            </div>
+
+            <!-- Checkboxes -->
+            <div id="fp-groups-container" style="overflow-y:auto; flex:1; padding:1.25rem 1.5rem;">
+                <div style="text-align:center; padding:3rem; color:#64748b;">
+                    <i class="ph ph-circle-notch" style="animation:fp-spin 1s linear infinite; display:inline-block; font-size:1.4rem; margin-bottom:0.5rem; display:block;"></i>
+                    Carregando permissões...
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="padding:1rem 1.5rem; border-top:1px solid rgba(255,255,255,0.07);
+                        display:flex; justify-content:flex-end; align-items:center; gap:0.75rem; flex-shrink:0;">
+                <button onclick="window._fecharModalPermissoes()"
+                    style="padding:0.6rem 1.25rem; border-radius:8px; border:1px solid rgba(255,255,255,0.1);
+                           background:transparent; color:#94a3b8; cursor:pointer; font-size:0.85rem;
+                           font-family:inherit; transition:all 0.2s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">Cancelar</button>
+                <button id="fp-save-btn" onclick="window._salvarPermissoes('${userId}')"
+                    style="padding:0.6rem 1.5rem; border-radius:8px; border:none;
+                           background:linear-gradient(135deg,#6d28d9,#4f46e5); color:#fff;
+                           cursor:pointer; font-size:0.85rem; font-weight:600; font-family:inherit;
+                           display:flex; align-items:center; gap:0.4rem; transition:all 0.2s;"
+                    onmouseover="this.style.filter='brightness(1.12)'"
+                    onmouseout="this.style.filter='brightness(1)'">
+                    <i class="ph ph-floppy-disk"></i> Salvar
+                </button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        modal.style.opacity = '1';
+        const panel = modal.querySelector('#fp-panel');
+        if (panel) panel.style.transform = 'scale(1) translateY(0)';
+    });
+
+    // Carrega permissões atuais
+    try {
+        const token = await getAuthToken();
+        const res = await fetch(`/api/users/${userId}/feature-permissions`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const permsMap = await res.json();
+        _renderPermissoesCheckboxes(permsMap);
+        _atualizarContadorFP();
+    } catch (err) {
+        const container = document.getElementById('fp-groups-container');
+        if (container) container.innerHTML =
+            `<div style="color:#ef4444;text-align:center;padding:2rem;">
+                <i class="ph ph-warning" style="font-size:1.5rem; display:block; margin-bottom:0.5rem;"></i>
+                Erro ao carregar: ${err.message}
+            </div>`;
+    }
+};
+
+function _atualizarContadorFP() {
+    const checked = document.querySelectorAll('input[name="fp-perm"]:checked').length;
+    const total   = document.querySelectorAll('input[name="fp-perm"]').length;
+    const badge   = document.getElementById('fp-count-badge');
+    if (badge) badge.textContent = `${checked}/${total} permissões`;
+}
+
+function _renderPermissoesCheckboxes(permsMap) {
+    const container = document.getElementById('fp-groups-container');
+    if (!container) return;
+
+    container.innerHTML = _PERMISSION_GROUPS.map(group => `
+        <div style="margin-bottom:1.5rem;">
+            <!-- Cabeçalho do grupo -->
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.65rem;
+                        padding-bottom:0.5rem; border-bottom:1px solid rgba(255,255,255,0.05);">
+                <i class="${group.icon}" style="color:${group.color}; font-size:0.85rem;"></i>
+                <span style="font-size:0.68rem; font-weight:700; text-transform:uppercase;
+                             letter-spacing:0.1em; color:${group.color};">${group.label}</span>
+            </div>
+            <!-- Grid de checkboxes -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:0.3rem;">
+                ${group.keys.map(([key, label, icon]) => `
+                    <label style="display:flex; align-items:center; gap:0.5rem; padding:0.45rem 0.65rem;
+                                  border-radius:8px; cursor:pointer; transition:all 0.12s;
+                                  border:1px solid ${permsMap[key] ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.04)'};
+                                  background:${permsMap[key] ? 'rgba(167,139,250,0.07)' : 'rgba(255,255,255,0.02)'};"
+                           onmouseover="this.style.background='${permsMap[key] ? 'rgba(167,139,250,0.12)' : 'rgba(255,255,255,0.05)'}'"
+                           onmouseout="this.style.background='${permsMap[key] ? 'rgba(167,139,250,0.07)' : 'rgba(255,255,255,0.02)'}'">
+                        <input type="checkbox" name="fp-perm" value="${key}"
+                            ${permsMap[key] ? 'checked' : ''}
+                            onchange="window._fpUpdateLabel(this); window._atualizarContadorFP();"
+                            style="width:14px; height:14px; accent-color:#a78bfa; cursor:pointer; flex-shrink:0;">
+                        <i class="${icon}" style="color:${permsMap[key] ? '#a78bfa' : '#475569'}; font-size:0.8rem; flex-shrink:0; transition:color 0.12s;"></i>
+                        <span style="font-size:0.78rem; color:${permsMap[key] ? '#e2e8f0' : '#94a3b8'}; line-height:1.3; transition:color 0.12s;">${label}</span>
+                    </label>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+window._fpUpdateLabel = function(cb) {
+    const label = cb.closest('label');
+    const icon  = label?.querySelector('i');
+    const text  = label?.querySelector('span');
+    if (cb.checked) {
+        if (label) { label.style.background = 'rgba(167,139,250,0.07)'; label.style.borderColor = 'rgba(167,139,250,0.2)'; }
+        if (icon)  icon.style.color = '#a78bfa';
+        if (text)  text.style.color = '#e2e8f0';
+    } else {
+        if (label) { label.style.background = 'rgba(255,255,255,0.02)'; label.style.borderColor = 'rgba(255,255,255,0.04)'; }
+        if (icon)  icon.style.color = '#475569';
+        if (text)  text.style.color = '#94a3b8';
+    }
+};
+
+window._fpGrantAll = function() {
+    document.querySelectorAll('input[name="fp-perm"]').forEach(cb => { cb.checked = true; window._fpUpdateLabel(cb); });
+    _atualizarContadorFP();
+};
+
+window._fpRevokeAll = function() {
+    document.querySelectorAll('input[name="fp-perm"]').forEach(cb => { cb.checked = false; window._fpUpdateLabel(cb); });
+    _atualizarContadorFP();
+};
+
+window._atualizarContadorFP = _atualizarContadorFP;
+
+window._fecharModalPermissoes = function () {
+    const modal = document.getElementById('modal-feature-permissions');
+    if (!modal) return;
+    modal.style.opacity = '0';
+    const panel = modal.querySelector('#fp-panel');
+    if (panel) { panel.style.transform = 'scale(0.93) translateY(8px)'; }
+    setTimeout(() => { modal.style.display = 'none'; }, 220);
+};
+
+window._salvarPermissoes = async function (userId) {
+    const btn = document.getElementById('fp-save-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:fp-spin 1s linear infinite;display:inline-block;margin-right:0.3rem;"></i> Salvando...'; }
+
+    const checked = [...document.querySelectorAll('input[name="fp-perm"]:checked')].map(cb => cb.value);
+
+    try {
+        const token = await getAuthToken();
+        const res = await fetch(`/api/users/${userId}/feature-permissions`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permissions: checked }),
+        });
+        if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || 'Erro ao salvar');
+        }
+        showToast(`Permissões atualizadas! ✅`, 'success');
+        window._fecharModalPermissoes();
+
+        // ─ Se as permissões alteradas são do próprio usuário logado,
+        //   atualiza o cache em memória e re-aplica o nav imediatamente
+        const eu = window.__usuarioAtual;
+        if (eu && eu.id === userId) {
+            try {
+                const meRes = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+                if (meRes.ok) {
+                    const me = await meRes.json();
+                    window.__usuarioAtual = me;
+                    window.aplicarPermissoesNavegacao?.();
+                }
+            } catch (_) { /* silencioso — o refresh manual resolve */ }
+        }
+    } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ph ph-floppy-disk"></i> Salvar'; }
+    }
+};
+
+

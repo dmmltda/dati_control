@@ -381,6 +381,8 @@ model activities {
   activity_next_step_responsibles activity_next_step_responsibles[]
   activity_attachments            activity_attachments[]
   activity_mentions               activity_mentions[]
+  activity_time_logs              activity_time_logs[]
+  notifications                   notifications[]
 }
 
 model activity_assignees {
@@ -416,6 +418,18 @@ model activity_mentions {
   activity    activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
 }
 
+/// Sessões de tempo registradas na aba Tempo de cada atividade
+model activity_time_logs {
+  id               String     @id @default(uuid())
+  activity_id      String
+  started_at       DateTime                       // data e hora de início da sessão
+  duration_minutes Int                            // duração em minutos (fechado/fixo)
+  subject          String?                        // assunto — editável pelo usuário
+  created_by       String?                        // user_id de quem registrou
+  created_at       DateTime   @default(now())
+  activity         activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // MÓDULO DE USUÁRIOS — sincronizado com Clerk
 // O id é o Clerk User ID (ex: "user_2abc123...")
@@ -443,7 +457,28 @@ model users {
   timezone   String?  @default("America/Sao_Paulo")
 
   // ── RELAÇÕES ──────────────────────────────────────────────────────────────
-  user_memberships user_memberships[]
+  user_memberships         user_memberships[]
+  user_feature_permissions user_feature_permissions[]
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PERMISSÕES DE FUNCIONALIDADE — Controle granular de acesso a módulos
+// Gerenciadas pelo master via UI de configurações.
+// Master sempre tem acesso total (sem entradas nesta tabela).
+// Standard: só acessa o que tiver granted=true aqui.
+// ══════════════════════════════════════════════════════════════════════════════
+model user_feature_permissions {
+  id          String   @id @default(uuid())
+  user_id     String
+  permission  String   // ex: 'dashboard.view', 'companies.edit_full', 'gabi.view'
+  granted     Boolean  @default(true)
+  granted_by  String?  // user_id do master que concedeu/revogou
+  updated_at  DateTime @updatedAt
+
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, permission])
+  @@map("user_feature_permissions")
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -504,7 +539,7 @@ model user_invites {
 // ══════════════════════════════════════════════════════════════════════════════
 model product_catalog {
   id          String   @id @default(uuid())
-  nome        String                        // Ex: "DATI Import", "DATI Export", "Smart Read"
+  nome        String                        // Ex: "DATI Import", "DATI Export", "Smart Read", "Catálogo de Produtos", "Orkestra" (em breve)
   descricao   String?                       // Descrição longa do produto
   categoria   String?                       // Ex: "Importação", "Exportação", "Compliance"
   status      String   @default("Ativo")    // "Ativo" | "Inativo" | "Em desenvolvimento"
@@ -556,6 +591,26 @@ model gabi_usage_logs {
   output_tokens Int      @default(0)   // Tokens de saída (resposta)
   cost_usd      Float    @default(0)   // Custo em USD desta chamada
   created_at    DateTime @default(now())
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// NOTIFICAÇÕES IN-APP — Sininho do header
+// Registra avisos para cada usuário: menções em atividades e próximos passos.
+// "read" permite marcar como lida sem deletar o histórico.
+// ══════════════════════════════════════════════════════════════════════════════
+model notifications {
+  id          String      @id @default(uuid())
+  user_id     String                            // destinatário (Clerk user_id)
+  type        String                            // "mentioned" | "next-step-assigned"
+  activity_id String?                           // atividade relacionada (pode ser null)
+  title       String                            // ex: "Você foi marcado em uma atividade"
+  message     String                            // ex: "Daniel te marcou em: 'Não temos contato' (PRINT MAIS)"
+  read        Boolean     @default(false)
+  created_at  DateTime    @default(now())
+  activity    activities? @relation(fields: [activity_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, read])
+  @@index([created_at])
 }
 
 // ─── E-mail — Deduplicação de envios ─────────────────────────────────────────

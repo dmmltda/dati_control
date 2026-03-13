@@ -12,6 +12,7 @@
 import { TableManager } from '../core/table-manager.js';
 import { state } from './state.js';
 import * as utils from './utils.js';
+import { confirmar } from './confirmar.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
@@ -48,7 +49,7 @@ const ACTIVITY_TYPE_CONFIG = {
     'Reunião': { icon: 'ph-video', color: '#6366f1' },
     'Chamados HD': { icon: 'ph-headset', color: '#f59e0b' },
     'Chamados CS': { icon: 'ph-heartbeat', color: '#10b981' },
-    'Ação necessária': { icon: 'ph-lightning', color: '#ef4444' },
+    'Ação necessária': { icon: 'ph-lightning', color: '#f97316' },
 };
 
 export const ACTIVITY_PRIORITIES = ['baixa', 'média', 'alta', 'urgente'];
@@ -270,9 +271,9 @@ function _renderRows(rows) {
                     <button type="button" class="btn btn-secondary btn-icon" onclick="activities.openActivityCard('${act.id}')" title="Ver detalhes">
                         <i class="ph ph-arrow-square-out"></i>
                     </button>
-                    <button type="button" class="btn btn-danger btn-icon" onclick="activities.deleteActivity('${act.id}')" title="Excluir">
-                        <i class="ph ph-trash"></i>
-                    </button>
+                    ${(window.canDo && !window.canDo('company_edit.activities')) ? 
+                        `<button type="button" class="btn btn-danger btn-icon" disabled style="opacity:0.6;cursor:not-allowed;pointer-events:auto;" data-th-title="MODO SOMENTE LEITURA" data-th-tooltip="Você não tem permissão para excluir atividades." onclick="event.stopPropagation(); event.preventDefault();"><i class="ph ph-trash"></i></button>`
+                    : `<button type="button" class="btn btn-danger btn-icon" onclick="activities.deleteActivity('${act.id}')" title="Excluir"><i class="ph ph-trash"></i></button>`}
                 </div>
             </td>
         `;
@@ -426,27 +427,16 @@ function _renderTableSkeleton() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function openCreateModal() {
-    _editingActivityId = null;
-    _timerReset();
-    _showModal({
-        title: '+ Nova Atividade',
-        submitLabel: 'Salvar Atividade',
-        prefill: null,
-    });
+    _renderActivityDetailCard(null, _currentCompanyId);
 }
 
 export async function openEditModal(activityId) {
-    _editingActivityId = activityId;
     const activity = _manager?._originalData?.find(a => a.id === activityId);
     if (!activity) {
         utils.showToast('Atividade não encontrada.', 'error');
         return;
     }
-    _showModal({
-        title: 'Editar Atividade',
-        submitLabel: 'Salvar Alterações',
-        prefill: activity,
-    });
+    _renderActivityDetailCard(activity);
 }
 
 function _showModal({ title, submitLabel, prefill }) {
@@ -1011,19 +1001,20 @@ export function clearAllFilters() {
     }
 }
 
-export async function deleteActivity(activityId) {
-    if (!confirm('Deseja excluir esta atividade?')) return;
-    try {
-        await _deleteActivityApi(activityId);
-        utils.showToast('Atividade excluída!', 'success');
-        // Notifica outros painéis (Dashboard, Minhas Atividades) da exclusão
-        window.dispatchEvent(new CustomEvent('journey:activity-changed', {
-            detail: { action: 'delete', id: activityId }
-        }));
-        await _reloadActivities();
-    } catch (e) {
-        utils.showToast(e.message, 'error');
-    }
+export function deleteActivity(activityId) {
+    confirmar('Deseja excluir esta atividade?', async () => {
+        try {
+            await _deleteActivityApi(activityId);
+            utils.showToast('Atividade excuída!', 'success');
+            // Notifica outros painéis (Dashboard, Minhas Atividades) da exclusão
+            window.dispatchEvent(new CustomEvent('journey:activity-changed', {
+                detail: { action: 'delete', id: activityId }
+            }));
+            await _reloadActivities();
+        } catch (e) {
+            utils.showToast(e.message, 'error');
+        }
+    });
 }
 
 /**
@@ -1106,21 +1097,27 @@ export function openActivityCard(activityId) {
     _renderActivityDetailCard(act);
 }
 
-function _renderActivityDetailCard(a) {
+// a = null → modo criação; a = objeto → modo edição
+function _renderActivityDetailCard(a, companyIdForCreate) {
     document.getElementById('act-detail-card-overlay')?.remove();
+
+    const isCreateMode = !a;
+    if (isCreateMode) a = {}; // objeto vazio facilita as referências abaixo
 
     const STATUS_COLORS = { 'A Fazer':'#6366f1','Em Andamento':'#f59e0b','Concluída':'#10b981','Cancelada':'#ef4444' };
     const sc  = STATUS_COLORS[a.status] || '#6366f1';
     const pc  = a.priority ? (PRIORITY_CONFIG[a.priority]?.color || '#64748b') : null;
     const cfg = ACTIVITY_TYPE_CONFIG[a.activity_type] || { icon:'ph-activity', color:'#64748b' };
-    const isOverdue = a.activity_datetime && new Date(a.activity_datetime) < new Date() && a.status !== 'Concluída';
+    const isOverdue = !isCreateMode && a.activity_datetime && new Date(a.activity_datetime) < new Date() && a.status !== 'Concluída';
 
-    const dtLocal     = a.activity_datetime ? new Date(a.activity_datetime).toISOString().slice(0,16) : '';
+    const nowLocal    = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    const dtLocal     = isCreateMode ? nowLocal : (a.activity_datetime ? new Date(a.activity_datetime).toISOString().slice(0,16) : '');
     const assigneesVal = (a.activity_assignees || []).map(r => r.user_nome || r.user_id).join(', ');
     const nextStepResp = (a.activity_next_step_responsibles || []).map(r => r.user_id).join(', ');
     const nextDt      = a.next_step_date ? new Date(a.next_step_date).toISOString().slice(0,10) : '';
     const reminderAt  = a.reminder_at ? new Date(a.reminder_at).toISOString().slice(0,16) : '';
     const timeMin     = a.time_spent_minutes || 0;
+    const cardTitle   = isCreateMode ? 'Nova Atividade' : (a.title || 'Atividade');
 
     // timer local
     let _tSec = timeMin * 60, _tState = 'idle', _tIv = null;
@@ -1157,14 +1154,15 @@ function _renderActivityDetailCard(a) {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;">
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;margin-bottom:0.65rem;">
-              <span class="adc-badge" style="background:${sc}18;color:${sc};border:1px solid ${sc}40;">
-                <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></span>${a.status||'A Fazer'}
-              </span>
-              ${pc ? `<span class="adc-badge" style="background:${pc}18;color:${pc};border:1px solid ${pc}40;">${PRIORITY_CONFIG[a.priority]?.label||a.priority}</span>` : ''}
-              ${isOverdue ? `<span class="adc-badge" style="background:#ef444415;color:#ef4444;border:1px solid #ef444438;"><i class="ph ph-warning-circle"></i> Atrasada</span>` : ''}
-              ${a.activity_type ? `<span class="adc-chip"><i class="ph ${cfg.icon}" style="color:${cfg.color};"></i>${a.activity_type}</span>` : ''}
+              ${isCreateMode
+                ? `<span class="adc-badge" style="background:rgba(99,102,241,0.15);color:#818cf8;border:1px solid rgba(99,102,241,0.4);"><i class="ph ph-plus-circle"></i> Nova Atividade</span>`
+                : `<span class="adc-badge" style="background:${sc}18;color:${sc};border:1px solid ${sc}40;"><span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0;"></span>${a.status||'A Fazer'}</span>`
+              }
+              ${!isCreateMode && pc ? `<span class="adc-badge" style="background:${pc}18;color:${pc};border:1px solid ${pc}40;">${PRIORITY_CONFIG[a.priority]?.label||a.priority}</span>` : ''}
+              ${!isCreateMode && isOverdue ? `<span class="adc-badge" style="background:#ef444415;color:#ef4444;border:1px solid #ef444438;"><i class="ph ph-warning-circle"></i> Atrasada</span>` : ''}
+              ${!isCreateMode && a.activity_type ? `<span class="adc-chip"><i class="ph ${cfg.icon}" style="color:${cfg.color};"></i>${a.activity_type}</span>` : ''}
             </div>
-            <h2 style="margin:0 0 0.5rem;font-size:1.3rem;font-weight:800;line-height:1.35;word-break:break-word;">${(a.title||'').replace(/</g,'&lt;')}</h2>
+            <h2 style="margin:0 0 0.5rem;font-size:1.3rem;font-weight:800;line-height:1.35;word-break:break-word;">${isCreateMode ? 'Nova Atividade' : (a.title||'').replace(/</g,'&lt;')}</h2>
             <div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;">
               ${a.department ? `<span class="adc-chip"><i class="ph ph-buildings"></i>${a.department}</span>` : ''}
               ${a.activity_datetime ? `<span class="adc-chip" style="${isOverdue?'color:#ef4444;border-color:#ef444445;':''}"><i class="ph ph-calendar-blank"></i>${new Date(a.activity_datetime).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
@@ -1198,13 +1196,6 @@ function _renderActivityDetailCard(a) {
               <label>Tipo de Atividade</label>
               <select id="adc-type" class="input-control">
                 ${ACTIVITY_TYPES.map(t=>`<option value="${t}" ${a.activity_type===t?'selected':''}>${t}</option>`).join('')}
-              </select>
-            </div>
-            <div class="input-group">
-              <label>Departamento</label>
-              <select id="adc-dept" class="input-control">
-                <option value="">—</option>
-                ${ACTIVITY_DEPARTMENTS.map(d=>`<option value="${d}" ${a.department===d?'selected':''}>${d}</option>`).join('')}
               </select>
             </div>
             <div class="input-group">
@@ -1494,13 +1485,19 @@ function _renderActivityDetailCard(a) {
 
       <!-- FOOTER -->
       <div style="padding:1rem 2rem;border-top:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between;gap:0.75rem;background:rgba(0,0,0,0.2);flex-shrink:0;">
-        <button id="adc-delete-btn" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.22);border-radius:8px;padding:0.55rem 1rem;cursor:pointer;color:#ef4444;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.16)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">
-          <i class="ph ph-trash"></i> Excluir
-        </button>
+        ${isCreateMode
+          ? `<div></div>` /* placeholder para manter space-between */
+          : `<button id="adc-delete-btn" style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.22);border-radius:8px;padding:0.55rem 1rem;cursor:pointer;color:#ef4444;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.16)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">
+               <i class="ph ph-trash"></i> Excluir
+             </button>`
+        }
         <div style="display:flex;gap:0.6rem;align-items:center;">
           <button id="adc-cancel-btn" class="btn btn-secondary">Cancelar</button>
           <button id="adc-save-btn" class="btn btn-primary" style="display:flex;align-items:center;gap:0.45rem;padding:0.55rem 1.35rem;font-weight:700;">
-            <i class="ph ph-floppy-disk"></i> Salvar Alterações
+            ${isCreateMode
+              ? `<i class="ph ph-plus"></i> Criar Atividade`
+              : `<i class="ph ph-floppy-disk"></i> Salvar Alterações`
+            }
           </button>
         </div>
       </div>
@@ -1582,16 +1579,19 @@ function _renderActivityDetailCard(a) {
         utils.showToast(`Tempo registrado: ${_fmtM(Math.ceil(_tSec/60))}`, 'success');
     });
 
-    // ── delete ────────────────────────────────────────────────────────────────
-    document.getElementById('adc-delete-btn').addEventListener('click', async () => {
-        if (!confirm(`Excluir "${a.title}"?`)) return;
-        try {
-            await _deleteActivityApi(a.id);
-            utils.showToast('Atividade excluída!', 'success');
-            _closeCard();
-            await _reloadActivities();
-        } catch(e) { utils.showToast(e.message, 'error'); }
-    });
+    // ── delete (somente modo edição) ──────────────────────────────────────────
+    if (!isCreateMode) {
+        document.getElementById('adc-delete-btn')?.addEventListener('click', () => {
+            confirmar(`Excluir "${a.title}"?`, async () => {
+                try {
+                    await _deleteActivityApi(a.id);
+                    utils.showToast('Atividade excluída!', 'success');
+                    _closeCard();
+                    await _reloadActivities();
+                } catch(e) { utils.showToast(e.message, 'error'); }
+            });
+        });
+    }
 
     // ── save ──────────────────────────────────────────────────────────────────
     document.getElementById('adc-save-btn').addEventListener('click', async () => {
@@ -1605,13 +1605,23 @@ function _renderActivityDetailCard(a) {
         const title = document.getElementById('adc-title')?.value?.trim();
         if (!title) {
             utils.showToast('O título é obrigatório.', 'error');
-            btn.disabled=false; btn.innerHTML='<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            btn.disabled=false;
+            btn.innerHTML = isCreateMode
+                ? '<i class="ph ph-plus"></i> Criar Atividade'
+                : '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            return;
+        }
+
+        const actType = document.getElementById('adc-type').value;
+        if (isCreateMode && !actType) {
+            utils.showToast('Selecione o tipo de atividade.', 'error');
+            btn.disabled=false;
+            btn.innerHTML = '<i class="ph ph-plus"></i> Criar Atividade';
             return;
         }
 
         const payload = {
-            activity_type:     document.getElementById('adc-type').value,
-            department:        document.getElementById('adc-dept').value || null,
+            activity_type:     actType,
             status:            document.getElementById('adc-status').value || null,
             priority:          document.getElementById('adc-priority').value || null,
             activity_datetime: document.getElementById('adc-datetime').value ? new Date(document.getElementById('adc-datetime').value).toISOString() : null,
@@ -1626,7 +1636,6 @@ function _renderActivityDetailCard(a) {
             reminder_at:       document.getElementById('adc-reminder-at').value ? new Date(document.getElementById('adc-reminder-at').value).toISOString() : null,
             reminder_email:    document.getElementById('adc-reminder-email').checked,
             reminder_whatsapp: document.getElementById('adc-reminder-wpp').checked,
-            // Novos campos
             notify_on_assign:  document.getElementById('adc-notify-assign')?.checked || false,
             send_invite_email: document.getElementById('adc-send-invite')?.checked || false,
             send_summary_email: document.getElementById('adc-send-summary')?.checked || false,
@@ -1636,18 +1645,93 @@ function _renderActivityDetailCard(a) {
         };
 
         try {
-            await updateActivity(a.id, payload);
-            // upload pending files
+            let savedActivity;
+            if (isCreateMode) {
+                const cid = companyIdForCreate || _currentCompanyId;
+                if (!cid) throw new Error('Empresa não identificada para criar atividade.');
+                savedActivity = await createActivity(cid, payload);
+                utils.showToast('Atividade criada!', 'success');
+            } else {
+                savedActivity = await updateActivity(a.id, payload);
+                utils.showToast('Atividade atualizada!', 'success');
+            }
+
+            // Notifica outros painéis
+            window.dispatchEvent(new CustomEvent('journey:activity-changed', {
+                detail: { action: isCreateMode ? 'create' : 'update', id: savedActivity?.id }
+            }));
+
+            // Upload de arquivos pendentes
+            const actId = savedActivity?.id || a.id;
             for (const file of _adcFiles) {
                 const fd = new FormData(); fd.append('file', file);
-                await fetch(`/api/activities/${a.id}/attachments`, { method:'POST', body:fd });
+                await fetch(`/api/activities/${actId}/attachments`, { method:'POST', body:fd });
             }
-            utils.showToast('Atividade atualizada!', 'success');
+
             _closeCard();
             await _reloadActivities();
         } catch(e) {
             utils.showToast(e.message, 'error');
-            btn.disabled=false; btn.innerHTML='<i class="ph ph-floppy-disk"></i> Salvar Alterações';
+            btn.disabled=false;
+            btn.innerHTML = isCreateMode
+                ? '<i class="ph ph-plus"></i> Criar Atividade'
+                : '<i class="ph ph-floppy-disk"></i> Salvar Alterações';
         }
     });
+
+    // ── Permissões de Edição ──────────────────────────────────────────────────
+    const podeEditar = isCreateMode || (window.canDo ? window.canDo('company_edit.activities') : true);
+    if (!podeEditar) {
+        // Obter os painéis (tabs) para bloquear
+        // Em activities.js, as abas são .adc-panel
+        const panels = overlay.querySelectorAll('.adc-panel');
+        panels.forEach(panel => {
+            const blockOverlay = document.createElement('div');
+            blockOverlay.style.cssText = 'position:absolute; inset:0; z-index:10; pointer-events:none; background:rgba(0,0,0,0);';
+            panel.style.position = 'relative';
+            panel.appendChild(blockOverlay);
+        });
+        
+        // Adiciona banner no container principal
+        const cardContainer = document.getElementById('act-detail-card');
+        if (cardContainer) {
+            const banner = document.createElement('div');
+            banner.className = 'edit-lock-banner';
+            banner.style.cssText = `
+                display:flex; align-items:center; gap:0.6rem;
+                padding:0.7rem 1.8rem; font-size:0.75rem; 
+                background:rgba(239,68,68,0.06); color:#ef4444; 
+                border-bottom:1px solid rgba(239,68,68,0.22);
+            `;
+            banner.innerHTML = `<i class="ph ph-lock-key" style="font-size:1.1rem;"></i> <span>Modo somente leitura — você não tem permissão para editar atividades.</span>`;
+            
+            // Inserir banner logo abaixo do header (entre o header e as tabs no act-detail-card)
+            // As abas neste caso estão dentro do mesmo div do Header
+            const headerDiv = cardContainer.children[0];
+            headerDiv.insertAdjacentElement('afterend', banner);
+        }
+
+        const campos = Array.from(overlay.querySelectorAll('input, select, textarea, button:not(#adc-close):not(.adc-tab):not(#adc-cancel-btn):not(#adc-meet-enter-btn):not(a)'));
+        campos.forEach(el => {
+            if (el.id === 'adc-save-btn' || el.id === 'adc-delete-btn') {
+                el.disabled = true;
+                el.style.opacity = '0.38';
+                el.style.cursor = 'not-allowed';
+                el.style.pointerEvents = 'auto'; // allow hover for tooltip
+                el.setAttribute('data-th-title', 'SEM PERMISSÃO');
+                el.setAttribute('data-th-tooltip', 'Você não tem permissão para editar informações nesta seção.');
+            } else {
+                if (!el.disabled) {
+                    el.disabled = true;
+                    el.style.opacity = '0.6';
+                }
+                const targetTooltip = el.closest('.input-group') || el.parentElement;
+                if (targetTooltip) {
+                    targetTooltip.setAttribute('data-th-title', 'BLOQUEADO');
+                    targetTooltip.setAttribute('data-th-tooltip', 'Você não tem permissão para salvar ou alterar estes campos.');
+                    targetTooltip.style.cursor = 'not-allowed';
+                }
+            }
+        });
+    }
 }

@@ -550,8 +550,25 @@ export async function refreshLogTestes() {
         _buildFilterPopovers();
 
         // Atualiza o indicador de agendamento ativo no botão (não bloqueia)
-        _updateScheduleButtonStatus();
+        await _updateScheduleButtonStatus();
 
+        // ── Permissões de Visualização de Testes ─────────────────────────────
+        const podeTestar = window.__usuarioAtual && window.__usuarioAtual.user_type === 'master';
+        ['btn-log-agendamento', 'btn-log-run-now'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                if (!podeTestar) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                    btn.style.cursor = 'not-allowed';
+                    btn.style.pointerEvents = 'auto'; // allow hover for tooltip
+                    btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
+                    btn.setAttribute('data-th-title', 'MODO SOMENTE LEITURA');
+                    btn.setAttribute('data-th-tooltip', 'Você tem permissão apenas para visualizar o histórico de execuções.');
+                    btn.removeAttribute('title'); // impede tooltip nativo conflitar
+                }
+            }
+        });
 
     } catch (err) {
         console.error('[log-testes] Erro ao carregar dados:', err);

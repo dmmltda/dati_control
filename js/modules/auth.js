@@ -127,7 +127,18 @@ async function _bootstrapApp() {
 
         const me = await res.json();
         window.__usuarioAtual = me;
+
+        // ── Helper global de permissões ───────────────────────────────────────────────
+        // Master tem tudo; standard verifica feature_permissions retornado pelo /api/me
+        window.canDo = function(permissionKey) {
+            const u = window.__usuarioAtual;
+            if (!u) return false;
+            if (u.user_type === 'master') return true;
+            return Array.isArray(u.feature_permissions) && u.feature_permissions.includes(permissionKey);
+        };
+
         console.log(`[Auth] ✅ Sincronizado: ${me.nome} (${me.role})`);
+
 
         // ── Atualiza sidebar com dados reais do usuário ──────────────────
         const elNome   = document.getElementById('sidebar-user-name');
@@ -138,11 +149,19 @@ async function _bootstrapApp() {
         if (elAvatar) elAvatar.textContent = me.avatar
             || (me.nome ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
 
-        // Mostra menu Configurações só para master
+        // Mostra Configurações (label + bloco flat) só para master
         if (me.user_type === 'master') {
             const navConfig = document.getElementById('nav-group-config');
             if (navConfig) navConfig.style.display = 'block';
+            const navLabelConfig = document.getElementById('nav-label-config');
+            if (navLabelConfig) navLabelConfig.style.display = 'flex';
+            const navConfigFlat = document.getElementById('nav-group-config-flat');
+            if (navConfigFlat) navConfigFlat.style.display = 'block';
         }
+
+        // Aplica visibilidade de navegação baseada em feature permissions
+        _aplicarPermissoesNavegacao(me);
+
 
         try {
             // Limpa cache local antes de carregar — garante que standard users não vejam dados antigos
@@ -199,3 +218,93 @@ function _showConfigError() {
 
 export const showApp = _bootstrapApp;
 export const handleLogin = (e) => e?.preventDefault();
+
+/**
+ * Aplica visibilidade de itens de navegação com base nas feature permissions do usuário.
+ * Padrão: exibe TODOS os itens, mas itens sem permissão ficam opacos + 🔒 + tooltip.
+ * Configurações continua oculto para Standard (admin-only).
+ */
+function _aplicarPermissoesNavegacao(me) {
+    const isMaster = me.user_type === 'master';
+    const fp = Array.isArray(me.feature_permissions) ? me.feature_permissions : [];
+
+    // ─ Itens individuais com data-nav-permission
+    document.querySelectorAll('[data-nav-permission]').forEach(el => {
+        const perm = el.dataset.navPermission;
+        const ok   = isMaster || fp.includes(perm);
+        _setNavItemPermissao(el, ok);
+    });
+
+    // ─ Grupos (data-nav-permission-group="X,Y") —
+    //   dim o grupo inteiro + aplica cadeado/tooltip no toggle se NENHUMA sub-permissão for concedida
+    document.querySelectorAll('[data-nav-permission-group]').forEach(el => {
+        const perms     = el.dataset.navPermissionGroup.split(',').map(p => p.trim());
+        const temAlguma = isMaster || perms.some(p => fp.includes(p));
+
+        // Aplica estilo + cadeado + tooltip DATI no botão toggle (item clicável do grupo)
+        const toggle = el.querySelector('.nav-group-toggle');
+        if (toggle) _setNavItemPermissao(toggle, temAlguma);
+
+        // Bloqueia cliques nos sub-itens também quando sem permissão
+        const subMenu = el.querySelector('.nav-sub-menu');
+        if (subMenu) subMenu.style.pointerEvents = temAlguma ? '' : 'none';
+    });
+
+
+    // ─ Configurações: oculto para Standard (admin-only)
+    const navConfig        = document.getElementById('nav-group-config');
+    const navLabelConfig   = document.getElementById('nav-label-config');
+    const navConfigFlat    = document.getElementById('nav-group-config-flat');
+    if (navConfig)      navConfig.style.display      = isMaster ? '' : 'none';
+    if (navLabelConfig) navLabelConfig.style.display  = isMaster ? 'flex' : 'none';
+    if (navConfigFlat)  navConfigFlat.style.display   = isMaster ? '' : 'none';
+
+    // ─ Monitoramento: oculta label + bloco se o usuário não tiver nenhuma permissão de log
+    const logPerms          = ['test_logs.view', 'audit.view'];
+    const temAlgumaLogPerm  = isMaster || logPerms.some(p => fp.includes(p));
+    const navLabelMon       = document.getElementById('nav-label-monitoramento');
+    const navGroupMon       = document.getElementById('nav-group-monitoring');
+    if (navLabelMon) navLabelMon.style.display = temAlgumaLogPerm ? 'flex' : 'none';
+    if (navGroupMon) navGroupMon.style.display = temAlgumaLogPerm ? ''     : 'none';
+}
+
+/**
+ * Aplica ou remove o estilo "sem permissão" em um item de nav.
+ * - Com permissão: aparência normal
+ * - Sem permissão: 38% opacidade, cadeado 🔒, tooltip padrão DATI, cursor proibido
+ */
+function _setNavItemPermissao(el, temPermissao) {
+    if (temPermissao) {
+        el.style.opacity  = '';
+        el.style.cursor   = '';
+        el.removeAttribute('data-sem-permissao');
+        el.removeAttribute('data-th-tooltip');
+        el.removeAttribute('data-th-title');
+        el.removeAttribute('data-tooltip-msg');
+        el.querySelector('.nav-lock-icon')?.remove();
+    } else {
+        el.style.opacity = '0.38';
+        el.style.cursor  = 'not-allowed';
+        el.setAttribute('data-sem-permissao', '1');
+        // Tooltip padrão DATI (mesmo sistema das colunas de tabela)
+        el.setAttribute('data-th-title', 'SEM PERMISSÃO');
+        el.setAttribute('data-th-tooltip', 'Você não tem acesso a este módulo. Solicite ao administrador do sistema.');
+        // Adiciona ícone de cadeado (apenas 1x)
+        if (!el.querySelector('.nav-lock-icon')) {
+            const lock = document.createElement('i');
+            lock.className = 'ph ph-lock-simple nav-lock-icon';
+            lock.style.cssText = 'font-size:0.7rem; color:#f87171; margin-left:auto; opacity:0.85; flex-shrink:0;';
+            el.appendChild(lock);
+        }
+    }
+}
+
+
+
+// Expõe globalmente para re-aplicar após salvar permissões
+window.aplicarPermissoesNavegacao = () => {
+    const me = window.__usuarioAtual;
+    if (me) _aplicarPermissoesNavegacao(me);
+};
+
+

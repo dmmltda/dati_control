@@ -14,6 +14,9 @@ import { sendEmail, isEmailConfigured } from './services/email.js';
 import { initQueue, boss } from './services/job-queue.js';
 
 import usersRouter from './routes/users.js';
+import featurePermissionsRouter from './routes/feature-permissions.js';
+import { requireFeature } from './middleware/checkAccess.js';
+
 import membershipsRouter from './routes/memberships.js';
 import invitesRouter from './routes/invites.js';
 import webhookClerkRouter from './routes/webhook-clerk.js';
@@ -314,14 +317,30 @@ app.get('/api/me', extractUsuario, async (req, res) => {
             }));
         }
 
+        // ── Feature permissions ───────────────────────────────────────────────
+        // Master: retorna todas as chaves como true (sem consulta ao banco)
+        // Standard: retorna apenas as chaves com granted=true
+        let feature_permissions = [];
+        if (usuario.user_type === 'master') {
+            const { FEATURE_PERMISSIONS } = await import('./constants/permissions.js');
+            feature_permissions = Object.keys(FEATURE_PERMISSIONS);
+        } else {
+            const fpRows = await prisma.user_feature_permissions.findMany({
+                where: { user_id: usuario.id, granted: true },
+                select: { permission: true },
+            });
+            feature_permissions = fpRows.map(r => r.permission);
+        }
+
         res.json({
             ...usuario,
             accessible_companies,
+            feature_permissions,
         });
     } catch (err) {
         console.error('[GET /api/me] Erro ao buscar empresas acessíveis:', err);
         // fallback: retorna dados básicos sem empresas
-        res.json({ ...usuario, accessible_companies: [] });
+        res.json({ ...usuario, accessible_companies: [], feature_permissions: [] });
     }
 });
 
@@ -339,8 +358,88 @@ app.get('/api/usuarios', extractUsuario, async (req, res) => {
     }
 });
 
+// ─── Notificações in-app ─────────────────────────────────────────────────────
+
+// GET /api/notifications — lista notificações do usuário logado (não lidas primeiro)
+app.get('/api/notifications', extractUsuario, async (req, res) => {
+    try {
+        const notifs = await prisma.notifications.findMany({
+            where: { user_id: req.usuarioAtual.id },
+            orderBy: [{ read: 'asc' }, { created_at: 'desc' }],
+            take: 50,
+            include: { activity: { select: { id: true, title: true, company_id: true } } }
+        });
+        res.json(notifs);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DEV ONLY GET /api/test-notif — insere notificações de teste
+app.get('/api/test-notif', extractUsuario, async (req, res) => {
+    try {
+        await prisma.notifications.createMany({
+            data: [
+                {
+                    user_id: req.usuarioAtual.id,
+                    type: 'mentioned',
+                    title: 'Nova Menção',
+                    message: 'Alguém marcou você em um comentário de atividade.',
+                    read: false
+                },
+                {
+                    user_id: req.usuarioAtual.id,
+                    type: 'next-step-assigned',
+                    title: 'Ação Requistada',
+                    message: 'Foi atribuído um próximo passo para você em "Acme Corp".',
+                    read: false
+                },
+                {
+                    user_id: req.usuarioAtual.id,
+                    type: 'system',
+                    title: 'Atualização do Sistema',
+                    message: 'Nova versão lançada! Confira as novidades do Dashboard.',
+                    read: false
+                }
+            ]
+        });
+        res.json({ success: true, message: 'Notificações inseridas!' });
+    } catch (error) {
+        res.status(500).json({ error: 'Erro interno' });
+    }
+});
+
+// PUT /api/notifications/:id/read — marca uma notificação como lida
+app.put('/api/notifications/:id/read', extractUsuario, async (req, res) => {
+    try {
+        await prisma.notifications.updateMany({
+            where: { id: req.params.id, user_id: req.usuarioAtual.id },
+            data: { read: true }
+        });
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// PUT /api/notifications/read-all — marca TODAS as notificações do usuário como lidas
+app.put('/api/notifications/read-all', extractUsuario, async (req, res) => {
+    try {
+        await prisma.notifications.updateMany({
+            where: { user_id: req.usuarioAtual.id, read: false },
+            data: { read: true }
+        });
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Novas rotas de usuários e memberships ───────────────────────────────────────────────────
+// featurePermissionsRouter ANTES do usersRouter para evitar conflito de captura de /:id
+app.use('/api/users', extractUsuario, featurePermissionsRouter);
 app.use('/api/users', extractUsuario, usersRouter);
+
 app.use('/api/memberships', extractUsuario, membershipsRouter);
 app.use('/api/invites', extractUsuario, invitesRouter);
 app.use('/api/gabi', gabiRouter);
@@ -812,8 +911,8 @@ app.post('/api/companies', extractUsuario, async (req, res) => {
     }
 });
 
-// PUT update company — versão blindada contra nested writes no Prisma
-app.put('/api/companies/:id', extractUsuario, async (req, res) => {
+// PUT update company — requer ao menos uma permissão de edição
+app.put('/api/companies/:id', extractUsuario, requireFeature(['company_edit.basic_data', 'company_edit.products', 'company_edit.contacts', 'company_edit.cs', 'company_edit.activities']), async (req, res) => {
     try {
         const { id } = req.params;
         const payload = req.body;
@@ -2265,8 +2364,44 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
 
         // ── Gatilhos de Notificação Imediata ──────────────────────────────────
         const createdBy = req.usuarioAtual.id;
+        const createdByNome = req.usuarioAtual.nome || 'Alguém';
+        const activityTitle = title.trim();
 
-        // 1. Notificar ao atribuir
+        // 1. Notificação in-app: participante marcado
+        if (assignees.length > 0) {
+            const notifData = assignees
+                .filter(uid => uid !== createdBy)
+                .map(uid => ({
+                    id: randomUUID(),
+                    user_id: uid,
+                    type: 'mentioned',
+                    activity_id: activityId,
+                    title: 'Você foi marcado em uma atividade',
+                    message: `${createdByNome} te marcou em: "${activityTitle}"`,
+                }));
+            if (notifData.length > 0) {
+                await prisma.notifications.createMany({ data: notifData });
+            }
+        }
+
+        // 2. Notificação in-app: responsável do próximo passo
+        if (next_step_responsibles.length > 0) {
+            const notifData = next_step_responsibles
+                .filter(uid => uid !== createdBy)
+                .map(uid => ({
+                    id: randomUUID(),
+                    user_id: uid,
+                    type: 'next-step-assigned',
+                    activity_id: activityId,
+                    title: 'Você é responsável pelo próximo passo',
+                    message: `${createdByNome} definiu você como responsável pelo próximo passo de: "${activityTitle}"`,
+                }));
+            if (notifData.length > 0) {
+                await prisma.notifications.createMany({ data: notifData });
+            }
+        }
+
+        // 3. Notificar ao atribuir (e-mail via job queue)
         if (notify_on_assign && assignees.length > 0) {
             for (const uid of assignees) {
                 if (uid === createdBy) continue;
@@ -2351,7 +2486,7 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
 
         const existing = await prisma.activities.findUnique({ 
             where: { id: activityId },
-            include: { activity_assignees: true }
+            include: { activity_assignees: true, activity_next_step_responsibles: true }
         });
         if (!existing) return res.status(404).json({ error: 'Atividade não encontrada' });
 
@@ -2451,6 +2586,46 @@ app.put('/api/activities/:activityId', extractUsuario, async (req, res) => {
                 where: { id: activityId },
                 data: { recording_sent: true }
             });
+        }
+
+        // ── Notificações in-app no Update ─────────────────────────────────────
+        const updaterNome = req.usuarioAtual.nome || 'Alguém';
+        const updatedTitle = (title?.trim() || existing.title);
+
+        // Participantes novos (adicionados nesta edição)
+        if (assignees !== undefined && assignees.length > 0) {
+            const oldAssigneeIds = existing.activity_assignees?.map(a => a.user_id) || [];
+            const newAssignees = assignees.filter(uid => !oldAssigneeIds.includes(uid) && uid !== req.usuarioAtual.id);
+            if (newAssignees.length > 0) {
+                await prisma.notifications.createMany({
+                    data: newAssignees.map(uid => ({
+                        id: randomUUID(),
+                        user_id: uid,
+                        type: 'mentioned',
+                        activity_id: activityId,
+                        title: 'Você foi marcado em uma atividade',
+                        message: `${updaterNome} te marcou em: "${updatedTitle}"`,
+                    }))
+                });
+            }
+        }
+
+        // Responsáveis do próximo passo novos (adicionados nesta edição)
+        if (next_step_responsibles !== undefined && next_step_responsibles.length > 0) {
+            const oldRespIds = existing.activity_next_step_responsibles?.map(r => r.user_id) || [];
+            const newResps = next_step_responsibles.filter(uid => !oldRespIds.includes(uid) && uid !== req.usuarioAtual.id);
+            if (newResps.length > 0) {
+                await prisma.notifications.createMany({
+                    data: newResps.map(uid => ({
+                        id: randomUUID(),
+                        user_id: uid,
+                        type: 'next-step-assigned',
+                        activity_id: activityId,
+                        title: 'Você é responsável pelo próximo passo',
+                        message: `${updaterNome} definiu você como responsável pelo próximo passo de: "${updatedTitle}"`,
+                    }))
+                });
+            }
         }
 
         const full = await prisma.activities.findUnique({ where: { id: activityId }, include: ACTIVITY_INCLUDE });
@@ -2594,7 +2769,75 @@ app.delete('/api/activities/attachments/:attachmentId', extractUsuario, async (r
     }
 });
 
+// ── GET /api/activities/:activityId/time-logs ─────────────────────────────────
+app.get('/api/activities/:activityId/time-logs', extractUsuario, async (req, res) => {
+    try {
+        const { activityId } = req.params;
+        const logs = await prisma.activity_time_logs.findMany({
+            where: { activity_id: activityId },
+            orderBy: { started_at: 'asc' },
+        });
+        res.json(logs);
+    } catch (error) {
+        console.error('[GET /time-logs]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
 
+// ── POST /api/activities/:activityId/time-logs ────────────────────────────────
+app.post('/api/activities/:activityId/time-logs', extractUsuario, async (req, res) => {
+    try {
+        const { activityId } = req.params;
+        const { started_at, duration_minutes, subject } = req.body;
+        if (!started_at || !duration_minutes) {
+            return res.status(400).json({ error: 'started_at e duration_minutes são obrigatórios' });
+        }
+        const log = await prisma.activity_time_logs.create({
+            data: {
+                id: randomUUID(),
+                activity_id: activityId,
+                started_at: new Date(started_at),
+                duration_minutes: parseInt(duration_minutes),
+                subject: subject?.trim() || null,
+                created_by: req.usuarioAtual.id,
+            }
+        });
+        console.log(`[POST /time-logs] ✅ Sessão criada: ${log.id}`);
+        res.status(201).json(log);
+    } catch (error) {
+        console.error('[POST /time-logs]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── PATCH /api/activities/time-logs/:logId (editar assunto) ───────────────────
+app.patch('/api/activities/time-logs/:logId', extractUsuario, async (req, res) => {
+    try {
+        const { logId } = req.params;
+        const { subject } = req.body;
+        const log = await prisma.activity_time_logs.update({
+            where: { id: logId },
+            data: { subject: subject?.trim() || null },
+        });
+        res.json(log);
+    } catch (error) {
+        console.error('[PATCH /time-logs]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ── DELETE /api/activities/time-logs/:logId ───────────────────────────────────
+app.delete('/api/activities/time-logs/:logId', extractUsuario, async (req, res) => {
+    try {
+        const { logId } = req.params;
+        await prisma.activity_time_logs.delete({ where: { id: logId } });
+        console.log(`[DELETE /time-logs/${logId}] ✅ Removido`);
+        res.status(204).send();
+    } catch (error) {
+        console.error('[DELETE /time-logs]', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ─── SPA Fallback (produção) — qualquer rota não-API retorna o index.html ────
 // DEVE vir DEPOIS de todas as rotas /api e dos statics.

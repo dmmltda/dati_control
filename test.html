@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.container {
+    background: linear-gradient(135deg, red, blue);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2rem;
+}
+@keyframes breathe {
+    0%, 100% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.06);
+    }
+}
+.container i {
+    animation: breathe 3s ease-in-out infinite;
+    display: inline-block;
+    transform-origin: center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <i>[Icon]</i> Journey
+</div>
+</body>
+</html>

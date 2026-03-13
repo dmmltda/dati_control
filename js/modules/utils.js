@@ -1,5 +1,6 @@
 import { DB_KEY, STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { state } from './state.js';
+import { CustomSelect } from './custom-select.js';
 
 export function showToast(message, type = 'success') {
     const container = document.getElementById('toast-container');
@@ -98,22 +99,32 @@ const CIDADES_FALLBACK = {
 };
 
 export async function loadCities(uf, defaultCity = '') {
-    const cidadeInput = document.getElementById('emp-cidade');
-    const cidadesList = document.getElementById('cidades-list');
-    if (!cidadeInput || !cidadesList) return;
+    const cidadeSelect = document.getElementById('emp-cidade');
+    if (!cidadeSelect) return;
 
-    cidadesList.innerHTML = '';
+    // Remove fallback e select antigo
+    cidadeSelect.innerHTML = '<option value="">Selecione a cidade...</option>';
+    
+    // Destrói instância CustomSelect temporariamente se existir 
+    // para não bugar durante a inserção ou desabilitação
+    if (cidadeSelect._customSelectInstance) {
+        cidadeSelect._customSelectInstance.destroy();
+        delete cidadeSelect._customSelectInstance;
+    }
 
     if (!uf) {
-        cidadeInput.disabled = true;
-        cidadeInput.placeholder = 'Selecione um estado primeiro...';
-        cidadeInput.value = '';
+        cidadeSelect.disabled = true;
+        cidadeSelect.innerHTML = '<option value="">Aguardando estado...</option>';
+        cidadeSelect._customSelectInstance = new CustomSelect(cidadeSelect, { placeholder: 'Aguardando estado...' });
         return;
     }
 
-    cidadeInput.disabled = true;
-    cidadeInput.placeholder = 'Carregando cidades...';
+    cidadeSelect.disabled = true;
+    cidadeSelect.innerHTML = '<option value="">Carregando cidades...</option>';
+    cidadeSelect._customSelectInstance = new CustomSelect(cidadeSelect, { placeholder: 'Carregando cidades...' });
 
+    let cidadesArr = [];
+    
     // Tenta BrasilAPI com timeout de 5s; se falhar usa o fallback local
     try {
         const controller = new AbortController();
@@ -127,27 +138,33 @@ export async function loadCities(uf, defaultCity = '') {
 
         if (!response.ok) throw new Error('Resposta inválida da BrasilAPI');
         const cidades = await response.json();
+        cidadesArr = cidades.map(c => c.nome);
 
-        cidades.forEach(cidade => {
-            const option = document.createElement('option');
-            option.value = cidade.nome;
-            cidadesList.appendChild(option);
-        });
     } catch (error) {
         // Fallback: usa lista local de cidades
         console.warn(`[loadCities] BrasilAPI falhou (${error.message}). Usando lista local para ${uf}.`);
-        const fallback = CIDADES_FALLBACK[uf] || [];
-        fallback.forEach(nome => {
-            const option = document.createElement('option');
-            option.value = nome;
-            cidadesList.appendChild(option);
-        });
+        cidadesArr = CIDADES_FALLBACK[uf] || [];
     }
 
-    // Habilita o campo independente de qual fonte foi usada
-    cidadeInput.disabled = false;
-    cidadeInput.placeholder = 'Digite para buscar ou selecione...';
-    if (defaultCity) cidadeInput.value = defaultCity;
+    // Agora reconstroi as options e recria o CustomSelect
+    if (cidadeSelect._customSelectInstance) {
+        cidadeSelect._customSelectInstance.destroy();
+        delete cidadeSelect._customSelectInstance;
+    }
+
+    cidadeSelect.innerHTML = '<option value="">Selecione...</option>';
+    cidadesArr.forEach(nome => {
+        const option = document.createElement('option');
+        option.value = nome;
+        option.textContent = nome;
+        cidadeSelect.appendChild(option);
+    });
+
+    cidadeSelect.disabled = false;
+    cidadeSelect.value = defaultCity || '';
+
+    // Inicializa novamente o CustomSelect limpo e habitado
+    cidadeSelect._customSelectInstance = new CustomSelect(cidadeSelect, { placeholder: 'Digite ou selecione a cidade...' });
 }
 
 

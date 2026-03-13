@@ -159,6 +159,14 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify(companyData)
         });
+        if (!response.ok) {
+            let errorMsg = `Erro ${response.status}`;
+            try {
+                const errData = await response.json();
+                errorMsg = errData.message || errData.error || errorMsg;
+            } catch (_) {}
+            throw new Error(errorMsg);
+        }
         const data = await response.json();
         return mapFromDB(data);
     },

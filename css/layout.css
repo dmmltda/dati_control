@@ -178,20 +178,6 @@
     text-align: center;
 }
 
-.login-brand-logo {
-    font-size: 2.625rem;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0.35rem;
-}
-
 .login-brand > p {
     color: var(--text-muted);
     font-size: 1.08rem;
@@ -253,9 +239,6 @@
     display: flex;
     height: 100vh;
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
-    /* necessário quando pai é flex column para height:100vh funcionar */
 }
 
 /* Sidebar Styling */
@@ -266,46 +249,199 @@
     padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
-    transition: var(--transition);
+    transition: width 0.3s ease, padding 0.3s ease;
     height: 100%;
     flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+}
+
+/* Botão Toggle FLutuante UX 10/10 */
+.sidebar-toggle-btn {
+    position: absolute;
+    right: -14px;
+    top: 36px;
+    width: 28px;
+    height: 28px;
+    background: var(--dark-surface);
+    border: 1px solid var(--dark-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 99;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+}
+.sidebar-toggle-btn:hover {
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: scale(1.1);
+}
+
+/* Estado: Sidebar Recolhida (Collapsed) */
+.sidebar.collapsed {
+    width: 82px;
+    padding: 2rem 1rem;
+}
+.sidebar.collapsed .sidebar-toggle-btn {
+    transform: rotate(180deg);
+}
+.sidebar.collapsed .sidebar-toggle-btn:hover {
+    transform: rotate(180deg) scale(1.1);
+}
+.sidebar.collapsed .sidebar-brand .sidebar-brand-img {
+    width: 38px !important;
+    object-fit: cover !important;
+    object-position: left !important;
+    transition: width 0.3s ease;
+    margin-left: -5px !important;
+}
+.sidebar.collapsed .sidebar-brand #notif-bell-wrap {
+    display: none;
+}
+.sidebar.collapsed .sidebar-brand {
+    justify-content: center;
+    gap: 0;
+}
+.sidebar.collapsed .nav-section-label {
+    opacity: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+.sidebar.collapsed .nav-item, 
+.sidebar.collapsed .nav-sub-item {
+    justify-content: center;
+    padding: 10px 0;
+    width: 100%;
+    font-size: 0 !important; /* Faz o texto não ocupar nenhum espaço */
+    color: transparent !important;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.sidebar.collapsed .nav-item i,
+.sidebar.collapsed .nav-sub-item i {
+    font-size: 1.1rem !important; /* Restaura o ícone */
+    margin: 0 !important;
+    color: var(--text-muted);
+}
+.sidebar.collapsed .nav-item:hover i,
+.sidebar.collapsed .nav-item.active i,
+.sidebar.collapsed .nav-sub-item:hover i,
+.sidebar.collapsed .nav-sub-item.active i {
+    color: var(--primary) !important;
+}
+.sidebar.collapsed .nav-item-badge,
+.sidebar.collapsed .nav-caret {
+    display: none !important;
+}
+/* Footers no Collapsed */
+.sidebar.collapsed .sidebar-footer {
+    padding: 1rem 0;
+    justify-content: center;
+}
+.sidebar.collapsed .sidebar-footer .user-info {
+    justify-content: center;
+    padding: 0;
+}
+.sidebar.collapsed .sidebar-footer .user-info > div:not(.avatar),
+.sidebar.collapsed .sidebar-footer .user-info i.ph-caret-up-down {
+    display: none;
+}
+.sidebar.collapsed .sidebar-footer #sidebar-user-menu {
+    left: 80px;
+    bottom: 20px;
+    position: fixed;
+    width: 200px;
 }
 
 .sidebar-brand {
-    font-size: 1.5rem;
+    font-size: 1.857rem; /* ≈ 26px (base: 14px) */
     font-weight: 700;
     margin-bottom: 2.5rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+}
+
+
+/* O sino dentro do brand recebe apenas uma cor esbranquiçada e opaca */
+.sidebar-brand #notif-bell-btn i {
+    color: rgba(255,255,255,0.5);
+}
+
+/* ── Filtros do Dropdown de Notificações (Mini Inputs) ── */
+.notif-filter-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 0 0.5rem;
+    transition: all 0.2s ease;
+    width: 100%;
+    height: 28px !important;
+    min-height: 28px !important;
+}
+.notif-filter-wrapper:focus-within {
+    background: rgba(15, 23, 42, 0.8);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+}
+.notif-filter-wrapper i {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-right: 0.4rem;
+}
+.notif-filter-wrapper:focus-within i {
+    color: var(--primary);
+}
+.notif-filter-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    padding: 0 !important;
+    font-size: 0.75rem;
+    outline: none;
+    width: 100%;
+    height: 100% !important;
+    min-height: 0 !important;
+    line-height: normal !important;
+}
+.notif-filter-input::placeholder {
+    color: rgba(148, 163, 184, 0.4);
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.65rem;
+    padding: 7px 10px 7px 14px;
     color: var(--text-muted);
     text-decoration: none;
-    border-radius: var(--radius-sm);
-    margin-bottom: 0.5rem;
+    border-radius: 6px;
+    margin: 0 6px 2px;
     transition: var(--transition);
     cursor: pointer;
     font-weight: 500;
+    font-size: 0.875rem;
 }
 
 .nav-item:hover,
 .nav-item.active {
     background: rgba(79, 70, 229, 0.1);
     color: var(--primary);
+    border-radius: 6px;
 }
 
 .nav-item i {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
+    flex-shrink: 0;
 }
 
 .sidebar-footer {
@@ -347,7 +483,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.429rem; /* ≈ 20px (base: 14px) */
 }
 
 /* Sidebar Expandable Nav Group */
@@ -373,12 +509,6 @@
 
 .nav-group.open .nav-caret {
     transform: rotate(90deg);
-    color: var(--primary);
-}
-
-.nav-group.open .nav-group-toggle {
-    background: rgba(79, 70, 229, 0.06);
-    color: var(--primary);
 }
 
 .nav-sub-menu {
@@ -395,31 +525,81 @@
 .nav-sub-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.7rem 1rem;
+    gap: 0.65rem;
+    padding: 6px 10px 6px 18px;
     color: var(--text-muted);
     text-decoration: none;
-    border-radius: var(--radius-sm);
-    margin-top: 0.25rem;
-    font-size: 0.9rem;
+    border-radius: 6px;
+    margin: 1px 6px;
+    font-size: 0.83rem;
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
-    border-left: 2px solid transparent;
+    border-left: none;
 }
 
 .nav-sub-item:hover {
     background: rgba(79, 70, 229, 0.08);
     color: var(--primary);
-    border-left-color: var(--primary);
 }
 
 .nav-sub-item.active {
     background: rgba(79, 70, 229, 0.12);
     color: var(--primary);
-    border-left-color: var(--primary);
 }
 
 .nav-sub-item i {
     font-size: 1rem;
+}
+
+/* ─── Itens de nav sem permissão ────────────────────────────────────────────── */
+/* Suprime hover/active em itens bloqueados para manter o aspecto opaco */
+.nav-item[data-sem-permissao]:hover,
+.nav-item[data-sem-permissao].active,
+.nav-sub-item[data-sem-permissao]:hover,
+.nav-sub-item[data-sem-permissao].active {
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    border-left-color: transparent !important;
+    cursor: not-allowed !important;
+}
+
+/* Ícone de cadeado nos itens bloqueados */
+.nav-lock-icon {
+    margin-left: auto;
+    font-size: 0.7rem !important;
+    color: #f87171;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+/* ─── Nav Section Labels ─────────────────────────────────────────────────── */
+.nav-section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.5rem 0.2rem 1rem;
+    margin-top: 1.1rem;
+    margin-bottom: 0.1rem;
+    font-size: 0.63rem;
+    font-weight: 500;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+/* Badge "beta" inline num nav-item — pill azul suave */
+.nav-item-badge {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #7B8EFF;
+    background: rgba(107, 138, 255, 0.18);
+    border: none;
+    border-radius: 20px;
+    padding: 0.1rem 0.45rem;
+    line-height: 1.6;
+    flex-shrink: 0;
 }

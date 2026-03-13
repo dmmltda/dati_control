@@ -8,7 +8,11 @@ export function switchView(viewId) {
     
     viewSections.forEach(section => section.style.display = 'none');
     const target = document.getElementById(`view-${viewId}`);
-    if (target) target.style.display = 'block';
+    if (target) {
+        // Views marcadas com .flex-view precisam de display:flex para o layout dock-to-bottom funcionar
+        target.style.display = target.classList.contains('flex-view') ? 'flex' : 'block';
+    }
+
     
     navItems.forEach(item => {
         item.classList.remove('active');
@@ -24,7 +28,11 @@ export function switchFormTab(tabId, btnElement) {
     document.querySelectorAll('.tab-menu-btn').forEach(el => el.classList.remove('active'));
     
     const target = document.getElementById(tabId);
-    if (target) target.classList.add('active');
+    if (target) {
+        target.classList.add('active');
+        // Ao trocar de aba, aplica as restrições de edição pertinentes apenas a ela
+        _aplicarPermissaoEdicaoEmpresa(tabId);
+    }
     
     if (btnElement) {
         btnElement.classList.add('active');
@@ -103,12 +111,20 @@ export function openCompanyForm(id = null) {
             document.getElementById('emp-tipo').value = comp.tipo || '';
             document.getElementById('emp-cnpj').value = comp.cnpj || '';
             document.getElementById('emp-site').value = comp.site || '';
-            document.getElementById('emp-status').value = comp.status;
+            document.getElementById('emp-status').value = comp.status || 'Prospect';
             document.getElementById('emp-segmento').value = comp.segmento || '';
             document.getElementById('emp-canal').value = comp.canal || '';
             document.getElementById('emp-estado').value = comp.estado || '';
             document.getElementById('emp-health-score').value = comp.healthScore || '';
             document.getElementById('emp-nps').value = comp.nps || '';
+
+            // Sincroniza todos os CustomSelects visuais após o DOM receber o value
+            ['emp-tipo', 'emp-estado', 'emp-segmento', 'emp-canal', 'emp-health-score', 'emp-nps'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el._customSelectInstance) {
+                    el._customSelectInstance.setValue(el.value || '');
+                }
+            });
             
             if (comp.estado) {
                 loadCities(comp.estado, comp.cidade || '');
@@ -158,10 +174,201 @@ export function openCompanyForm(id = null) {
     updateStatusStyle(document.getElementById('emp-status'));
     ui.initGlobalPickers();
     switchView('company-form');
+
+    // ─ Verifica permissão de visualização das abas (company_tab.X) ──
+    const tabBtns = document.querySelectorAll('.tab-menu-btn[data-tab-view]');
+    let firstVisibleTab = null;
+    let fallbackTab = null;
+
+    tabBtns.forEach(btn => {
+        const permissionKey = btn.getAttribute('data-tab-view');
+        const podeVer = window.canDo ? window.canDo(permissionKey) : true;
+        
+        // Em vez de hide, vamos manter flex mas travar se não tiver permissão
+        btn.style.display = 'flex';
+        
+        if (!podeVer) {
+            btn.style.opacity = '0.38';
+            btn.dataset.lockedTab = "1";
+            btn.setAttribute('data-th-title', 'BLOQUEADO');
+            btn.setAttribute('data-th-tooltip', 'Você não tem permissão de visualizar esta aba.');
+            // Adiciona ícone de cadeado se não tiver
+            if (!btn.querySelector('.tab-lock-icon')) {
+                btn.insertAdjacentHTML('beforeend', '<i class="ph ph-lock-simple tab-lock-icon" style="margin-left:auto; opacity:0.7;"></i>');
+            }
+        } else {
+            btn.style.opacity = '1';
+            btn.dataset.lockedTab = "0";
+            btn.removeAttribute('data-th-title');
+            btn.removeAttribute('data-th-tooltip');
+            btn.querySelector('.tab-lock-icon')?.remove();
+
+            if (btn.id !== 'btn-tab-cs' || (comp && comp.status === 'Em Contrato')) {
+                // Customer success hidden by default if not 'Em Contrato'
+                if (!firstVisibleTab) firstVisibleTab = btn;
+            } else if (btn.id !== 'btn-tab-cs') {
+                if (!fallbackTab) fallbackTab = btn;
+            }
+        }
+    });
+
+    // Se a lógica do app exibe CS mas o usuário tem permissão nela, mantemos a visibilidade (sem display:none pra quem não tem lock)
+    const csBtn = document.getElementById('btn-tab-cs');
+    if (csBtn && csBtn.dataset.lockedTab !== "1") {
+        if (id && comp && comp.status === 'Em Contrato') {
+             csBtn.style.display = 'flex';
+        } else if (window.canDo && window.canDo('company_tab.cs')) {
+             csBtn.style.display = 'none'; // oculto logicamente pois não é cliente
+        }
+    }
+
+    // Aplica active data final e permissão de edição
+    const activeTabObj = document.querySelector('.tab-content.active');
+    if (activeTabObj) {
+         _aplicarPermissaoEdicaoEmpresa(activeTabObj.id);
+    } else if (firstVisibleTab) {
+         switchFormTab(firstVisibleTab.getAttribute('data-tab'));
+    } else if (fallbackTab) {
+         switchFormTab(fallbackTab.getAttribute('data-tab'));
+    }
 }
 
 /**
+ * Aplica (ou remove) o modo "somente leitura" no formulário da empresa
+ * baseado na permissão (company_edit.X) para a aba atual selecionada.
+ */
+function _aplicarPermissaoEdicaoEmpresa(tabId) {
+    const viewContainer = document.getElementById('view-company-form');
+    if (!viewContainer || !tabId) return;
+
+    // Achar o botão da aba pra pegar a chave de permissão
+    const btn = Array.from(document.querySelectorAll('.tab-menu-btn')).find(b => b.getAttribute('data-tab') === tabId);
+    if (!btn) return;
+    
+    let permissionKey = btn.getAttribute('data-tab-edit');
+    // Default fallback se não achar
+    if (!permissionKey) permissionKey = 'company_edit.basic_data';
+
+    const podeEditar = window.canDo?.(permissionKey) ?? true;
+
+    // Selecionamos APENAS os inputs da aba em si + os itens do "top bar" que pertecem à aba atual logicamente
+    // Para simplificar: top bar pertence a basic_data E customer_success (depende de onde o usuario interagir)
+    // Vamos travar com base no tab atual: tudo visível sofre lock/unlock se faz parte da aba.
+    const containerDaAba = document.getElementById(tabId);
+    let extraElements = [];
+    
+    if (tabId === 'tab-dados') {
+         extraElements = Array.from(document.querySelectorAll('#emp-status, #form-title'));
+    } else if (tabId === 'tab-cs') {
+         extraElements = Array.from(document.querySelectorAll('#emp-health-score, #emp-nps'));
+    }
+
+    const camposDaAba = Array.from(containerDaAba ? containerDaAba.querySelectorAll('input, select, textarea, .csel, button:not(#btn-sair-sem-salvar):not(.tab-btn):not(.cs-submenu-btn):not(.btn-back-list)') : []);
+    const camposParaTravar = [...camposDaAba, ...extraElements];
+
+    // O Save btn trava SE a aba atual não permite!
+    const saveBtn = document.getElementById('btn-save-company');
+
+    // Removemos qualquer overlay atual p/ resetar
+    document.getElementById('company-edit-lock-overlay')?.remove();
+    document.querySelectorAll('.edit-lock-banner').forEach(b => b.remove());
+
+    if (podeEditar) {
+        camposParaTravar.forEach(el => {
+            if (el.dataset.editLockedDisabled) {
+                if (el.classList.contains('csel')) {
+                    el.style.pointerEvents = '';
+                    el.style.opacity = '';
+                } else {
+                    el.disabled = false;
+                    el.style.opacity = '';
+                }
+                delete el.dataset.editLockedDisabled;
+            }
+            
+            let targetTooltip = el.closest('.input-group') || el.closest('.select-wrapper') || el.parentElement;
+            if (targetTooltip) {
+                targetTooltip.removeAttribute('data-th-tooltip');
+                targetTooltip.removeAttribute('data-th-title');
+                targetTooltip.style.cursor = '';
+            }
+        });
+
+        if (saveBtn) {
+            saveBtn.style.opacity = '';
+            saveBtn.style.cursor  = '';
+            saveBtn.style.pointerEvents = '';
+            saveBtn.disabled      = false;
+            saveBtn.removeAttribute('data-th-tooltip');
+            saveBtn.removeAttribute('data-th-title');
+        }
+    } else {
+        // ── Modo somente leitura pra a aba atual ─────────────────────────────────────────
+        
+        // Form overlay pra evitar clique e tap visual no background
+        if (containerDaAba) {
+            const overlay = document.createElement('div');
+            overlay.id = 'company-edit-lock-overlay';
+            overlay.style.cssText = `
+                position:absolute; inset:0; z-index:10; pointer-events:none;
+                background:rgba(0,0,0,0);
+            `;
+            containerDaAba.style.position = 'relative';
+            containerDaAba.appendChild(overlay);
+        }
+
+        camposParaTravar.forEach(el => {
+            if (el.classList.contains('csel')) {
+                if (!el.dataset.editLockedDisabled) {
+                    el.style.pointerEvents = 'none';
+                    el.style.opacity = '0.6';
+                    el.dataset.editLockedDisabled = '1';
+                }
+            } else {
+                if (!el.disabled) {
+                    el.disabled = true;
+                    el.style.opacity = '0.6';
+                    el.dataset.editLockedDisabled = '1';
+                }
+            }
+            
+            let targetTooltip = el.closest('.input-group') || el.closest('.select-wrapper') || el.parentElement;
+            if (targetTooltip) {
+                targetTooltip.setAttribute('data-th-title', 'BLOQUEADO');
+                targetTooltip.setAttribute('data-th-tooltip', 'Você não tem permissão para salvar ou alterar estes campos.');
+                targetTooltip.style.cursor = 'not-allowed';
+            }
+        });
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.38';
+            saveBtn.style.cursor  = 'not-allowed';
+            saveBtn.style.pointerEvents = 'auto'; // Deve receber hover para o Tooltip disparar!
+            saveBtn.setAttribute('data-th-title', 'SEM PERMISSÃO');
+            saveBtn.setAttribute('data-th-tooltip', 'Você não tem permissão para editar informações nesta aba.');
+        }
+
+        // Add um banner em cima do container da aba
+        if (containerDaAba && !containerDaAba.querySelector('.edit-lock-banner')) {
+            const banner = document.createElement('div');
+            banner.className = 'edit-lock-banner';
+            banner.style.cssText = `
+                display:flex; align-items:center; gap:0.6rem;
+                background:rgba(248,113,113,0.06); border:1px solid rgba(248,113,113,0.18);
+                border-radius:8px; padding:0.6rem 1rem; margin-bottom:1rem;
+                font-size:0.8rem; color:#f87171; font-family:inherit;
+            `;
+            banner.innerHTML = '<i class="ph ph-lock-simple"></i> Modo somente leitura — você não tem permissão para salvar edições nesta seção.';
+            containerDaAba.insertBefore(banner, containerDaAba.firstChild);
+        }
+    }
+}
+
+
+/**
  * Abre o formulário em modo "Edição em Massa".
+
  * Apenas os campos preenchidos pelo usuário serão aplicados a todas as empresas selecionadas.
  * @param {string[]} ids - Array de IDs das empresas selecionadas
  */

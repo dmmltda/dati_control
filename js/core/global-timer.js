@@ -241,12 +241,13 @@ export function stopTimer() {
  */
 export function getTimerState() {
     const s = _load();
-    if (!s) return { state: 'idle', sec: 0, activityId: null };
+    if (!s) return { state: 'idle', sec: 0, activityId: null, sessionStartedAt: null };
     const running = s.pausedAt === null || s.pausedAt === undefined;
     return {
         activityId: s.activityId,
         sec: _elapsedSeconds(s),
         state: running ? 'running' : 'paused',
+        sessionStartedAt: s.startedAt || null, // timestamp ms de início da sessão
     };
 }
 

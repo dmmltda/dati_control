@@ -244,4 +244,43 @@ router.put('/:id', requireMaster, async (req, res) => {
     }
 });
 
+// ─── DELETE /api/users/:id ────────────────────────────────────────────────────
+// Deleta permanentemente um usuário (somente master)
+router.delete('/:id', requireMaster, async (req, res) => {
+    const { id } = req.params;
+    const executor = req.usuarioAtual;
+
+    // Impede auto-exclusão
+    if (executor.id === id) {
+        return res.status(400).json({ error: 'Você não pode deletar a si mesmo.' });
+    }
+
+    try {
+        const user = await prisma.users.findUnique({ where: { id }, select: { nome: true, email: true } });
+        if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        // Remover memberships antes de deletar
+        await prisma.user_memberships.deleteMany({ where: { user_id: id } });
+        await prisma.users.delete({ where: { id } });
+
+        // Audit log
+        audit.log(prisma, {
+            actor:       executor,
+            action:      'DELETE',
+            entity_type: 'user',
+            entity_id:   id,
+            entity_name: user.nome,
+            description: `Usuário "${user.nome}" (${user.email}) deletado permanentemente.`,
+            meta:        { email: user.email },
+            ip_address:  req.ip,
+        });
+
+        console.log(`[DELETE /api/users/${id}] ✅ Usuário deletado: ${user.nome}`);
+        res.json({ ok: true, message: `Usuário "${user.nome}" deletado.` });
+    } catch (err) {
+        console.error('[DELETE /api/users/:id] Erro:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;

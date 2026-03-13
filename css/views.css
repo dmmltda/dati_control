@@ -34,7 +34,7 @@
 .company-table-container { overflow-x: auto; }
 .company-table { width: 100%; border-collapse: collapse; }
 .company-table th, .company-table td {
-    padding: 1.25rem 1rem;
+    padding: calc(1.25rem + 10px) 1rem;
     text-align: left;
     border-bottom: 1px solid var(--dark-border);
 }
@@ -159,10 +159,107 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   MINHAS ATIVIDADES — Header fixo + conteúdo rolável (Kanban/Lista)
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Remove padding do main-content quando a view está ativa */
+.main-content:has(#view-minhas-tarefas:not([style*="none"])) {
+    overflow: hidden;
+    padding: 0;
+}
+
+/* View ocupa toda a altura e define seu próprio padding */
+#view-minhas-tarefas:not([style*="none"]) {
+    display: flex !important;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.5rem 2rem 0;
+    overflow: hidden;
+}
+
+/* Evita que o cabeçalho fixo e a área de filtros encolham */
+#view-minhas-tarefas > div:not(#tb-content) {
+    flex-shrink: 0;
+}
+
+/* Conteúdo (Kanban ou Lista) — preenche e rola */
+#view-minhas-tarefas #tb-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-bottom: 1.5rem; /* margem de respiro na base */
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   EMPRESAS — Tabela full-height (dock-to-bottom, igual ao Histórico)
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Remove padding do main-content quando Empresas está ativa */
+.main-content:has(#view-company-list:not([style*="none"])) {
+    overflow: hidden;
+    padding: 0;
+}
+
+/* View preenche toda a altura e adiciona padding próprio */
+#view-company-list:not([style*="none"]) {
+    display: flex !important;
+    flex-direction: column;
+    height: 100%;
+    padding: 1.5rem 2rem 1.5rem;
+    overflow: hidden;
+}
+
+/* Glass-panel cresce para preencher espaço abaixo do top-bar */
+#view-company-list > .glass-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+/* Filtros e toolbar — altura fixa, não encolhem */
+#view-company-list .filters,
+#view-company-list .bulk-toolbar,
+#view-company-list #active-filters-bar {
+    flex-shrink: 0;
+}
+
+/* Tabela — cresce e rola verticalmente */
+#view-company-list .company-table-container {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* Paginação — pinada na base do panel */
+#view-company-list #pagination-companies {
+    flex-shrink: 0;
+    padding: 0.875rem 1.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
    RELATÓRIOS — Tabela nativa de dados
 ══════════════════════════════════════════════════════════════════════════════ */
 
 #view-reports { display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden; }
+
+/* A view ocupa toda a área disponível e empilha em coluna */
+#view-audit-log.audit-log-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Quando o audit-log está ativo, desabilita o scroll/padding do main-content */
+.main-content:has(#view-audit-log[style*="flex"]) {
+    overflow: hidden;
+    padding: 0;
+}
 
 /* Container principal */
 .rpt-container {
@@ -178,16 +275,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 24px 14px;
+    padding: 0 0 1.429rem; /* topo e lateral já vêm do .main-content (1.5rem / 2rem) */
     border-bottom: 1px solid var(--dark-border);
     flex-shrink: 0;
 }
 .rpt-header h2 {
-    font-size: 18px; font-weight: 700; margin: 0 0 2px;
-    color: var(--text-main); display: flex; align-items: center; gap: 8px;
+    font-size: 1.571rem; font-weight: 600; margin: 0 0 0.429rem;
+    color: var(--text-main); display: flex; align-items: center; gap: 0.571rem;
 }
-.rpt-header h2 i { color: var(--primary); }
-.rpt-header p { font-size: 12px; color: var(--text-muted); margin: 0; }
+.rpt-header h2 i { color: var(--primary); font-size: 1.571rem; }
+.rpt-header p { font-size: 0.8rem; color: var(--text-muted); margin: 0; }
 .rpt-header-actions { display: flex; gap: 8px; align-items: center; }
 
 /* ── Filtros ─────────────────────────────────────────────────────────────────── */
@@ -225,19 +322,30 @@
 }
 .rpt-filter-search input:focus { border-color: var(--primary); }
 .rpt-filters select {
-    padding: 7px 10px;
-    background: var(--dark-surface);
-    border: 1px solid var(--dark-border);
+    padding: 7px 2rem 7px 10px;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1.5px solid var(--dark-border);
     border-radius: 8px;
-    color: var(--text-muted);
+    color: var(--text-main);
     font-size: 12px;
     font-family: 'Plus Jakarta Sans', sans-serif;
     cursor: pointer;
     outline: none;
-    transition: border-color 0.2s;
+    transition: var(--transition);
     max-width: 160px;
+    appearance: none;
+    -webkit-appearance: none;
 }
-.rpt-filters select:focus { border-color: var(--primary); color: var(--text-main); }
+.rpt-filters select:hover { border-color: rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.75); }
+.rpt-filters select:focus { border-color: var(--primary); background: rgba(15, 23, 42, 0.8); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15); color: var(--text-main); }
+.rpt-filters select option { background: #1e293b; color: var(--text-main); }
+
+/* Wrapper de select para os filtros de relatório */
+.rpt-filters .select-wrapper {
+    max-width: 160px;
+    flex-shrink: 0;
+}
+.rpt-filters .select-wrapper select { max-width: 100%; }
 .rpt-date-range {
     display: flex;
     align-items: center;
@@ -440,6 +548,7 @@
     color: var(--text-muted);
 }
 
+
 /* ── btn-ghost (mantido para compatibilidade) ───────────────────────────────── */
 .btn-ghost {
     display: inline-flex;
@@ -459,4 +568,91 @@
 .btn-ghost:hover { background: rgba(255,255,255,0.08); color: var(--text-main); border-color: rgba(255,255,255,0.15); }
 .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-ghost.btn-sm { padding: 5px 11px; font-size: 12px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   AUDIT LOG — Histórico de Alterações (padrão TableManager 2.0 / dock-to-bottom)
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Header fixo no topo da view */
+.audit-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem 1rem;
+    flex-shrink: 0;
+}
+.audit-log-header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    display: flex;
+    align-items: center;
+}
+.audit-log-header p {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin: 0;
+}
+
+/* Painel principal: flex-column que cresce para preencher o restante */
+.audit-log-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    margin: 0 2rem 1.5rem;
+    border-radius: var(--radius-md);
+}
+
+/* Barra de busca global — fixa, não rola */
+.audit-log-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--dark-border);
+    flex-shrink: 0;
+}
+
+/* Barra de ações/toolbar — fixa, não rola */
+.audit-log-toolbar {
+    flex-shrink: 0;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* Área da tabela — cresce e rola verticalmente */
+.audit-log-table-wrap {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* Cabeçalho da tabela fica sticky dentro do scroll */
+.audit-log-table-wrap .company-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--dark-surface);
+}
+
+/* Paginação — fixa na base do painel */
+.audit-log-pagination {
+    flex-shrink: 0;
+    border-top: 1px solid var(--dark-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    flex-wrap: wrap;
+}
+.audit-log-pagination .pagination { margin: 0; }
+.audit-log-pagination .pagination-info {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
 

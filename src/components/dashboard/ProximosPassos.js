@@ -107,7 +107,7 @@ const TYPE_ICON = {
     'Reunião':         { icon: 'ph-video',       color: '#6366f1' },
     'Chamados HD':     { icon: 'ph-headset',     color: '#f59e0b' },
     'Chamados CS':     { icon: 'ph-heartbeat',   color: '#10b981' },
-    'Ação necessária': { icon: 'ph-lightning',   color: '#ef4444' },
+    'Ação necessária': { icon: 'ph-lightning',   color: '#f97316' },
 };
 
 function _rowBorderStyle(ds) {

@@ -26,12 +26,15 @@ import { initTooltipSystem } from './core/tooltip.js'; // 🎯 Tooltip System �
 import { initGlobalTimer } from './core/global-timer.js'; // ⏱ Timer persistente — UX 10/10
 
 import { initSettingsUsers } from './modules/settings-users.js';
+import { initSettingsPermissions } from './modules/settings-permissions.js';
+
 import { initGabi } from './modules/gabi.js';
 import { initSettingsGabi } from './modules/settings-gabi.js';
 import * as logTestes from './modules/log-testes.js';
 import * as logAgendamento from './modules/log-agendamento.js';
 import * as reports from './modules/reports.js';
 import * as auditLog from './modules/audit-log.js';
+import { initNotifications } from './modules/notifications.js';
 
 
 
@@ -49,15 +52,6 @@ function mostrarJourneyDashboard() {
     if (!_dashboardIniciado) {
         initDashboard('journey-dashboard-root');
         _dashboardIniciado = true;
-
-        // Exibe a data atual no header do dashboard
-        const elData = document.getElementById('dashboard-data-hoje');
-        if (elData) {
-            const hoje = new Date();
-            elData.textContent = hoje.toLocaleDateString('pt-BR', {
-                weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
-            });
-        }
 
         // Inicializa o menu dropdown de usuário
         _dbInicializarMenu();
@@ -82,21 +76,28 @@ document.addEventListener('dati:app-ready', () => {
         const elNome   = document.getElementById('sidebar-user-name');
         const elRole   = document.getElementById('sidebar-user-role');
         const elAvatar = document.getElementById('sidebar-user-avatar');
+        const avatarText = me.avatar || (me.nome ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
 
         if (elNome)   elNome.textContent   = me.nome   || me.email || 'Usuário';
         if (elRole)   elRole.textContent   = me.user_type === 'master' ? 'Master' : 'Standard';
-        if (elAvatar) elAvatar.textContent = me.avatar
-            || (me.nome ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
+        if (elAvatar) elAvatar.textContent = avatarText;
 
         // Mostra o menu Configurações na sidebar apenas para usuários master
         if (me.user_type === 'master') {
             const navConfig = document.getElementById('nav-group-config');
             if (navConfig) navConfig.style.display = 'block';
+            const navLabelConfig = document.getElementById('nav-label-config');
+            if (navLabelConfig) navLabelConfig.style.display = 'flex';
+            const navConfigFlat = document.getElementById('nav-group-config-flat');
+            if (navConfigFlat) navConfigFlat.style.display = 'block';
         }
     }
 
     // Inicializa a Gabi AI
     initGabi();
+
+    // Inicializa o sininho de notificações
+    initNotifications();
 });
 
 
@@ -142,6 +143,27 @@ async function _dbInicializarMenu() {
             </button>
         `;
     }).join('');
+
+    // ── Permissões Globais: Apenas master pode trocar a visualização no Dashboard
+    const btnFilter = document.getElementById('db-user-btn');
+    if (btnFilter && window.__usuarioAtual) {
+        if (window.__usuarioAtual.user_type !== 'master') {
+            btnFilter.style.opacity = '0.6';
+            btnFilter.style.cursor = 'not-allowed';
+            btnFilter.style.pointerEvents = 'auto'; // allow hover
+            btnFilter.setAttribute('data-th-title', 'SEM PERMISSÃO');
+            btnFilter.setAttribute('data-th-tooltip', 'Você não tem privilégios para visualizar os dados de outros usuários.');
+            // Remove onClick behaviour by reassigning
+            btnFilter.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
+        } else {
+            // Restore visual just in case
+            btnFilter.style.opacity = '1';
+            btnFilter.style.cursor = 'pointer';
+            btnFilter.removeAttribute('data-th-title');
+            btnFilter.removeAttribute('data-th-tooltip');
+            btnFilter.onclick = window._dbToggleUserMenu;
+        }
+    }
 }
 
 /**
@@ -226,12 +248,52 @@ window.state = state;
 window.activities = activities;
 window.tasksBoard = tasksBoard; // Exposto para a Gabi abrir atividades via link
 
+// -- Logica do Sidebar Navbar Collapse --
+window.toggleSidebar = function() {
+    const sidebar = document.getElementById('main-sidebar');
+    if (!sidebar) return;
+    const isCollapsed = sidebar.classList.toggle('collapsed');
+    localStorage.setItem('dati_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    
+    // Troca o título do hover
+    const btn = document.getElementById('sidebar-toggle-btn');
+    if (btn) btn.title = isCollapsed ? 'Expandir Menu' : 'Recolher Menu';
+
+    // Se collapse, fecha grupos de submenu abertos
+    if (isCollapsed) {
+        document.querySelectorAll('.nav-group').forEach(g => {
+            g.classList.remove('open');
+            g.querySelector('.nav-sub-menu').style.maxHeight = null;
+        });
+    }
+};
+
+// Ao carregar limpa ou aplica class conforme localStorage
+document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('dati_sidebar_collapsed') === 'true') {
+        const sidebar = document.getElementById('main-sidebar');
+        if (sidebar) sidebar.classList.add('collapsed');
+        const btn = document.getElementById('sidebar-toggle-btn');
+        if (btn) btn.title = 'Expandir Menu';
+    }
+});
 // =============================================================================
+
 // SECTION 1: Click Event Handler Functions (Delegation pattern)
 // Each function returns true if handled, false to continue the chain.
 // =============================================================================
 
 function handleNavigation(target) {
+    // ── Bloqueia clique em itens sem permissão (cursor:not-allowed + opacity aplicados por auth.js) ──
+    const navItemClicado = target.closest('[data-sem-permissao]');
+    if (navItemClicado) {
+        // Apenas pisca levemente o item para dar feedback sem poluir com toast
+        navItemClicado.style.transition = 'opacity 0.15s';
+        navItemClicado.style.opacity = '0.15';
+        setTimeout(() => { navItemClicado.style.opacity = '0.38'; }, 150);
+        return true;
+    }
+
     if (target.closest('.nav-item') && !target.closest('.nav-group-toggle') && !target.closest('.nav-sub-item')) {
         const view = target.closest('.nav-item').getAttribute('data-view');
         if (view) {
@@ -240,9 +302,12 @@ function handleNavigation(target) {
             if (view === 'dashboard') mostrarJourneyDashboard();
             if (view === 'minhas-tarefas') tasksBoard.initTasksBoard();
             if (view === 'reports') reports.initReports();
+            if (view === 'audit-log') auditLog.init();
+            if (view === 'log') logTestes.initLogTestes();
 
             if (view === 'config-usuarios') initSettingsUsers();
             if (view === 'config-gabi')     initSettingsGabi();
+
             if (view === 'company-list') {
 
                 // Recarrega dados do servidor ao navegar para a lista de empresas
@@ -267,6 +332,8 @@ function handleNavigation(target) {
         if (view === 'config-usuarios') initSettingsUsers();
         if (view === 'config-gabi')     initSettingsGabi();
         return true;
+
+
     }
 
     if (target.closest('.btn-new-company')) {
@@ -532,6 +599,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     ui.initGlobalPickers();
+    ui.setupGlobalCustomSelects();
 
     // 🎯 Inicializa o sistema global de tooltips (data-th-tooltip)
     initTooltipSystem();
@@ -878,6 +946,24 @@ window.toggleNavGroup = (groupId) => {
     const group = document.getElementById(groupId);
     if (group) group.classList.toggle('open');
 };
+
+// ─── Toggle do menu do usuário na sidebar footer ──────────────────────────────
+window._toggleUserMenu = function (event) {
+    event?.stopPropagation();
+    const menu = document.getElementById('sidebar-user-menu');
+    if (!menu) return;
+    const isOpen = menu.style.display === 'block';
+    menu.style.display = isOpen ? 'none' : 'block';
+};
+
+// Fecha o menu do usuário ao clicar fora
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('sidebar-user-wrap');
+    const menu = document.getElementById('sidebar-user-menu');
+    if (menu && wrap && !wrap.contains(e.target)) {
+        menu.style.display = 'none';
+    }
+});
 
 // Make UI available globally for sorting/filtering in index.html
 window.ui = ui;

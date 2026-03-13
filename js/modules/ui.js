@@ -3,6 +3,8 @@ import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { TableManager } from './table-manager.js';
 import { TableManager as TableManager2 } from '../core/table-manager.js'; // 🧪 TableManager 2.0 - teste paralelo
 import { initTooltipSystem } from '../core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
+import { CustomSelect } from './custom-select.js'; // 🎛️ Custom Select Premium
+export { setupGlobalCustomSelects } from './custom-select.js';
 import {
     initCompanyProductsTable as _initProdutosTable,
     refreshCompanyProductsTable as _refreshProdutosTable,
@@ -1339,6 +1341,31 @@ export function initGlobalPickers() {
             altFormat: "d/m/Y", // Formato visual 10/10
             locale: "pt"
         });
+    });
+
+    // ── CustomSelects Premium (Global) ────────────────────────
+    // Substitui todos os native selects do sistema
+    const EXPECTED_SELECTORS = [
+        'select.input-control',
+        'select.status-select',
+        'select.cs-status-select',
+        'select[id^="rpt-filter-"]',
+        'select[id^="audit-filter-"]',
+        'select[id^="filter-"]'
+    ].join(', ');
+    
+    document.querySelectorAll(EXPECTED_SELECTORS).forEach(selectEl => {
+        if (!selectEl.classList.contains('dashboard-select') &&
+            !selectEl.classList.contains('native-only') &&
+            !selectEl.hasAttribute('multiple')) {
+                
+            if (!selectEl._customSelectInstance) {
+                selectEl._customSelectInstance = new CustomSelect(selectEl);
+            } else {
+                // Sincroniza o valor atual (p.ex. ao editar um formulário dinâmico JS)
+                selectEl._customSelectInstance.setValue(selectEl.value || '');
+            }
+        }
     });
 }
 export function switchProdTab(event, tabId) {

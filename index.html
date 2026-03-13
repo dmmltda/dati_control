@@ -52,9 +52,7 @@
     <div id="login-screen" class="screen flex-active">
         <div class="login-clerk-container">
             <div class="login-brand">
-                <div class="login-brand-logo">
-                    <i class="ph ph-path"></i> Journey
-                </div>
+                <img src="journey-logo-final.svg" class="login-brand-logo-img" alt="Journey" style="height: 62px; width: auto; margin-bottom: 0.35rem; margin-left: -5px;">
                 <p>Toda a jornada do cliente em um único lugar</p>
             </div>
             <!-- Clerk renderiza o componente de login aqui -->
@@ -65,79 +63,138 @@
     <!-- Main App Layout -->
     <div id="app-layout" class="screen">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="main-sidebar">
+            <button id="sidebar-toggle-btn" class="sidebar-toggle-btn" title="Recolher Menu" onclick="toggleSidebar()">
+                <i class="ph ph-caret-double-left"></i>
+            </button>
             <div class="sidebar-brand">
-                <i class="ph ph-path"></i> Journey
+                <img src="journey-logo-final.svg" class="sidebar-brand-img" alt="Journey" style="height: 45px; width: auto; flex: 1; object-fit: contain; object-position: left; margin-left: -5px;">
+                <!-- 🔔 Sininho de Notificações (dentro da sidebar) -->
+                <div id="notif-bell-wrap" style="position:relative; flex-shrink:0;">
+                    <button id="notif-bell-btn" title="Notificações"
+                        onclick="window._notifToggle && window._notifToggle(event)"
+                        style="background:transparent; border:none; cursor:pointer; font-size:1.15rem; padding:0.3rem; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all 0.15s; position:relative; color:rgba(255,255,255,0.45);">
+                        <i class="ph ph-bell"></i>
+                        <span id="notif-badge"
+                            style="display:none; position:absolute; top:-4px; right:-4px; background:#ef4444; color:#fff; font-size:0.58rem; font-weight:800; min-width:16px; height:16px; border-radius:9px; align-items:center; justify-content:center; padding:0 3px; line-height:1; border:2px solid var(--dark-surface);">0</span>
+                    </button>
+                    <!-- Dropdown de notificações -->
+                    <div id="notif-dropdown" style="display:none; position:absolute; top:calc(100% + 10px); left:0; width:340px; background:#1a2035; border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 20px 50px rgba(0,0,0,0.6); z-index:9999; overflow:hidden;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.1rem; border-bottom:1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size:0.85rem; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:0.4rem;">
+                                <i class="ph ph-bell" style="color:#818cf8;"></i> Notificações
+                                <span id="notif-header-badge" style="background:rgba(99,102,241,0.15); color:#818cf8; font-size:0.65rem; padding:0.15rem 0.4rem; border-radius:12px; display:none;">0</span>
+                            </span>
+                            <button id="notif-read-all-btn" style="background:transparent; border:none; cursor:pointer; color:#818cf8; font-size:0.72rem; font-weight:600; padding:0;" title="Marcar todas como lidas">Marcar tudo lido</button>
+                        </div>
+                        <div style="padding: 0.65rem 0.85rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; flex-direction: column; gap: 0.4rem; background: rgba(0,0,0,0.15);">
+                            <div class="notif-filter-wrapper">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="notif-search-input" class="notif-filter-input" placeholder="Buscar por conteúdo...">
+                            </div>
+                            <div style="display:flex; gap:0.4rem;">
+                                <div class="notif-filter-wrapper">
+                                    <i class="ph ph-calendar-blank"></i>
+                                    <input type="date" id="notif-date-start" class="notif-filter-input" title="Data inicial" style="color-scheme: dark;">
+                                </div>
+                                <div class="notif-filter-wrapper">
+                                    <i class="ph ph-calendar-blank"></i>
+                                    <input type="date" id="notif-date-end" class="notif-filter-input" title="Data final" style="color-scheme: dark;">
+                                </div>
+                            </div>
+                        </div>
+                        <div id="notif-list" style="max-height:360px; overflow-y:auto;"></div>
+                        <div id="notif-empty" style="display:none; padding:2rem; text-align:center; color:var(--text-muted); font-size:0.82rem;">
+                            <i class="ph ph-bell-slash" style="font-size:1.8rem; display:block; margin-bottom:0.5rem; opacity:0.3;"></i>
+                            Tudo em dia — nenhuma notificação
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <nav>
-                <a class="nav-item active" data-view="dashboard">
+                <a class="nav-item active" data-view="dashboard" data-nav-permission="dashboard.view">
                     <i class="ph ph-squares-four"></i> Dashboard
                 </a>
-                <a class="nav-item" data-view="company-list">
-                    <i class="ph ph-users-three"></i> Empresas
+
+                <!-- ── TRABALHO ────────────────────────────────── -->
+                <div class="nav-section-label">Trabalho</div>
+                <a class="nav-item" data-view="company-list" data-nav-permission="companies.view">
+                    <i class="ph ph-square"></i> Empresas
+                </a>
+                <a class="nav-item" data-view="minhas-tarefas" data-nav-permission="my_tasks.view">
+                    <i class="ph ph-user-circle"></i> Minhas Atividades
                 </a>
 
-                <!-- Minhas Atividades -->
-                <a class="nav-item" data-view="minhas-tarefas">
-                    <i class="ph ph-activity"></i> Minhas Atividades
+                <!-- ── ANÁLISE ─────────────────────────────────── -->
+                <div class="nav-section-label">Análise</div>
+                <a class="nav-item" data-view="reports" data-nav-permission="reports.view">
+                    <i class="ph ph-wave-sine"></i> Relatórios
                 </a>
 
-                <!-- Relatórios Metabase -->
-                <a class="nav-item" data-view="reports">
-                    <i class="ph ph-chart-bar"></i> Relatórios
-                </a>
-
-                <!-- Configurações — visível apenas para master -->
-                <div class="nav-group" id="nav-group-config" data-master-only style="display:none;">
-                    <a class="nav-item nav-group-toggle" id="nav-config-toggle" onclick="toggleNavGroup('nav-group-config')">
-                        <span style="display:flex; align-items:center; gap:0.6rem;">
-                            <i class="ph ph-gear"></i> Configurações
-                        </span>
-                        <i class="ph ph-caret-right nav-caret" id="nav-config-caret"></i>
+                <!-- ── MONITORAMENTO ───────────────────────────── -->
+                <div class="nav-section-label" id="nav-label-monitoramento" data-nav-permission-group="test_logs.view,audit.view">Monitoramento</div>
+                <div id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view">
+                    <a class="nav-item" data-view="audit-log" onclick="auditLog.init()" data-nav-permission="audit.view">
+                        <i class="ph ph-sliders-horizontal"></i> Histórico de alterações
                     </a>
-                    <div class="nav-sub-menu" id="nav-sub-config">
-                        <a class="nav-sub-item" data-view="config-usuarios">
-                            <i class="ph ph-users"></i> Usuários
-                        </a>
-                        <a class="nav-sub-item" data-view="config-gabi">
-                            <i class="ph ph-sparkle"></i> Gabi AI
-                        </a>
-                    </div>
+                    <a class="nav-item" data-view="log" data-log-tab="log-testes" data-nav-permission="test_logs.view">
+                        <i class="ph ph-clock-countdown"></i> Logs de testes
+                    </a>
                 </div>
 
-                <!-- Log — menu expansível -->
-                <div class="nav-group" id="nav-group-log">
-                    <a class="nav-item nav-group-toggle" id="nav-log-toggle" onclick="toggleNavGroup('nav-group-log')">
-                        <span style="display:flex; align-items:center; gap:0.6rem;">
-                            <i class="ph ph-clipboard-text"></i> Log
-                        </span>
-                        <i class="ph ph-caret-right nav-caret" id="nav-log-caret"></i>
+                <!-- ── CONFIGURAÇÕES ───────────────────────────── -->
+                <div class="nav-section-label" id="nav-label-config" data-master-only style="display:none;">Configurações</div>
+                <div id="nav-group-config-flat" data-master-only style="display:none;">
+                    <a class="nav-item" data-view="config-usuarios">
+                        <i class="ph ph-user-circle"></i> Usuários e permissões
                     </a>
+                    <a class="nav-item" data-view="config-gabi">
+                        <i class="ph ph-diamond"></i> Integrações e IA
+                    </a>
+                </div>
+
+                <!-- Grupos legados ocultos para compatibilidade com toggleNavGroup -->
+                <div class="nav-group" id="nav-group-config" data-master-only style="display:none;">
+                    <div class="nav-sub-menu" id="nav-sub-config">
+                        <a class="nav-sub-item" data-view="config-usuarios"></a>
+                        <a class="nav-sub-item" data-view="config-gabi"></a>
+                    </div>
+                </div>
+                <div class="nav-group" id="nav-group-log" data-nav-permission-group="test_logs.view,audit.view" style="display:none;">
                     <div class="nav-sub-menu" id="nav-sub-log">
-                        <a class="nav-sub-item" data-view="log" data-log-tab="log-testes">
-                            <i class="ph ph-test-tube"></i> Log Testes
-                        </a>
-                        <a class="nav-sub-item" data-view="audit-log" onclick="auditLog.init()">
-                            <i class="ph ph-clock-counter-clockwise"></i> Histórico
-                        </a>
+                        <a class="nav-sub-item" data-view="log" data-log-tab="log-testes" data-nav-permission="test_logs.view"></a>
+                        <a class="nav-sub-item" data-view="audit-log" data-nav-permission="audit.view"></a>
                     </div>
                 </div>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="user-info">
+                <div class="user-info" id="sidebar-user-wrap" style="cursor:pointer; position:relative;"
+                    onclick="window._toggleUserMenu(event)"
+                    title="Menu do usuário">
                     <div class="avatar" id="sidebar-user-avatar">A</div>
-                    <div>
-                        <div id="sidebar-user-name" style="font-weight: 600; font-size: 0.9rem;">Carregando...</div>
-                        <div id="sidebar-user-role" style="font-size: 0.75rem; color: var(--text-muted);">—</div>
+                    <div style="flex:1; min-width:0;">
+                        <div id="sidebar-user-name" style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Carregando...</div>
+                        <div id="sidebar-user-role" style="font-size:0.75rem; color:var(--text-muted);">—</div>
                     </div>
+                    <i class="ph ph-caret-up-down" style="color:var(--text-muted); font-size:0.85rem; flex-shrink:0;"></i>
                 </div>
-                <button id="btn-logout" class="btn btn-secondary" style="width: 100%;">
-                    <i class="ph ph-sign-out"></i> Sair
-                </button>
+
+                <!-- Dropdown do usuário -->
+                <div id="sidebar-user-menu" style="display:none; background:#1a2035; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:0.4rem; margin-bottom:0.75rem; box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+                    <button id="btn-logout" class="sidebar-user-menu-btn"
+                        style="width:100%; text-align:left; display:flex; align-items:center; gap:0.65rem; padding:0.65rem 0.85rem; border:none; background:transparent; color:var(--text-muted); font-size:0.85rem; font-weight:500; border-radius:8px; cursor:pointer; transition:all 0.15s; font-family:inherit;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.05)';this.style.color='white'"
+                        onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'">
+                        <i class="ph ph-sign-out"></i> Sair
+                    </button>
+                </div>
             </div>
+
         </aside>
+
+        <!-- ═══ Global Top Bar removido — sino e usuário estão na sidebar ══════════ -->
 
         <!-- Main Content Area -->
         <main class="main-content">
@@ -145,10 +202,10 @@
             <!-- Dashboard View — Journey Dashboard -->
             <div id="view-dashboard" class="view-section">
                 <!-- Header do Dashboard -->
-                <div class="top-bar" style="margin-bottom:1rem; flex-wrap:wrap; gap:0.75rem;">
+                <div class="top-bar" style="margin-bottom:1.429rem; flex-wrap:wrap; gap:0.75rem;">
                     <div>
                         <h1
-                            style="font-family:'Plus Jakarta Sans','DM Sans',sans-serif; font-size:1.25rem; font-weight:700; color:#e2e8f0; margin:0 0 0.2rem; display:flex; align-items:center; gap:0.5rem;">
+                            style="font-family:'Plus Jakarta Sans','DM Sans',sans-serif; font-size:1.571rem; font-weight:700; color:#e2e8f0; margin:0 0 0.429rem; display:flex; align-items:center; gap:0.571rem;">
                             <i class="ph ph-path" style="color:#5b52f6;"></i>
                             Dashboard
                         </h1>
@@ -158,9 +215,6 @@
                         </p>
                     </div>
                     <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-                        <!-- Data atual -->
-                        <span id="dashboard-data-hoje"
-                            style="font-size:0.75rem; color:#8b98b4; background:#171e32; padding:0.35rem 0.8rem; border-radius:8px; border:1px solid #26314a; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap;"></span>
 
                         <!-- Dropdown de Usuário / Visualizar como -->
                         <div class="db-user-dropdown" id="db-user-dropdown-wrap">
@@ -187,6 +241,9 @@
                             </div>
                         </div>
 
+                        <!-- Slot para o botão de visibilidade de painéis (injetado por Dashboard.js) -->
+                        <div id="db-painel-toggle-wrap"></div>
+
                         <button class="btn btn-primary btn-new-company" aria-label="Adicionar nova empresa">
                             <i class="ph ph-plus"></i> Nova Empresa
                         </button>
@@ -207,7 +264,7 @@
             <div id="view-company-list" class="view-section" style="display: none;">
                 <div class="top-bar">
                     <div>
-                        <h1><i class="ph ph-users-three" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                        <h1><i class="ph ph-users-three" style="color: var(--primary); margin-right: 0.571rem;"></i>
                             Empresas</h1>
                         <p>Gerencie todas as empresas cadastradas no sistema.</p>
                     </div>
@@ -386,7 +443,7 @@
             <div id="view-log" class="view-section" style="display: none;">
                 <div class="top-bar">
                     <div>
-                        <h1><i class="ph ph-clipboard-text" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                        <h1 style="display:flex; align-items:center; gap:0.571rem;"><i class="ph ph-clipboard-text" style="color: var(--primary);"></i>
                             Log</h1>
                         <p>Registro de testes, eventos e histórico de execuções do sistema.</p>
                     </div>
@@ -618,21 +675,20 @@
                     <div class="company-view-layout">
                         <!-- Left Menu -->
                         <aside class="tab-menu glass-panel" style="padding: 1rem;">
-                            <button type="button" class="tab-menu-btn active" data-tab="tab-dados">
+                            <button type="button" class="tab-menu-btn active" data-tab="tab-dados" data-tab-view="company_tab.basic_data" data-tab-edit="company_edit.basic_data">
                                 <i class="ph ph-buildings"></i> Dados Básicos
                             </button>
-                            <button type="button" class="tab-menu-btn" data-tab="tab-produtos">
+                            <button type="button" class="tab-menu-btn" data-tab="tab-produtos" data-tab-view="company_tab.products" data-tab-edit="company_edit.products">
                                 <i class="ph ph-package"></i> Produtos DATI
                             </button>
-                            <button type="button" class="tab-menu-btn" data-tab="tab-contatos">
+                            <button type="button" class="tab-menu-btn" data-tab="tab-contatos" data-tab-view="company_tab.contacts" data-tab-edit="company_edit.contacts">
                                 <i class="ph ph-users"></i> Contatos
                             </button>
-                            <button type="button" class="tab-menu-btn" id="btn-tab-cs" data-tab="tab-cs"
+                            <button type="button" class="tab-menu-btn" id="btn-tab-cs" data-tab="tab-cs" data-tab-view="company_tab.cs" data-tab-edit="company_edit.cs"
                                 style="display: none;">
                                 <i class="ph ph-heartbeat"></i> Customer Success
                             </button>
-                            <button type="button" class="tab-menu-btn" id="btn-tab-atividades"
-                                data-tab="tab-atividades">
+                            <button type="button" class="tab-menu-btn" id="btn-tab-atividades" data-tab="tab-atividades" data-tab-view="company_tab.activities" data-tab-edit="company_edit.activities">
                                 <i class="ph ph-activity"></i> Atividades
                             </button>
 
@@ -728,9 +784,11 @@
                                         <label>Cidade <span class="th-info-btn" data-th-title="CIDADE"
                                                 data-th-tooltip="Município da empresa. Disponível após selecionar o Estado. Usado em relatórios regionais."><i
                                                     class="ph ph-info"></i><span class="th-pulse"></span></span></label>
-                                        <input type="text" id="emp-cidade" class="input-control" list="cidades-list"
-                                            placeholder="Aguardando estado..." disabled>
-                                        <datalist id="cidades-list"></datalist>
+                                        <div class="select-wrapper">
+                                            <select id="emp-cidade" class="input-control" disabled>
+                                                <option value="">Aguardando estado...</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     <div class="input-group">
                                         <label>Canal <span class="th-info-btn" data-th-title="CANAL DE AQUISIÇÃO"
@@ -1799,7 +1857,7 @@
             </div><!-- /#view-import -->
 
             <!-- Minhas Atividades View (Activities Board) -->
-            <div id="view-minhas-tarefas" class="view-section" style="display: none;">
+            <div id="view-minhas-tarefas" class="view-section flex-view" style="display: none;">
                 <!-- Preenchido dinamicamente por tasks-board.js -->
             </div>
 
@@ -1900,9 +1958,9 @@
             <div id="view-config-usuarios" class="view-section" style="display:none;">
 
                 <!-- Header -->
-                <div class="top-bar" style="margin-bottom:1.5rem;">
+                <div class="top-bar" style="margin-bottom:1.429rem;">
                     <div>
-                        <h1 style="font-size:1.25rem; font-weight:700; color:#e2e8f0; margin:0 0 0.25rem; display:flex; align-items:center; gap:0.5rem;">
+                        <h1 style="font-size:1.571rem; font-weight:700; color:#e2e8f0; margin:0 0 0.429rem; display:flex; align-items:center; gap:0.571rem;">
                             <i class="ph ph-users" style="color:#5b52f6;"></i> Usuários
                         </h1>
                         <p style="color:#8b98b4; font-size:0.8rem; margin:0;">
@@ -1971,10 +2029,11 @@
             <!-- ═══════════════════════════════════════════════════════════════
                  VIEW: Config → Gabi AI
             ═══════════════════════════════════════════════════════════════════ -->
+
             <div id="view-config-gabi" class="view-section" style="display:none;">
-                <div class="top-bar" style="margin-bottom:1.5rem;">
+                <div class="top-bar" style="margin-bottom:1.429rem;">
                     <div>
-                        <h1 style="display:flex; align-items:center; gap:0.5rem;">
+                        <h1 style="display:flex; align-items:center; gap:0.571rem;">
                             <i class="ph ph-sparkle" style="color:#6366f1;"></i> Gabi AI
                         </h1>
                         <p style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
@@ -2146,8 +2205,8 @@
             <div id="view-audit-log" class="view-section" style="display:none;">
                 <div class="top-bar">
                     <div>
-                        <h1>
-                            <i class="ph ph-clock-counter-clockwise" style="color:var(--primary);margin-right:0.5rem;"></i>
+                        <h1 style="display:flex; align-items:center; gap:0.571rem;">
+                            <i class="ph ph-clock-counter-clockwise" style="color:var(--primary);"></i>
                             Histórico de Alterações
                         </h1>
                         <p>Registro completo de quem fez o quê e quando no sistema.</p>
@@ -2239,7 +2298,7 @@
                                             </button>
                                         </div>
                                         <div id="filter-popover-audit_quando" class="filter-popover" style="min-width:260px;">
-                                            <!-- Popover de data para a coluna QUANDO (preenchido via JS) -->
+                                            <!-- Popover de data (preenchido via JS) -->
                                         </div>
                                     </th>
                                     <th class="sortable-header" data-key="quem" style="width:200px; position:relative;">
@@ -2818,6 +2877,70 @@
 
         </div>
     </div><!-- /#run-tests-modal-overlay -->
+
+
+<script>
+/**
+ * Select Wrapper Auto-injector
+ * Envolve automaticamente todos os <select> do sistema com .select-wrapper
+ * para ativar o chevron customizado definido em components.css.
+ * Exclui: .status-select (badge colorido com estilo próprio)
+ *         selects já dentro de .select-wrapper
+ *         selects com estilo inline de status colorido
+ */
+(function initSelectWrappers() {
+  function wrapSelect(select) {
+    // Pula se já está dentro de um wrapper
+    if (select.closest('.select-wrapper')) return;
+    // Pula status-select (badge colorido pill)
+    if (select.classList.contains('status-select')) return;
+    // Pula flatpickr internos
+    if (select.classList.contains('flatpickr-monthDropdown-months')) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'select-wrapper';
+
+    // Herda width inline do select
+    const inlineWidth = select.style.width;
+    if (inlineWidth && inlineWidth !== '100%') {
+      wrapper.style.width = 'auto';
+      wrapper.style.display = 'inline-block';
+    }
+
+    select.parentNode.insertBefore(wrapper, select);
+    wrapper.appendChild(select);
+  }
+
+  function wrapAllSelects(root) {
+    (root || document).querySelectorAll('select').forEach(wrapSelect);
+  }
+
+  // Executa imediatamente após o DOM ficar pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => wrapAllSelects());
+  } else {
+    wrapAllSelects();
+  }
+
+  // Observa mudanças futuras (modais e drawers injetados por JS)
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((m) => {
+      m.addedNodes.forEach((node) => {
+        if (node.nodeType !== 1) return;
+        if (node.tagName === 'SELECT') {
+          wrapSelect(node);
+        } else {
+          node.querySelectorAll && node.querySelectorAll('select').forEach(wrapSelect);
+        }
+      });
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
 
 </body>
 

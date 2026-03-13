@@ -17,16 +17,46 @@ import { confirmar } from '../confirmar.js';
 import { refreshCompanyProductsTable, getCompanyProductsManager } from './company-products-table.js';
 
 // ============================================================================
-// SEÇÃO 1: CONSTANTES (catálogo de produtos e tipos de cobrança)
+// SEÇÃO 1: CONSTANTES (produtos DATI e tipos de cobrança)
 // ============================================================================
 
-const PRODUTOS_DATI = [
-    'DATI Import',
-    'DATI Export',
-    'Smart Read',
-    'Orkestra',
-    'Catálogo de Produtos',
+// Configuração visual de cada Produto DATI
+// em_breve: true → exibe badge, desabilita seleção
+const PRODUTOS_CONFIG = [
+    {
+        nome:     'DATI Import',
+        icone:    'ph-upload-simple',
+        desc:     'Importação inteligente de dados',
+        em_breve: false,
+    },
+    {
+        nome:     'DATI Export',
+        icone:    'ph-download-simple',
+        desc:     'Exportação e relatórios avançados',
+        em_breve: false,
+    },
+    {
+        nome:     'Smart Read',
+        icone:    'ph-magnifying-glass',
+        desc:     'Leitura inteligente de documentos',
+        em_breve: false,
+    },
+    {
+        nome:     'Catálogo de Produtos',
+        icone:    'ph-books',
+        desc:     'Gestão do portfólio de produtos',
+        em_breve: false,
+    },
+    {
+        nome:     'Orkestra',
+        icone:    'ph-graph',
+        desc:     'Orquestração de processos COMEX',
+        em_breve: true,
+    },
 ];
+
+// Lista plana usada apenas para compatibilidade com collectFromForm
+const PRODUTOS_DATI = PRODUTOS_CONFIG.map(p => p.nome);
 
 const BILLING_TYPES = [
     'Mensalidade',
@@ -98,6 +128,50 @@ function buildOptions(list, selected, placeholder = 'Selecione...') {
 }
 
 // ============================================================================
+// SEÇÃO 2.5: PRODUTO PICKER (cards visuais)
+// ============================================================================
+
+/**
+ * Constrói o picker de produto como cards visuais.
+ * Orkestra exibe badge "Em breve" e é não-clicable.
+ * Um <input hidden id="prod-nome"> armazena o valor selecionado.
+ */
+function buildProdutoPicker(selected) {
+    const cards = PRODUTOS_CONFIG.map(p => {
+        const isSelected = selected === p.nome;
+        const cs = p.em_breve;
+        return `
+        <button
+            type="button"
+            class="prod-picker-card${isSelected ? ' selected' : ''}${cs ? ' coming-soon' : ''}"
+            data-produto="${p.nome}"
+            ${cs ? 'disabled aria-disabled="true" tabindex="-1"' : `onclick="window._selecionarProduto('${p.nome}')"`}
+            title="${cs ? 'Em breve' : p.nome}"
+        >
+            ${cs ? '<span class="prod-picker-badge-cs">Em breve</span>' : ''}
+            <span class="prod-picker-icon"><i class="ph ${p.icone}"></i></span>
+            <span class="prod-picker-nome">${p.nome}</span>
+            <span class="prod-picker-desc">${p.desc}</span>
+        </button>`;
+    }).join('');
+
+    return `
+    <div class="prod-picker-grid" id="prod-picker-grid">
+        ${cards}
+    </div>
+    <input type="hidden" id="prod-nome" value="${selected || ''}"/>`;
+}
+
+// Handler global chamado pelos botoes onclick do picker
+window._selecionarProduto = function(nome) {
+    const input = document.getElementById('prod-nome');
+    if (input) input.value = nome;
+    document.querySelectorAll('.prod-picker-card').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.produto === nome);
+    });
+};
+
+// ============================================================================
 // SEÇÃO 3: CONSTRUÇÃO DO MODAL
 // ============================================================================
 
@@ -124,12 +198,8 @@ function buildModalHTML(prod) {
 
                 <!-- PRODUTO -->
                 <div class="editor-section">
-                    <div class="input-group">
-                        <label for="prod-nome">Produto <span class="required-star">*</span></label>
-                        <select id="prod-nome" class="input-control">
-                            ${buildOptions(PRODUTOS_DATI, prod?.nome, 'Selecione o produto...')}
-                        </select>
-                    </div>
+                    <label class="input-label" style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:0.25rem;display:block;">Produto <span class="required-star">*</span></label>
+                    ${buildProdutoPicker(prod?.nome)}
                 </div>
 
                 <!-- VALORES DO PRODUTO -->
