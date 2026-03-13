@@ -1622,21 +1622,18 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false) {
         const timeManual = parseInt(document.getElementById('td-time-min')?.value || '0');
         const timeSpent  = timeManual > 0 ? timeManual : (_timerSec > 0 ? Math.ceil(_timerSec/60) : null);
 
-        // Coleta participantes dos chips
+        // Coleta participantes dos chips — envia user_id para tipo 'user', string bruta para email/whatsapp
         const participantChips = [...document.querySelectorAll('.td-part-chip')];
-        const assignees = participantChips.map(ch => ({ id: ch.dataset.id, type: ch.dataset.type, label: ch.querySelector('i')?.nextSibling?.textContent?.trim() || ch.dataset.id }));
-        const assigneeIds = assignees.filter(a=>a.type==='user').map(a=>a.id).filter(Boolean);
-        const assigneeNames = participantChips.map(ch => {
-            const txt = [...ch.childNodes].find(n=>n.nodeType===3)?.textContent?.trim() || ch.dataset.id || '';
-            return txt;
-        }).filter(Boolean);
+        const assigneeIds = participantChips
+            .map(ch => ({ id: ch.dataset.id, type: ch.dataset.type }))
+            .map(a => a.id)  // para tipo user: Clerk ID; para email/whatsapp: a string digitada
+            .filter(Boolean);
 
-        // Coleta responsáveis do próximo passo
+        // Coleta responsáveis do próximo passo — idem
         const nxtChips = [...document.querySelectorAll('.td-nxt-chip')];
-        const nxtResp = nxtChips.map(ch => {
-            const txt = [...ch.childNodes].find(n=>n.nodeType===3)?.textContent?.trim() || ch.dataset.id || '';
-            return txt;
-        }).filter(Boolean);
+        const nxtResp = nxtChips
+            .map(ch => ch.dataset.id)
+            .filter(Boolean);
 
         // Empresa
         const companyId = document.getElementById('td-company-id')?.value || null;
@@ -1657,7 +1654,7 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false) {
                 activity_datetime: document.getElementById('td-datetime').value ? new Date(document.getElementById('td-datetime').value).toISOString() : null,
                 title:             titleVal,
                 description:       document.getElementById('td-desc').value.trim() || null,
-                assignees:         assigneeNames.length ? assigneeNames : (assigneeIds.length ? assigneeIds : []),
+                assignees:         assigneeIds,
                 company_id:        companyId,
                 time_spent_minutes: timeSpent,
                 next_step_title:   document.getElementById('td-next-step')?.value?.trim() || null,

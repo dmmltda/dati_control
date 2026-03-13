@@ -379,23 +379,22 @@ function renderCompanyTableRows(data) {
         let npsBadge = '-';
         if (comp.nps && CS_VISIBLE_STATUSES.includes(comp.status)) {
             const npsVal = parseFloat(comp.nps);
-            let npsColor = '#64748b'; // Gray default
+            let npsColor = '#64748b';
             let npsBg = 'rgba(255,255,255,0.05)';
+            let npsEmoji = '';
+            let npsLabel = '';
 
-            if (npsVal <= 6) {
-                npsColor = '#ef4444'; // Red
-                npsBg = 'rgba(239, 68, 68, 0.15)';
-            } else if (npsVal <= 8) {
-                npsColor = '#f59e0b'; // Yellow (Amber)
-                npsBg = 'rgba(245, 158, 11, 0.15)';
+            if (npsVal >= 9) {
+                npsColor = '#10b981'; npsBg = 'rgba(16,185,129,0.15)'; npsEmoji = '😍'; npsLabel = 'Promotor';
+            } else if (npsVal >= 7) {
+                npsColor = '#f59e0b'; npsBg = 'rgba(245,158,11,0.15)'; npsEmoji = '😐'; npsLabel = 'Neutro';
             } else {
-                npsColor = '#10b981'; // Green (Emerald)
-                npsBg = 'rgba(16, 185, 129, 0.15)';
+                npsColor = '#ef4444'; npsBg = 'rgba(239,68,68,0.15)'; npsEmoji = '😠'; npsLabel = 'Detrator';
             }
 
             npsBadge = `
-                <span class="badge" style="font-size: 0.85rem; background: ${npsBg}; color: ${npsColor}; border: 1px solid currentColor;">
-                    NPS: ${comp.nps}
+                <span class="badge" title="NPS: ${comp.nps} — ${npsLabel}" style="font-size: 0.8rem; background: ${npsBg}; color: ${npsColor}; border: 1px solid currentColor; display:inline-flex; align-items:center; gap:0.3rem;">
+                    ${npsEmoji} ${comp.nps} <span style="font-size:0.65rem; opacity:0.85;">${npsLabel}</span>
                 </span>
             `;
         }
@@ -602,19 +601,49 @@ function renderNPSHistoryTableRows(data) {
     body.innerHTML = '';
 
     if (data.length === 0) {
-        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada. Clique em "Registrar Pesquisa" para adicionar.</td></tr>`;
         return;
     }
 
     data.forEach((nps, index) => {
+        const scoreVal = parseFloat(nps.score);
+        let scoreColor, scoreBg, scoreBorder, scoreLabel, scoreEmoji;
+
+        if (scoreVal >= 9) {
+            scoreColor = '#10b981'; scoreBg = 'rgba(16,185,129,0.12)'; scoreBorder = 'rgba(16,185,129,0.35)';
+            scoreLabel = 'Promotor'; scoreEmoji = '😍';
+        } else if (scoreVal >= 7) {
+            scoreColor = '#f59e0b'; scoreBg = 'rgba(245,158,11,0.12)'; scoreBorder = 'rgba(245,158,11,0.35)';
+            scoreLabel = 'Neutro'; scoreEmoji = '😐';
+        } else {
+            scoreColor = '#ef4444'; scoreBg = 'rgba(239,68,68,0.12)'; scoreBorder = 'rgba(239,68,68,0.35)';
+            scoreLabel = 'Detrator'; scoreEmoji = '😠';
+        }
+
+        const scoreBarWidth = Math.min(100, Math.max(0, (scoreVal / 10) * 100)).toFixed(0);
+        const respostas = nps.forms ? `<strong style="color:var(--text-main);">${nps.forms}</strong> respostas` : '<span style="color:var(--text-muted);">—</span>';
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight: 500;">${nps.data}</td>
-            <td>${nps.destinatarios}</td>
-            <td style="text-align:center;">${nps.forms || 0}</td>
-            <td style="text-align:center;"><span class="badge" style="background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid currentColor;">${nps.score}</span></td>
+            <td style="font-weight: 500; white-space:nowrap;">${nps.data}</td>
+            <td style="color:var(--text-muted); font-size:0.85rem;">${nps.destinatarios}</td>
+            <td style="text-align:center; font-size:0.85rem;">${respostas}</td>
+            <td style="text-align:center; min-width:160px;">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:0.25rem;">
+                    <div style="display:flex; align-items:center; gap:0.4rem;">
+                        <span style="font-size:0.9rem;">${scoreEmoji}</span>
+                        <span class="badge" style="background:${scoreBg}; color:${scoreColor}; border:1px solid ${scoreBorder}; font-size:0.85rem; font-weight:700;">
+                            ${isNaN(scoreVal) ? nps.score : scoreVal.toFixed(1)}
+                        </span>
+                        <span style="font-size:0.72rem; color:${scoreColor}; font-weight:600;">${scoreLabel}</span>
+                    </div>
+                    <div style="width:80px; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
+                        <div style="height:100%; width:${scoreBarWidth}%; background:${scoreColor}; border-radius:2px; transition:width 0.4s ease;"></div>
+                    </div>
+                </div>
+            </td>
             <td style="text-align: right;">
-                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}"><i class="ph ph-trash"></i></button>
+                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro"><i class="ph ph-trash"></i></button>
             </td>
         `;
         body.appendChild(tr);

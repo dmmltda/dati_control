@@ -640,27 +640,32 @@
                                 </select>
                             </div>
                             <div class="glass-panel"
+                                data-th-title="NPS — Net Promoter Score"
+                                data-th-tooltip="Nota dada pelo cliente de 0 a 10. 9-10 = Promotor 😍 | 7-8 = Neutro 😐 | 0-6 = Detrator 😠"
                                 style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
                                 <i class="ph ph-star" style="color: #f59e0b;"></i>
                                 <span
                                     style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">NPS:</span>
                                 <select id="emp-nps" class="input-control"
                                     style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
-                                    <option value="">--</option>
-                                    <template id="nps-options">
-                                        <!-- Will be manually populated or defined -->
-                                    </template>
-                                    <option value="10">10</option>
-                                    <option value="9">9</option>
-                                    <option value="8">8</option>
-                                    <option value="7">7</option>
-                                    <option value="6">6</option>
-                                    <option value="5">5</option>
-                                    <option value="4">4</option>
-                                    <option value="3">3</option>
-                                    <option value="2">2</option>
-                                    <option value="1">1</option>
-                                    <option value="0">0</option>
+                                    <option value="">-- Definir --</option>
+                                    <optgroup label="😍 Promotores (Nota 9–10)">
+                                        <option value="10">10 — Promotor</option>
+                                        <option value="9">9 — Promotor</option>
+                                    </optgroup>
+                                    <optgroup label="😐 Neutros (Nota 7–8)">
+                                        <option value="8">8 — Neutro</option>
+                                        <option value="7">7 — Neutro</option>
+                                    </optgroup>
+                                    <optgroup label="😠 Detratores (Nota 0–6)">
+                                        <option value="6">6 — Detrator</option>
+                                        <option value="5">5 — Detrator</option>
+                                        <option value="4">4 — Detrator</option>
+                                        <option value="3">3 — Detrator</option>
+                                        <option value="2">2 — Detrator</option>
+                                        <option value="1">1 — Detrator</option>
+                                        <option value="0">0 — Detrator</option>
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
@@ -1292,31 +1297,91 @@
 
                                 <div id="cs-nps" class="cs-sub-content">
                                     <div
-                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                                        <h3>Pesquisas NPS</h3>
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                        <h3><i class="ph ph-star" style="color:#f59e0b;margin-right:0.4rem;"></i>Pesquisas NPS</h3>
                                         <button type="button" id="btn-toggle-nps-form"
-                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Novo
-                                            NPS</button>
+                                            class="btn btn-secondary btn-sm"><i class="ph ph-plus"></i> Registrar Pesquisa</button>
                                     </div>
+
+                                    <!-- ── Painel Educativo NPS ── -->
+                                    <div class="glass-panel" style="margin-bottom:1.25rem; padding:1rem 1.25rem; border:1px solid rgba(245,158,11,0.2); background:rgba(245,158,11,0.04);">
+                                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                                            <i class="ph ph-info" style="color:#f59e0b;"></i>
+                                            <span style="font-size:0.8rem; font-weight:700; color:#f59e0b; text-transform:uppercase; letter-spacing:0.05em;">O que é NPS?</span>
+                                        </div>
+                                        <p style="font-size:0.82rem; color:var(--text-muted); margin:0 0 0.75rem; line-height:1.5;">
+                                            <strong style="color:var(--text-main);">Net Promoter Score</strong> — mede a lealdade do cliente com a pergunta:
+                                            <em>"De 0 a 10, qual a probabilidade de você nos recomendar?"</em>
+                                        </p>
+                                        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+                                            <div style="flex:1; min-width:120px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:0.6rem 0.8rem; text-align:center;">
+                                                <div style="font-size:1.2rem;">😍</div>
+                                                <div style="font-size:0.75rem; font-weight:700; color:#10b981;">PROMOTORES</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted);">Nota 9–10</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">Recomendam ativamente</div>
+                                            </div>
+                                            <div style="flex:1; min-width:120px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:0.6rem 0.8rem; text-align:center;">
+                                                <div style="font-size:1.2rem;">😐</div>
+                                                <div style="font-size:0.75rem; font-weight:700; color:#f59e0b;">NEUTROS</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted);">Nota 7–8</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">Satisfeitos mas passivos</div>
+                                            </div>
+                                            <div style="flex:1; min-width:120px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:0.6rem 0.8rem; text-align:center;">
+                                                <div style="font-size:1.2rem;">😠</div>
+                                                <div style="font-size:0.75rem; font-weight:700; color:#ef4444;">DETRATORES</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted);">Nota 0–6</div>
+                                                <div style="font-size:0.7rem; color:var(--text-muted); margin-top:0.25rem;">Podem falar mal</div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid rgba(255,255,255,0.06); font-size:0.78rem; color:var(--text-muted);">
+                                            <i class="ph ph-calculator"></i>
+                                            <strong style="color:var(--text-main);"> Fórmula:</strong>
+                                            NPS = <span style="color:#10b981;">% Promotores</span> − <span style="color:#ef4444;">% Detratores</span>
+                                            &nbsp;·&nbsp;
+                                            <span style="color:#10b981;">+75 a +100</span> Excelente &nbsp;·&nbsp;
+                                            <span style="color:#f59e0b;">+50 a +74</span> Muito bom &nbsp;·&nbsp;
+                                            <span style="color:var(--text-muted);">0 a +49</span> Razoável &nbsp;·&nbsp;
+                                            <span style="color:#ef4444;">Negativo</span> Zona de alerta
+                                        </div>
+                                    </div>
+
+                                    <!-- ── Formulário de registro ── -->
                                     <div id="nps-form-container" class="glass-panel"
                                         style="display: none; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px dashed var(--dark-border);">
+                                        <div style="margin-bottom:1rem;">
+                                            <span style="font-size:0.8rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Registrar Pesquisa NPS</span>
+                                        </div>
                                         <div class="grid-4">
-                                            <input type="date" id="new-nps-data" class="input-control">
-                                            <input type="text" id="new-nps-dest" class="input-control"
-                                                placeholder="Destinatários">
-                                            <input type="text" id="new-nps-forms" class="input-control"
-                                                placeholder="Formulários">
-                                            <input type="number" id="new-nps-score" class="input-control"
-                                                placeholder="NPS Médio">
+                                            <div class="input-group">
+                                                <label>Data da Pesquisa <span style="color:var(--primary);">*</span></label>
+                                                <input type="date" id="new-nps-data" class="input-control">
+                                            </div>
+                                            <div class="input-group">
+                                                <label>Destinatários <span style="color:var(--primary);">*</span></label>
+                                                <input type="text" id="new-nps-dest" class="input-control"
+                                                    placeholder="Ex: contatos@empresa.com">
+                                            </div>
+                                            <div class="input-group">
+                                                <label>Respostas Recebidas</label>
+                                                <input type="number" id="new-nps-forms" class="input-control"
+                                                    placeholder="Nº de respostas" min="0">
+                                            </div>
+                                            <div class="input-group">
+                                                <label>NPS Score Médio <span style="color:var(--primary);">*</span>
+                                                    <span class="th-info-btn" data-th-title="NPS SCORE MÉDIO" data-th-tooltip="Média das notas recebidas (0–10). Promotores=9-10, Neutros=7-8, Detratores=0-6."><i class="ph ph-info"></i></span>
+                                                </label>
+                                                <input type="number" id="new-nps-score" class="input-control"
+                                                    placeholder="0 a 10" min="0" max="10" step="0.1">
+                                            </div>
                                         </div>
                                         <div
                                             style="display: flex; gap: 0.8rem; justify-content: flex-end; margin-top: 1rem;">
                                             <button type="button" id="btn-cancel-nps"
                                                 class="btn btn-secondary">Cancelar</button>
-                                            <button type="button" id="btn-save-nps" class="btn btn-primary">Salvar
-                                                NPS</button>
+                                            <button type="button" id="btn-save-nps" class="btn btn-primary"><i class="ph ph-star"></i> Registrar NPS</button>
                                         </div>
                                     </div>
+
                                     <table class="company-table" id="tab-nps">
                                         <thead>
                                             <tr>
@@ -1340,12 +1405,13 @@
                                                     <div id="filter-popover-nps_destinatarios" class="filter-popover">
                                                     </div>
                                                 </th>
-                                                <th>Forms</th>
+                                                <th style="text-align:center;">Respostas
+                                                    <span class="th-info-btn" data-th-title="RESPOSTAS" data-th-tooltip="Número total de respostas recebidas nesta pesquisa."><i class="ph ph-info"></i><span class="th-pulse"></span></span>
+                                                </th>
                                                 <th class="sortable-header" data-key="score"
                                                     style="text-align: center;">
                                                     <div class="header-content" style="justify-content: center;">
-                                                        <span onclick="ui.handleNPSSort('score', event)">NPS
-                                                            Score</span>
+                                                        <span onclick="ui.handleNPSSort('score', event)">NPS Score</span>
                                                         <button type="button" class="btn-filter-column"
                                                             onclick="ui.toggleFilterPopover('nps_score', event)"><i
                                                                 class="ph ph-funnel"></i></button>

@@ -176,6 +176,8 @@ export function openCompanyForm(id = null) {
     switchView('company-form');
 
     // ─ Verifica permissão de visualização das abas (company_tab.X) ──
+    // Sem company_tab.X: aba OCULTA (não existe para o usuário)
+    // Com company_tab.X: aba VISÍVEL — editável só se também tiver company_edit.X
     const tabBtns = document.querySelectorAll('.tab-menu-btn[data-tab-view]');
     let firstVisibleTab = null;
     let fallbackTab = null;
@@ -183,20 +185,14 @@ export function openCompanyForm(id = null) {
     tabBtns.forEach(btn => {
         const permissionKey = btn.getAttribute('data-tab-view');
         const podeVer = window.canDo ? window.canDo(permissionKey) : true;
-        
-        // Em vez de hide, vamos manter flex mas travar se não tiver permissão
-        btn.style.display = 'flex';
-        
+
         if (!podeVer) {
-            btn.style.opacity = '0.38';
+            // Sem permissão de visualização → ocultar completamente
+            btn.style.display = 'none';
             btn.dataset.lockedTab = "1";
-            btn.setAttribute('data-th-title', 'BLOQUEADO');
-            btn.setAttribute('data-th-tooltip', 'Você não tem permissão de visualizar esta aba.');
-            // Adiciona ícone de cadeado se não tiver
-            if (!btn.querySelector('.tab-lock-icon')) {
-                btn.insertAdjacentHTML('beforeend', '<i class="ph ph-lock-simple tab-lock-icon" style="margin-left:auto; opacity:0.7;"></i>');
-            }
         } else {
+            // Com permissão de visualização → mostrar normalmente
+            btn.style.display = 'flex';
             btn.style.opacity = '1';
             btn.dataset.lockedTab = "0";
             btn.removeAttribute('data-th-title');
@@ -204,13 +200,13 @@ export function openCompanyForm(id = null) {
             btn.querySelector('.tab-lock-icon')?.remove();
 
             if (btn.id !== 'btn-tab-cs' || (comp && comp.status === 'Em Contrato')) {
-                // Customer success hidden by default if not 'Em Contrato'
                 if (!firstVisibleTab) firstVisibleTab = btn;
             } else if (btn.id !== 'btn-tab-cs') {
                 if (!fallbackTab) fallbackTab = btn;
             }
         }
     });
+
 
     // Se a lógica do app exibe CS mas o usuário tem permissão nela, mantemos a visibilidade (sem display:none pra quem não tem lock)
     const csBtn = document.getElementById('btn-tab-cs');
@@ -220,6 +216,16 @@ export function openCompanyForm(id = null) {
         } else if (window.canDo && window.canDo('company_tab.cs')) {
              csBtn.style.display = 'none'; // oculto logicamente pois não é cliente
         }
+    }
+
+    // ─ Oculta o aside do menu de abas se apenas 1 (ou 0) ficou visível ──────
+    // Com uma única aba, o menu lateral perde sentido e ocupa espaço em branco
+    const tabMenu = document.querySelector('.tab-menu');
+    if (tabMenu) {
+        const visibleBtns = [...tabMenu.querySelectorAll('.tab-menu-btn')].filter(
+            btn => btn.style.display !== 'none' && !btn.style.display?.includes('none')
+        );
+        tabMenu.style.display = visibleBtns.length > 1 ? '' : 'none';
     }
 
     // Aplica active data final e permissão de edição

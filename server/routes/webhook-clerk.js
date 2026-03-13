@@ -84,16 +84,25 @@ router.post('/', async (req, res) => {
 
                 const userType = pendingInvite?.user_type || 'standard';
 
+                // Busca usuário existente para não sobrescrever um master já estabelecido
+                const existingUser = await prisma.users.findUnique({
+                    where: { id: data.id },
+                    select: { user_type: true }
+                }).catch(() => null);
+
+                // Se já existe como master, mantém; senão aplica o userType do convite
+                const finalUserType = existingUser?.user_type === 'master' ? 'master' : userType;
+
                 await prisma.users.upsert({
                     where: { id: data.id },
-                    update: { nome: nomeCompleto, email, avatar: iniciais, ativo: true, user_type: userType },
+                    update: { nome: nomeCompleto, email, avatar: iniciais, ativo: true, user_type: finalUserType },
                     create: {
                         id: data.id,
                         nome: nomeCompleto,
                         email,
                         avatar: iniciais,
                         role: 'member',
-                        user_type: userType,
+                        user_type: finalUserType,
                         ativo: true,
                     }
                 });
@@ -304,11 +313,21 @@ router.post('/', async (req, res) => {
                     where: { user_id: clerkUserId }
                 });
 
-                // Volta para standard (perdeu acesso à org)
-                await prisma.users.update({
+                // Volta para standard APENAS se o usuário não for master
+                // Masters nunca perdem seu tipo por evento do Clerk
+                const currentUser = await prisma.users.findUnique({
                     where: { id: clerkUserId },
-                    data: { user_type: 'standard' }
-                }).catch(() => {});
+                    select: { user_type: true }
+                }).catch(() => null);
+
+                if (currentUser && currentUser.user_type !== 'master') {
+                    await prisma.users.update({
+                        where: { id: clerkUserId },
+                        data: { user_type: 'standard' }
+                    }).catch(() => {});
+                } else {
+                    console.log(`[Webhook] ℹ️ organizationMembership.deleted → usuário ${clerkUserId} é master, user_type mantido.`);
+                }
 
                 // ── Audit log: saída da organização ─────────────────────────────
                 audit.log(prisma, {
