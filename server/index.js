@@ -130,6 +130,65 @@ app.post('/fix-masters', async (req, res) => {
     return res.json({ ok: true, ...results });
 });
 
+// Endpoint de seed de atividades (protegido por chave)
+// POST /seed-activities com body { key: "dati-fix-2024", user_id: "clerk_user_id" }
+app.post('/seed-activities', async (req, res) => {
+    const { key, user_id } = req.body;
+    if (key !== (process.env.ADMIN_FIX_KEY || 'dati-fix-2024')) {
+        return res.status(403).json({ error: 'Key inválida' });
+    }
+    try {
+        const { randomUUID } = await import('crypto');
+        // Busca o usuário cujo id foi passado (ou o primeiro master)
+        const targetUser = user_id
+            ? await prisma.users.findUnique({ where: { id: user_id } })
+            : await prisma.users.findFirst({ where: { user_type: 'master' } });
+
+        if (!targetUser) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+        // Busca a primeira empresa disponível (se houver)
+        const firstCompany = await prisma.companies.findFirst({ select: { id: true, Nome_da_empresa: true } }).catch(() => null);
+
+        const now = new Date();
+        const seeds = [
+            { type: 'Comentário',      title: 'Follow-up com cliente após reunião',          status: 'Concluído',    priority: 'média',   daysOffset: -5 },
+            { type: 'Reunião',         title: 'Apresentação do roadmap Q2',                  status: 'Concluído',    priority: 'alta',    daysOffset: -3 },
+            { type: 'Chamados CS',     title: 'Suporte técnico — erro no módulo de import',  status: 'Em Andamento', priority: 'urgente', daysOffset: -1 },
+            { type: 'Ação necessária', title: 'Enviar proposta atualizada para aprovação',   status: 'A Fazer',      priority: 'alta',    daysOffset:  1 },
+            { type: 'Comentário',      title: 'Verificar acesso ao ambiente de homologação', status: 'A Fazer',      priority: 'baixa',   daysOffset:  2 },
+            { type: 'Reunião',         title: 'Kickoff do onboarding — nova empresa',        status: 'A Fazer',      priority: 'alta',    daysOffset:  3 },
+            { type: 'Chamados HD',     title: 'Integração com ERP — mapeamento de campos',   status: 'A Fazer',      priority: 'média',   daysOffset:  5 },
+            { type: 'Ação necessária', title: 'Revisão do SLA — contrato renovado',          status: 'Cancelado',    priority: 'baixa',   daysOffset: -7 },
+        ];
+
+        const created = [];
+        for (const s of seeds) {
+            const dt = new Date(now);
+            dt.setDate(dt.getDate() + s.daysOffset);
+            const act = await prisma.activities.create({
+                data: {
+                    id:                  randomUUID(),
+                    activity_type:       s.type,
+                    title:               s.title,
+                    status:              s.status,
+                    priority:            s.priority,
+                    activity_datetime:   dt,
+                    created_by_user_id:  targetUser.id,
+                    company_id:          firstCompany?.id || null,
+                    updated_at:          now,
+                    activity_assignees: {
+                        create: [{ id: randomUUID(), user_id: targetUser.id }]
+                    },
+                },
+            });
+            created.push(act.id);
+        }
+        return res.json({ ok: true, created: created.length, user: targetUser.nome, company: firstCompany?.Nome_da_empresa || null });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 app.use(clerkMiddleware({ secretKey: process.env.CLERK_SECRET_KEY }));
 
 
