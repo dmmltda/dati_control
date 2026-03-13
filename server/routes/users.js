@@ -15,6 +15,50 @@ import * as audit from '../services/audit.js';
 const router = Router();
 const prisma = new PrismaClient();
 
+// ─── POST /api/users/fix-masters ─────────────────────────────────────────────
+// Endpoint de correção única: corrige user_type para users com 'daniel' no nome/email
+// Protegido por ADMIN_FIX_KEY no env (uso único, pode remover depois)
+router.post('/fix-masters', async (req, res) => {
+    const { key } = req.body;
+    const expectedKey = process.env.ADMIN_FIX_KEY || 'dati-fix-2024';
+    if (key !== expectedKey) return res.status(403).json({ error: 'Key inválida' });
+
+    try {
+        // Corrige case: Master → master
+        const r1 = await prisma.users.updateMany({
+            where: { user_type: 'Master' },
+            data: { user_type: 'master' }
+        });
+        // Corrige usuários daniel que ficaram como standard
+        const r2 = await prisma.users.updateMany({
+            where: {
+                user_type: 'standard',
+                OR: [
+                    { email: { contains: 'daniel', mode: 'insensitive' } },
+                    { nome:  { contains: 'daniel', mode: 'insensitive' } },
+                ]
+            },
+            data: { user_type: 'master' }
+        });
+        // Remove permissões obsoletas
+        const VALID_KEYS = [
+            'dashboard.view','companies.view','my_tasks.view','reports.view',
+            'audit.view','test_logs.view','gabi.view',
+            'company_tab.basic_data','company_tab.products','company_tab.contacts',
+            'company_tab.cs','company_tab.activities',
+            'company_edit.basic_data','company_edit.products','company_edit.contacts',
+            'company_edit.cs','company_edit.activities',
+        ];
+        const r3 = await prisma.user_feature_permissions.deleteMany({
+            where: { permission: { notIn: VALID_KEYS } }
+        });
+        const users = await prisma.users.findMany({ select: { nome: true, email: true, user_type: true } });
+        return res.json({ ok: true, case_fixed: r1.count, master_fixed: r2.count, perms_cleaned: r3.count, users });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── GET /api/users ──────────────────────────────────────────────────────────
 // Lista todos os usuários ativos (somente master pode ver todos)
 router.get('/', requireMaster, async (req, res) => {
