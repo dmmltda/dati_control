@@ -86,6 +86,29 @@ export function normalizePhone(phone) {
 }
 
 /**
+ * Normaliza número brasileiro para ENVIO via API Meta.
+ * O Meta envia webhooks com números BR sem o "9" de celular (ex: 554888480707 = 12 dígitos),
+ * mas para ENTREGAR mensagens precisa do "9" (ex: 5548988480707 = 13 dígitos).
+ *
+ * Regra: DDDs brasileiros (55 + 2 dígitos DDD) com 8 dígitos restantes → inserir 9.
+ * Ex: 554888480707 → 5548988480707
+ *     5511988880707 → sem alteração (já tem 13 dígitos)
+ *
+ * @param {string} phone - número normalizado (sem + ou espaços)
+ * @returns {string}
+ */
+export function normalizePhoneForSend(phone) {
+    const cleaned = normalizePhone(phone);
+    // Número BR com 12 dígitos: 55 + 2 DDD + 8 número = precisa do 9
+    if (/^55\d{10}$/.test(cleaned)) {
+        // Insere 9 após o DDD (posição 4)
+        return cleaned.slice(0, 4) + '9' + cleaned.slice(4);
+    }
+    return cleaned;
+}
+
+
+/**
  * Verifica se o serviço de WhatsApp está configurado (token + number_id presentes).
  * Equivalente ao isEmailConfigured() do email.js.
  *
@@ -133,8 +156,8 @@ export async function sendTextMessage(to, text, opts = {}) {
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    // Normaliza: remove + e espaços para envio (Meta aceita sem +)
-    const toClean = normalizePhone(to);
+    // Normaliza: remove + e espaços, e insere 9 para BR móvel se necessário
+    const toClean = normalizePhoneForSend(to);
     if (!toClean) {
         console.warn('[WhatsApp] Número de destino inválido:', to);
         return { sent: false, error: 'Número inválido' };
@@ -204,7 +227,7 @@ export async function sendTemplateMessage(to, templateName, languageCode = 'pt_B
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    const toClean = normalizePhone(to);
+    const toClean = normalizePhoneForSend(to);
     if (!toClean) {
         return { sent: false, error: 'Número inválido' };
     }
