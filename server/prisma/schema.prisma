@@ -644,6 +644,7 @@ model email_send_log {
   resend_id     String?                    // ID retornado pela API Resend
   error_message String?                    // Mensagem de erro se falhou
   sent_at       DateTime @default(now())   // Quando foi enviado
+  content       String?                    // Conteúdo completo do e-mail (HTML ou Texto)
 
   // ── CAMPOS RECEBIMENTO (INBOUND / AI) ──────────────────────────────────────
   direction       String   @default("outbound") // "outbound" (disparo) ou "inbound" (resposta)

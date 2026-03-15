@@ -111,13 +111,13 @@ export function renderSalesFunnel(containerId, empresas) {
     ">
       <!-- Cabeçalho -->
       <div style="margin-bottom: 1.25rem;">
-        <h2 style="font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
+        <h2 style="font-size: 16px; font-weight: 800; color: ${colors.textMain};
           display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;">
           <span style="font-size: 1.1rem;">📊</span>
           Funil de Vendas
         </h2>
         <p style="font-size: 0.78rem; color: ${colors.textMuted}; margin: 0;">
-          Passe o mouse em cada barra para ver as empresas
+          Acompanhamento do pipeline de oportunidades
         </p>
       </div>
 

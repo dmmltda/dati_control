@@ -124,3 +124,45 @@ router.get('/stats', async (req, res) => {
 });
 
 export default router;
+
+// ── GET /api/email-logs/:id/thread ───────────────────────────────────────────
+router.get('/:id/thread', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let current = await prisma.email_send_log.findUnique({ where: { id } });
+        if (!current) return res.status(404).json({ error: 'Log não encontrado.' });
+        
+        // Encontra o root/email original subindo a árvore
+        while (current.parent_email_id) {
+            const parent = await prisma.email_send_log.findUnique({ where: { id: current.parent_email_id } });
+            if (!parent) break; // Quebrou a cadeia
+            current = parent;
+        }
+
+        // A partir do root, desce para encontrar todos os filhos (até limites razoáveis)
+        const thread = [];
+        let toProcess = [current];
+        let maxDepth = 100;
+        
+        while (toProcess.length > 0 && maxDepth > 0) {
+            const node = toProcess.shift();
+            // Verifica se já não inserimos
+            if (!thread.some(t => t.id === node.id)) {
+                thread.push(node);
+                const children = await prisma.email_send_log.findMany({ 
+                    where: { parent_email_id: node.id },
+                    orderBy: { sent_at: 'asc' }
+                });
+                toProcess.push(...children);
+            }
+            maxDepth--;
+        }
+        
+        // Ordena cronologicamente
+        thread.sort((a,b) => new Date(a.sent_at) - new Date(b.sent_at));
+        res.json({ data: thread });
+    } catch (err) {
+        console.error('[email-logs] GET /:id/thread', err);
+        res.status(500).json({ error: err.message });
+    }
+});

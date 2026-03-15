@@ -153,7 +153,7 @@ export function renderOnboarding(containerId, onboardings) {
       <!-- Cabeçalho -->
       <div style="margin-bottom: 1.25rem;">
         <h2 style="
-          font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
+          font-size: 16px; font-weight: 800; color: ${colors.textMain};
           display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;
         ">
           <span style="font-size: 1.1rem;">🚀</span>

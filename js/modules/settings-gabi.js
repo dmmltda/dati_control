@@ -12,11 +12,13 @@
 
 import { getAuthToken } from './auth.js';
 import { showToast }    from './utils.js';
+import { TableManager } from '../core/table-manager.js';
 
 // ── Estado interno ────────────────────────────────────────────────────────────
 let _autoRefreshTimer = null;
 let _lastData         = null;
 let _buttonsWired     = false;
+let _manager          = null; // Instância do TableManager
 const REFRESH_INTERVAL = 60_000; // 60s
 
 // ── Multi-email chips controller ─────────────────────────────────────────────
@@ -330,34 +332,63 @@ function _renderAlerta(pct, spent, limit) {
 
 // ── Tabela diária ─────────────────────────────────────────────────────────────
 function _renderTabela(data) {
+    const daily = data.daily || [];
+
+    const tableData = daily.map(d => ({
+        _raw: d,
+        date: d.date,
+        calls: d.calls,
+        cost: parseFloat(d.cost || 0)
+    }));
+
+    if (!_manager) {
+        _manager = new TableManager({
+            data: tableData,
+            columns: [
+                { key: 'date', label: 'Data', type: 'string', sortable: true, searchable: true },
+                { key: 'calls', label: 'Chamadas', type: 'number', sortable: true },
+                { key: 'cost', label: 'Custo', type: 'number', sortable: true }
+            ],
+            pageSize: 25,
+            tableId: 'gabi-usage-table',
+            renderRows: _renderRows,
+            renderPagination: _renderPagination,
+            renderFilters: _renderActiveFilters
+        });
+    } else {
+        _manager.setData(tableData);
+    }
+}
+
+function _renderRows(data) {
     const tbody = document.getElementById('gabi-usage-table-body');
     if (!tbody) return;
 
-    const daily = data.daily || [];
-    if (daily.length === 0) {
+    if (!data || data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:2.5rem; color:#475569;">
             <i class="ph ph-robot" style="font-size:2rem; display:block; margin-bottom:0.75rem; opacity:0.3;"></i>
-            Nenhuma chamada registrada este mês.<br>
+            Nenhum registro encontrado.<br>
             <small style="color:#334155; display:block; margin-top:0.35rem;">Configure a <strong>GEMINI_API_KEY</strong> no servidor para ativar a Gabi.</small>
         </td></tr>`;
         return;
     }
 
-    tbody.innerHTML = daily.map(row => {
+    tbody.innerHTML = data.map(tmRow => {
+        const row = tmRow._raw;
         const cost    = parseFloat(row.cost  || 0);
         const isToday = row.date === new Date().toLocaleDateString('pt-BR');
-        const barPct  = _lastData ? Math.min(100, (cost / parseFloat(_lastData.limit || 20)) * 100) : 0;
 
         return `
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.04); ${isToday ? 'background:rgba(99,102,241,0.05);' : ''}
-                transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='${isToday ? 'rgba(99,102,241,0.05)' : 'transparent'}'">
-                <td style="padding:0.75rem 1.25rem; font-size:0.85rem;">
-                    <span style="color:${isToday ? '#c7d2fe' : '#e2e8f0'}; font-weight:${isToday ? '700' : '400'};">${row.date}</span>
-                    ${isToday ? '<span style="font-size:0.62rem; background:rgba(99,102,241,0.2); color:#818cf8; padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.4rem; font-weight:600;">HOJE</span>' : ''}
+            <tr ${isToday ? 'style="background:rgba(99,102,241,0.05);"' : ''}>
+                <td>
+                    <div style="display:flex; align-items:center;">
+                        <span style="color:${isToday ? 'var(--text-main)' : 'var(--text-secondary)'}; font-weight:${isToday ? '600' : '400'};">${row.date}</span>
+                        ${isToday ? '<span style="font-size:0.62rem; background:rgba(99,102,241,0.2); color:#818cf8; padding:0.1rem 0.4rem; border-radius:4px; margin-left:0.5rem; font-weight:600;">HOJE</span>' : ''}
+                    </div>
                 </td>
-                <td style="padding:0.75rem 1.25rem; text-align:center; color:#94a3b8; font-size:0.85rem;">${row.calls}</td>
-                <td style="padding:0.75rem 1.25rem; text-align:right;">
-                    <span style="font-family:monospace; font-size:0.85rem; color:#10b981;">$ ${cost.toFixed(6)}</span>
+                <td style="text-align:center; color:var(--text-secondary);">${row.calls}</td>
+                <td style="text-align:right;">
+                    <span style="font-family:monospace; color:#10b981;">$ ${cost.toFixed(6)}</span>
                 </td>
             </tr>
         `;
@@ -464,3 +495,223 @@ function _wireButtons() {
         }
     });
 }
+
+// ── Funções Auxiliares: TableManager ──────────────────────────────────────────
+
+function _renderPagination(state) {
+    const container = document.getElementById('pagination-gabi');
+    if (!container) return;
+    if (state.totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    const { currentPage, totalPages, totalRecords } = state;
+    let html = `<div class="pagination">
+        <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window._gabiGoPage(${currentPage - 1})">
+            <i class="ph ph-caret-left"></i>
+        </button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            html += `<button class="pagination-page ${i === currentPage ? 'active' : ''}" onclick="window._gabiGoPage(${i})">${i}</button>`;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            html += `<span class="pagination-dots">...</span>`;
+        }
+    }
+    html += `<button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="window._gabiGoPage(${currentPage + 1})">
+            <i class="ph ph-caret-right"></i>
+        </button>
+    </div>
+    <div class="pagination-info">Página ${currentPage} de ${totalPages} (${totalRecords} registros)</div>`;
+    container.innerHTML = html;
+}
+
+function _renderActiveFilters(activeFilters, search) {
+    const bar = document.getElementById('gabi-active-chips');
+    if (!bar) return;
+
+    const chips = [];
+    if (search) {
+        chips.push(`
+            <span class="filter-chip">
+                <i class="ph ph-magnifying-glass"></i> "${_escapeHtml(search)}"
+                <button class="chip-remove" data-remove-tm-search="1" title="Remover busca">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    if (chips.length > 0) {
+        bar.innerHTML = chips.join('');
+        bar.style.display = 'flex';
+    } else {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+    }
+
+    bar.querySelectorAll('[data-remove-tm-search]').forEach(btn => {
+        btn.addEventListener('click', () => {
+             const el = document.getElementById('gabi-search');
+             if(el) el.value = '';
+             if (_manager) _manager.setSearch(''); 
+        });
+    });
+}
+
+function _buildFilterPopovers() {
+    if (!_manager) return;
+    const dates = _manager.getUniqueValues('date');
+    const calls = _manager.getUniqueValues('calls');
+    const costs = _manager.getUniqueValues('cost');
+
+    _buildSelectPopover('filter-popover-gabi-date', dates, 'date');
+    _buildSelectPopover('filter-popover-gabi-calls', calls, 'calls');
+    _buildSelectPopover('filter-popover-gabi-cost', costs, 'cost');
+}
+
+function _buildSelectPopover(id, values, filterKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const current    = _manager?.filters[filterKey] || '';
+    const currentDir = _manager?.sort.key === filterKey ? _manager.sort.dir : 'none';
+
+    el.innerHTML = `
+        <div class="filter-group">
+            <span class="filter-label">Ordenar</span>
+            <div class="sort-buttons">
+                <button class="btn-sort ${currentDir === 'asc' ? 'active' : ''}" onclick="window._gabiSortEx('${filterKey}', 'asc', event)">
+                    <i class="ph ph-sort-ascending"></i> Crescente
+                </button>
+                <button class="btn-sort ${currentDir === 'desc' ? 'active' : ''}" onclick="window._gabiSortEx('${filterKey}', 'desc', event)">
+                    <i class="ph ph-sort-descending"></i> Decrescente
+                </button>
+            </div>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Filtrar Valores</span>
+            <div class="filter-list">
+                <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._gabiFilter('${filterKey}', '', event)">
+                    (Tudo)
+                </div>
+                ${values.filter(v=>v || v===0).map(v => `
+                    <div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._gabiFilter('${filterKey}', '${v}', event)">
+                        ${v}
+                    </div>`).join('')}
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn-clear-filter" onclick="window._gabiFilter('${filterKey}', '', event)">
+                <i class="ph ph-trash"></i> Limpar Filtro
+            </button>
+        </div>`;
+}
+
+// ── API Handlers ──────────────────────────────────────────────────────────────
+window._gabiGoPage = function(page) {
+    if (_manager) _manager.goToPage(page);
+};
+
+window._gabiSearch = function(query) {
+    if (!_manager) return;
+    _manager.setSearch(query);
+    const clearBtn = document.getElementById('btn-clear-gabi-filters');
+    if (clearBtn) clearBtn.style.display = (_manager.getActiveFilters().length > 0 || _manager._search) ? 'inline-flex' : 'none';
+};
+
+window._gabiClearFilters = function() {
+    if (!_manager) return;
+    _manager.clearFilters();
+    _manager.setSearch('');
+    const input = document.getElementById('gabi-search');
+    if (input) input.value = '';
+    
+    document.querySelectorAll('#gabi-usage-table .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    
+    const clearBtn = document.getElementById('btn-clear-gabi-filters');
+    if (clearBtn) clearBtn.style.display = 'none';
+};
+
+window._gabiSort = function(key) {
+    if (!_manager) return;
+    _manager.setSort(key);
+    _buildFilterPopovers(); // Atualiza indicação de ordenação no popover
+};
+
+window._gabiSortEx = function(key, dir, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+    _manager.setSortExplicit(key, dir);
+    _buildFilterPopovers();
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+};
+
+window._gabiFilter = function(key, value, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+    _manager.setFilter(key, value || null);
+    _buildFilterPopovers();
+    
+    // Atualiza o CSS do botão do header
+    const th = document.querySelector(`#gabi-usage-table th[data-key="${key}"]`);
+    if (th) {
+        const btn = th.querySelector('.btn-filter-column');
+        if (btn) btn.classList.toggle('active', !!value);
+    }
+
+    const clearBtn = document.getElementById('btn-clear-gabi-filters');
+    if (clearBtn) clearBtn.style.display = (_manager.getActiveFilters().length > 0 || _manager._search) ? 'inline-flex' : 'none';
+    
+    document.querySelectorAll('.filter-popover.show').forEach(p => p.classList.remove('show'));
+};
+
+window._gabiToggleFilter = function(filterKey, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+
+    const popoverId = `filter-popover-gabi-${filterKey}`;
+    let popover = document.getElementById(popoverId);
+
+    if (!popover) {
+        const th = document.querySelector(`#gabi-usage-table th[data-key="${filterKey}"]`);
+        if (!th) return;
+        popover = document.createElement('div');
+        popover.id = popoverId;
+        popover.className = 'filter-popover';
+        th.appendChild(popover);
+    }
+
+    document.querySelectorAll('.filter-popover').forEach(p => {
+        if (p !== popover) p.classList.remove('show');
+    });
+
+    const isOpen = popover.classList.contains('show');
+    if (isOpen) {
+        popover.classList.remove('show');
+    } else {
+        _buildFilterPopovers();
+        popover.classList.add('show');
+        popover.classList.remove('align-right');
+        popover.style.bottom = 'auto';
+        popover.style.top = '100%';
+
+        const rect = popover.getBoundingClientRect();
+        if (rect.right > window.innerWidth - 20) popover.classList.add('align-right');
+        if (rect.bottom > window.innerHeight - 20) {
+            popover.style.top = 'auto';
+            popover.style.bottom = '100%';
+        }
+    }
+};
+
+// Hide popovers when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-popover') && !e.target.closest('.btn-filter-column')) {
+        document.querySelectorAll('.filter-popover.show').forEach(p => p.classList.remove('show'));
+    }
+}, { capture: false });
+
+function _escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+

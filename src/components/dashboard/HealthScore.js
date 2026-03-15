@@ -354,20 +354,20 @@ export function renderHealthScore(containerId, empresas) {
     ">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 0.75rem;">
         <div style="flex: 1.2;">
-          <h2 style="font-size: 12.5px; font-weight: 800; color: ${colors.textMain};
+          <h2 style="font-size: 16px; font-weight: 800; color: ${colors.textMain};
             display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem;">
             <span style="font-size: 1.1rem;">💚</span> Health Score
           </h2>
           <p style="font-size: 0.78rem; color: ${colors.textMuted}; margin: 0;">
-            Passe o mouse no donut ou nas legendas para ver as empresas
+            Monitoramento da saúde da base de clientes
           </p>
         </div>
         <div style="flex: 1; padding-left: 1.25rem;">
-          <h2 style="font-size: 12.5px; font-weight: 800; color: #f97316; margin: 0 0 0.2rem; display:flex; align-items:center; gap: 0.4rem;">
-            Aderência
+          <h2 style="font-size: 16px; font-weight: 800; color: #f97316; margin: 0 0 0.2rem; display:flex; align-items:center; gap: 0.4rem;">
+            <span style="font-size: 1.1rem;">📈</span> Aderência
           </h2>
           <p style="font-size: 0.78rem; color: ${colors.textMuted}; margin: 0;">
-            Passe o mouse para ver os clientes
+            Engajamento e utilização do sistema
           </p>
         </div>
       </div>

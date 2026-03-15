@@ -83,7 +83,8 @@ function mapFromDB(comp) {
             data: n.Data ? new Date(n.Data).toISOString().split('T')[0] : null,
             destinatario: n.Destinatario,
             formulario: n.Formulario,
-            score: n.Score
+            score: n.Score,
+            respostasJSON: n.Respostas_JSON
         })),
 
         chamadosHistory: (comp.company_tickets || []).map(t => ({

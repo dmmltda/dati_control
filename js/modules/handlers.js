@@ -153,10 +153,12 @@ export async function handleCompanySubmit(e) {
                 Link: d.link
             })),
             NPS_History: state.tempNPSHistory.map(n => ({
+                id: n.id,
                 Data: n.data ? new Date(n.data) : null,
-                Destinatario: n.destinatarios,
-                Formulario: n.forms,
-                Score: n.score
+                Destinatario: n.destinatarios || n.destinatario,
+                Formulario: n.formType || n.formulario,
+                Score: n.score,
+                Respostas_JSON: n.respostasJSON
             })),
             Tickets: state.tempChamados.map(t => ({
                 Data: t.data ? new Date(t.data) : null,

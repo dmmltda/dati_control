@@ -40,7 +40,7 @@ const emailMonitor = (() => {
         if (!tbody) return;
 
         if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum e-mail encontrado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:2rem;color:var(--text-muted);">Nenhum e-mail encontrado.</td></tr>';
             return;
         }
 
@@ -54,6 +54,11 @@ const emailMonitor = (() => {
                 <td style="font-size:0.75rem;color:var(--text-muted);">${_esc(row.tag) || '—'}</td>
                 <td style="font-size:0.7rem;color:var(--text-muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;max-width:150px;" title="${_esc(row.resend_id)}">${_esc(row.resend_id) || '—'}</td>
                 <td style="font-size:0.75rem;color:#f87171;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${_esc(row.error_message)}">${_esc(row.error_message) || '—'}</td>
+                <td style="text-align:center;">
+                    <button class="btn-icon" title="Ver E-mail" onclick="window.emailMonitor.showDetails('${row.id}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.1rem;">
+                        <i class="ph ph-eye"></i>
+                    </button>
+                </td>
             </tr>
         `).join('');
     }
@@ -247,7 +252,8 @@ const emailMonitor = (() => {
                         { key: 'status', label: 'Status', type: 'string', filterType: 'select', filterable: true, sortable: true },
                         { key: 'tag', label: 'Tag', type: 'string', filterable: true, sortable: true },
                         { key: 'resend_id', label: 'Resend ID', type: 'string', searchable: true, filterable: true, sortable: true },
-                        { key: 'error_message', label: 'Erro', type: 'string', searchable: true, filterable: true, sortable: true }
+                        { key: 'error_message', label: 'Erro', type: 'string', searchable: true, filterable: true, sortable: true },
+                        { key: 'actions', label: 'Ações', type: 'string', sortable: false, filterable: false }
                     ],
                     pageSize: 50,
                     tableId: 'email-mon-table',
@@ -323,7 +329,103 @@ const emailMonitor = (() => {
         }
     }
 
-    return { init, refresh, setSearch, setStatus, setTemplate, setDateFrom, setDateTo, clearFilters, handleSort };
+    async function showDetails(id) {
+        // Modal base setup...
+        let modal = document.getElementById('email-details-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'email-details-modal';
+            modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:var(--bg-card); width:750px; max-width:90%; border-radius:12px; display:flex; flex-direction:column; max-height:85vh; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+                    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-color);">Cadeia de E-mails (Thread)</h3>
+                        <button onclick="document.getElementById('email-details-modal').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem;"><i class="ph ph-x"></i></button>
+                    </div>
+                    <div id="email-details-body" style="padding:1.5rem 1.5rem 1.5rem 2rem; overflow-y:auto; font-size:0.9rem; line-height:1.5; color:var(--text-color); display:flex; flex-direction:column; background:var(--bg-body);">
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        modal.style.display = 'flex';
+        const bodyEl = document.getElementById('email-details-body');
+        bodyEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2rem; margin-bottom:1rem;"></i><br>Buscando histórico de conversas...</div>`;
+
+        try {
+            const r = await fetch(`/api/email-logs/${id}/thread`);
+            if (!r.ok) throw new Error('Falha ao buscar linha do tempo do e-mail');
+            const { data } = await r.json();
+
+            if (!data || data.length === 0) {
+                bodyEl.innerHTML = `<em style="color:var(--text-muted)">Nenhum e-mail encontrado.</em>`;
+                return;
+            }
+
+            let html = '';
+            data.forEach((row, idx) => {
+                const isLast = idx === data.length - 1;
+                const isInbound = row.direction === 'inbound';
+                
+                // Formata nomes corretamente e explicita DE e PARA
+                const fromStr = isInbound ? row.recipient : 'Gabi (Journey)';
+                const toStr = isInbound ? 'Gabi (Journey)' : row.recipient;
+                
+                // Tema visual separando In e Outbound
+                const icon = isInbound ? '<i class="ph ph-arrow-down-left" style="color:var(--primary-color);"></i>' : '<i class="ph ph-arrow-up-right" style="color:#10b981;"></i>';
+                const borderLeft = isInbound ? 'var(--primary-color)' : '#10b981';
+
+                const gabi = row.gabi_analysis || {};
+                let analysisHtml = '';
+                
+                if (gabi && gabi.processed_by_ai) {
+                    analysisHtml = `
+                        <div style="background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.2); padding:0.75rem 1rem; border-radius:6px; margin-top:1rem;">
+                            <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; font-size:0.85rem;">
+                                <i class="ph ph-sparkle"></i> IA: Triagem e Ação
+                            </strong>
+                            <div style="font-size:0.8rem; margin-bottom:0.25rem;"><strong>Intenção:</strong> ${gabi.intent} &nbsp; | &nbsp; <strong>Ação Tomada:</strong> <span style="background:var(--bg-body); padding:2px 6px; border-radius:4px; border:1px solid var(--border-color);">${gabi.action_taken}</span></div>
+                            <div style="font-size:0.8rem;"><strong>Resumo / Razão:</strong> ${gabi.summary}</div>
+                            ${gabi.generated_reply ? `<div style="font-size:0.8rem; margin-top:0.6rem; border-top:1px dashed rgba(99,102,241,0.2); padding-top:0.6rem;"><strong>Resposta Exata gerada pela Gabi:</strong> <div style="margin-top:0.4rem; padding:0.5rem; background:rgba(0,0,0,0.15); border-radius:4px; font-style:italic;">"${_esc(gabi.generated_reply)}"</div></div>` : ''}
+                        </div>
+                    `;
+                }
+
+                let contentHtml = row.content ? 
+                    `<div style="white-space:pre-wrap; background:rgba(0,0,0,0.15); padding:1rem; border-radius:6px; font-family:monospace; font-size:0.82rem; max-height:220px; overflow-y:auto; line-height:1.45; color:var(--text-color);">${_esc(row.content)}</div>` 
+                    : `<em style="color:var(--text-muted); font-size:0.85rem;">(Corpo do e-mail não disponível no histórico)</em>`;
+
+                html += `
+                    <div style="position:relative; padding-left:1.5rem; border-left:3px solid ${borderLeft}; padding-bottom:${isLast ? '0' : '2rem'}; opacity:${isLast ? '1' : '0.8'};">
+                        <div style="position:absolute; left:-9px; top:0; width:15px; height:15px; border-radius:50%; background:var(--bg-card); border:3px solid ${borderLeft};"></div>
+                        
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+                            <div style="font-size:0.85rem; background:var(--bg-card); border:1px solid var(--border-color); padding:0.5rem 1rem; border-radius:6px;">
+                                <div><strong style="color:var(--text-muted); width:40px; display:inline-block;">De:</strong> <span style="color:var(--text-color);">${_esc(fromStr)}</span></div>
+                                <div style="margin-top:0.2rem;"><strong style="color:var(--text-muted); width:40px; display:inline-block;">Para:</strong> <span style="color:var(--text-color);">${_esc(toStr)}</span></div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="margin-bottom:0.25rem;">${_statusBadge(row.status)}</div>
+                                <div style="color:var(--text-muted); font-size:0.8rem; display:flex; align-items:center; justify-content:flex-end; gap:0.25rem;">${icon} ${_fmt(row.sent_at)}</div>
+                            </div>
+                        </div>
+
+                        <div style="background:var(--bg-card); padding:1.25rem; border-radius:8px; border:1px solid var(--border-color); box-shadow:0 3px 6px rgba(0,0,0,0.15);">
+                            <div style="font-weight:600; font-size:0.95rem; margin-bottom:1rem; color:var(--text-color);">Assunto: ${_esc(row.subject)}</div>
+                            ${contentHtml}
+                            ${analysisHtml}
+                        </div>
+                    </div>
+                `;
+            });
+            bodyEl.innerHTML = html;
+        } catch(e) {
+            bodyEl.innerHTML = `<div style="color:#ef4444; padding:1rem; text-align:center;">Erro ao carregar thread: ${e.message}</div>`;
+        }
+    }
+
+    return { init, refresh, setSearch, setStatus, setTemplate, setDateFrom, setDateTo, clearFilters, handleSort, showDetails };
 })();
 
 window.emailMonitor = emailMonitor;

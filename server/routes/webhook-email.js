@@ -1,6 +1,7 @@
 import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import * as audit from '../services/audit.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -60,9 +61,21 @@ router.post('/incoming', async (req, res) => {
                 direction: 'inbound',
                 parent_email_id: parentEmailLog?.id || null,
                 status: 'received',
+                content: text || html || '',
                 // A análise da Gabi será atualizada depois
                 gabi_analysis: { processed_by_ai: false }
             }
+        });
+
+        // Registrar no Histórico de Alterações (Audit Log)
+        audit.log(prisma, {
+            actor: null,
+            action: 'RECEIVE',
+            entity_type: 'email',
+            entity_id: inboundLog.id,
+            entity_name: inboundLog.subject,
+            description: `E-mail recebido de ${from}. Processando via Gabi AI...`,
+            company_id: companyId
         });
 
         // 2. Chamar a IA (Gabi) para classificar o email
@@ -76,6 +89,26 @@ router.post('/incoming', async (req, res) => {
         let summary = isComplex 
             ? 'O cliente respondeu com dúvidas ou problemas detalhados. Necessário intervenção humana.'
             : 'O cliente respondeu de forma objetiva / confirmando.';
+            
+        let generatedReply = null;
+        if (action === 'auto_replied') {
+            generatedReply = "Olá! Agradecemos o seu contato. Entendi sua mensagem e já registrei no sistema. Em breve nosso time analisará caso haja mais alguma pendência. Um abraço da Gabi!";
+            
+            // Simular o envio da autopesposta no log do banco (opcional para trackear envio duplo)
+            await prisma.email_send_log.create({
+                data: {
+                    dedup_key: randomUUID(),
+                    recipient: from,
+                    subject: `Re: ${subject || 'Sem assunto'}`,
+                    template: 'inbound_reply',
+                    tag: 'gabi-auto-reply',
+                    direction: 'outbound',
+                    parent_email_id: inboundLog.id,
+                    status: 'sent',
+                    content: generatedReply
+                }
+            });
+        }
 
         // Atualizar log com análise
         await prisma.email_send_log.update({
@@ -86,7 +119,8 @@ router.post('/incoming', async (req, res) => {
                     intent,
                     confidence_score: isComplex ? 0.3 : 0.9,
                     action_taken: action,
-                    summary
+                    summary,
+                    ...(generatedReply && { generated_reply: generatedReply })
                 }
             }
         });

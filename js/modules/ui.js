@@ -624,9 +624,10 @@ function renderNPSHistoryTableRows(data) {
         }
 
         const scoreBarWidth = isNaN(scoreVal) ? 0 : Math.min(100, Math.max(0, (scoreVal / 10) * 100)).toFixed(0);
-        const respostas = nps.forms ? `<strong style="color:var(--text-main);">${nps.forms}</strong> respostas` : '<span style="color:var(--text-muted);">—</span>';
+        const respostas = '<span style="color:var(--text-muted);">—</span>';
 
-        const formatFormType = nps.formType ? `<div style="font-size:0.65rem; color:#818cf8; font-weight:700; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:4px; padding:0.1rem 0.3rem; display:inline-block; margin-top:0.3rem; text-transform:uppercase;">${nps.formType}</div>` : '';
+        const formTypeVal = nps.formType || nps.formulario;
+        const formatFormType = formTypeVal ? `<div style="font-size:0.65rem; color:#818cf8; font-weight:700; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:4px; padding:0.1rem 0.3rem; display:inline-block; margin-top:0.3rem; text-transform:uppercase;">${formTypeVal}</div>` : '';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -636,9 +637,9 @@ function renderNPSHistoryTableRows(data) {
             </td>
             <td style="color:var(--text-muted); font-size:0.85rem;">
                 <div style="display:flex; flex-direction:column;">
-                    <span>${nps.destinatarios}</span>
-                    <span style="font-size:0.65rem; color:${nps.tipo === 'Google Forms' ? '#6366f1' : 'var(--text-muted)'}; font-weight:600;">
-                        <i class="ph ${nps.tipo === 'Google Forms' ? 'ph-google-logo' : 'ph-keyboard'}"></i> ${nps.tipo || 'Manual'}
+                    <span>${nps.destinatarios || nps.destinatario || '—'}</span>
+                    <span style="font-size:0.65rem; color:${nps.tipo === 'Google Forms' || formTypeVal ? '#6366f1' : 'var(--text-muted)'}; font-weight:600;">
+                        <i class="ph ${nps.tipo === 'Google Forms' || formTypeVal ? 'ph-google-logo' : 'ph-keyboard'}"></i> ${nps.tipo || (formTypeVal ? 'Google Forms' : 'Manual')}
                     </span>
                 </div>
             </td>
@@ -657,12 +658,76 @@ function renderNPSHistoryTableRows(data) {
                     </div>
                 </div>
             </td>
-            <td style="text-align: right;">
-                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro"><i class="ph ph-trash"></i></button>
+            <td style="text-align: right; display:flex; gap:0.5rem; justify-content:flex-end;">
+                ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon btn-view-nps-details" data-index="${index}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
+                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-trash"></i></button>
             </td>
         `;
         body.appendChild(tr);
     });
+
+    // Eventos para o botão "Ver Detalhes"
+    body.querySelectorAll('.btn-view-nps-details').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = e.currentTarget.getAttribute('data-index');
+            const npsItem = data[idx];
+            if (!npsItem || !npsItem.respostasJSON) return;
+            _openNpsDetailsModal(npsItem);
+        });
+    });
+}
+
+function _openNpsDetailsModal(npsItem) {
+    const modal = document.getElementById('nps-details-modal-overlay');
+    if (!modal) return;
+
+    // Cabeçalho
+    document.getElementById('nps-details-destinatario').textContent = npsItem.destinatarios || '-';
+    document.getElementById('nps-details-data').textContent = npsItem.data || '-';
+    document.getElementById('nps-details-formulariotype').textContent = npsItem.formType || npsItem.forms || 'Formulário';
+    
+    const scoreVal = parseFloat(npsItem.score);
+    const scoreBadge = document.getElementById('nps-details-score-badge');
+    scoreBadge.textContent = isNaN(scoreVal) ? 'Pendente' : scoreVal.toFixed(1);
+    if (isNaN(scoreVal)) {
+        scoreBadge.style.color = '#94a3b8';
+        scoreBadge.style.background = 'rgba(148,163,184,0.1)';
+        scoreBadge.style.borderColor = 'rgba(148,163,184,0.2)';
+    } else if (scoreVal >= 9) {
+        scoreBadge.style.color = '#10b981';
+        scoreBadge.style.background = 'rgba(16,185,129,0.1)';
+        scoreBadge.style.borderColor = 'rgba(16,185,129,0.2)';
+    } else if (scoreVal >= 7) {
+        scoreBadge.style.color = '#f59e0b';
+        scoreBadge.style.background = 'rgba(245,158,11,0.1)';
+        scoreBadge.style.borderColor = 'rgba(245,158,11,0.2)';
+    } else {
+        scoreBadge.style.color = '#ef4444';
+        scoreBadge.style.background = 'rgba(239,68,68,0.1)';
+        scoreBadge.style.borderColor = 'rgba(239,68,68,0.2)';
+    }
+
+    // Lista de perguntas
+    const listEl = document.getElementById('nps-details-questions-list');
+    listEl.innerHTML = '';
+
+    const respostas = typeof npsItem.respostasJSON === 'string' ? JSON.parse(npsItem.respostasJSON) : npsItem.respostasJSON;
+    
+    for (const [pergunta, resposta] of Object.entries(respostas)) {
+        const itemHtml = `
+            <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:1rem;">
+                <div style="font-size:0.85rem; color:var(--text-muted); font-weight:600; margin-bottom:0.5rem; line-height:1.4;">
+                    ${pergunta}
+                </div>
+                <div style="font-size:0.95rem; color:var(--text-main); font-weight:500;">
+                    ${resposta || '<span style="color:var(--text-muted); font-style:italic;">Não respondeu</span>'}
+                </div>
+            </div>
+        `;
+        listEl.insertAdjacentHTML('beforeend', itemHtml);
+    }
+
+    modal.style.display = 'flex';
 }
 
 export function renderCSMeetingsTable() {
