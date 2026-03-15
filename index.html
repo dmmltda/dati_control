@@ -2073,12 +2073,19 @@
 
                     <!-- PAINEL: Tabela de Empresas -->
                     <div id="rpt-panel-empresas">
-                        <!-- FILTROS -->
-                        <div class="rpt-filters">
-                            <div class="rpt-filter-search">
-                                <i class="ph ph-magnifying-glass"></i>
-                                <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off" />
+                        <!-- FILTROS (Modernizados) -->
+                        <div class="search-container" style="flex: 1; margin-bottom: 1rem;">
+                            <div class="search-wrapper">
+                                <i class="ph ph-magnifying-glass search-icon"></i>
+                                <input type="text" id="rpt-search" class="search-input" placeholder="Buscar empresa..." autocomplete="off" />
                             </div>
+                        </div>
+
+                        <!-- Chips de filtros ativos -->
+                        <div id="rpt-active-chips" class="active-filters-bar" style="display:none; margin-bottom: 1rem;"></div>
+
+                        <!-- Mantemos escondidos os antigos para não quebrar referências ainda -->
+                        <div class="rpt-filters" style="display: none;">
                             <select id="rpt-filter-status" data-icon="ph-funnel-simple" data-prefix="Status:"><option value="">Status</option></select>
                             <select id="rpt-filter-tipo" data-icon="ph-squares-four" data-prefix="Tipo:"><option value="">Tipo</option></select>
                             <select id="rpt-filter-segmento" data-icon="ph-briefcase" data-prefix="Segmento:"><option value="">Segmento</option></select>
