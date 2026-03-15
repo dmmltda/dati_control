@@ -609,7 +609,10 @@ function renderNPSHistoryTableRows(data) {
         const scoreVal = parseFloat(nps.score);
         let scoreColor, scoreBg, scoreBorder, scoreLabel, scoreEmoji;
 
-        if (scoreVal >= 9) {
+        if (isNaN(scoreVal)) {
+            scoreColor = '#64748b'; scoreBg = 'rgba(100,116,139,0.12)'; scoreBorder = 'rgba(100,116,139,0.35)';
+            scoreLabel = 'Pendente'; scoreEmoji = '🕒';
+        } else if (scoreVal >= 9) {
             scoreColor = '#10b981'; scoreBg = 'rgba(16,185,129,0.12)'; scoreBorder = 'rgba(16,185,129,0.35)';
             scoreLabel = 'Promotor'; scoreEmoji = '😍';
         } else if (scoreVal >= 7) {
@@ -620,12 +623,17 @@ function renderNPSHistoryTableRows(data) {
             scoreLabel = 'Detrator'; scoreEmoji = '😠';
         }
 
-        const scoreBarWidth = Math.min(100, Math.max(0, (scoreVal / 10) * 100)).toFixed(0);
+        const scoreBarWidth = isNaN(scoreVal) ? 0 : Math.min(100, Math.max(0, (scoreVal / 10) * 100)).toFixed(0);
         const respostas = nps.forms ? `<strong style="color:var(--text-main);">${nps.forms}</strong> respostas` : '<span style="color:var(--text-muted);">—</span>';
+
+        const formatFormType = nps.formType ? `<div style="font-size:0.65rem; color:#818cf8; font-weight:700; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); border-radius:4px; padding:0.1rem 0.3rem; display:inline-block; margin-top:0.3rem; text-transform:uppercase;">${nps.formType}</div>` : '';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-weight: 500; white-space:nowrap;">${nps.data}</td>
+            <td style="font-weight: 500; white-space:nowrap;">
+                ${nps.data}
+                ${formatFormType ? '<br>' + formatFormType : ''}
+            </td>
             <td style="color:var(--text-muted); font-size:0.85rem;">
                 <div style="display:flex; flex-direction:column;">
                     <span>${nps.destinatarios}</span>
@@ -1593,6 +1601,7 @@ export function handleNPSTipoChange(tipo) {
     const rest = document.getElementById('nps-form-rest');
     const btnEnv = document.getElementById('btn-enviar-pesquisa');
     const btnSave = document.getElementById('btn-save-nps');
+    const resultsGrid = document.getElementById('nps-form-results');
     
     if (tipo) {
         if (rest) {
@@ -1603,14 +1612,43 @@ export function handleNPSTipoChange(tipo) {
         if (tipo === 'Google Forms') {
             if (btnEnv) btnEnv.style.display = 'inline-flex';
             if (btnSave) btnSave.style.display = 'none';
+            if (resultsGrid) resultsGrid.style.display = 'none';
         } else {
             if (btnEnv) btnEnv.style.display = 'none';
             if (btnSave) btnSave.style.display = 'inline-flex';
+            if (resultsGrid) resultsGrid.style.display = 'grid'; // Ou outro display apropriado
         }
     } else {
         if (rest) {
             rest.style.opacity = '0.5';
             rest.style.pointerEvents = 'none';
         }
+    }
+}
+
+export function updateNPSFormLink(tipoForm) {
+    const linkEl = document.getElementById('nps-form-preview-link');
+    if (!linkEl) return;
+
+    if (!tipoForm) {
+        linkEl.style.display = 'none';
+        return;
+    }
+
+    const formLinks = {
+        'Welcome': 'https://forms.gle/3SstsjLPFCYieiaq9',
+        'Kickoff': 'https://forms.gle/KZen1amS4e9GJEd17',
+        'Onboarding': 'https://docs.google.com/forms/',
+        'NPS': 'https://forms.gle/mBJRBDMb3xmW4TXm9',
+        'Reunião': 'https://docs.google.com/forms/',
+        'Churn': 'https://forms.gle/YpDptwjq7ytb4LG87'
+    };
+
+    const url = formLinks[tipoForm];
+    if (url) {
+        linkEl.href = url;
+        linkEl.style.display = 'inline-flex';
+    } else {
+        linkEl.style.display = 'none';
     }
 }

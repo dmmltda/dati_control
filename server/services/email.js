@@ -43,6 +43,7 @@ import { recordingAvailableTemplate } from './email-templates/recording-availabl
 import { taskAssignedTemplate }     from './email-templates/task-assigned.js';
 import { nextStepReminderTemplate } from './email-templates/next-step-reminder.js';
 import { gabiSummaryTemplate }      from './email-templates/gabi-email-summary.js';
+import { npsSurveyTemplate }        from './email-templates/nps-survey.js';
 
 // ── Clientes (instâncias únicas) ──────────────────────────────────────────────────────────────
 const _prisma = new PrismaClient();
@@ -69,6 +70,7 @@ const TEMPLATES = {
     taskAssigned:     (data) => taskAssignedTemplate(data.activity, data.usuario, data.atribuidoPor, data.empresa),
     nextStep:         (data) => nextStepReminderTemplate(data.activity, data.usuario, data.empresa),
     gabiSummary:      (data) => gabiSummaryTemplate(data),
+    npsSurvey:        (data) => npsSurveyTemplate(data.destinatario, data.tipoForm, data.urlForm),
 };
 
 /**

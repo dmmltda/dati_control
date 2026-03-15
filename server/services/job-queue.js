@@ -1,5 +1,6 @@
 import PgBoss from 'pg-boss';
 import { processNotificationJob } from './notification-worker.js';
+import { runGabiTestRoutine } from './gabi-test.js';
 
 const boss = new PgBoss(process.env.DATABASE_URL);
 
@@ -15,6 +16,16 @@ export async function initQueue() {
         } catch (err) {
             console.error('[notification-worker] Job failed:', err.message);
             throw err; // pg-boss will retry
+        }
+    });
+
+    // START TESTE 30 MIN GABI
+    await boss.schedule('gabi-test-routine', '*/30 * * * *');
+    await boss.work('gabi-test-routine', async () => {
+        try {
+            await runGabiTestRoutine();
+        } catch (e) {
+            console.error('[gabi-test] Job wrapper falhou:', e.message);
         }
     });
 }

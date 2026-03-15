@@ -579,6 +579,45 @@ app.use('/api/google-meet', extractUsuario, googleMeetRouter);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/email-logs', extractUsuario, emailLogsRouter);
 
+// POST /api/emails/nps — Envia formulário NPS para os destinatários
+app.post('/api/emails/nps', extractUsuario, async (req, res) => {
+    try {
+        const { destinatarios, tipoForm } = req.body;
+        
+        if (!destinatarios || !tipoForm) {
+            return res.status(400).json({ error: 'Destinatários e Tipo de formulário são obrigatórios' });
+        }
+
+        // Links dos formulários 
+        const formLinks = {
+            'Welcome': 'https://forms.gle/3SstsjLPFCYieiaq9',
+            'Kickoff': 'https://forms.gle/KZen1amS4e9GJEd17',
+            'Onboarding': 'https://docs.google.com/forms/', // Link ainda não fornecido
+            'NPS': 'https://forms.gle/mBJRBDMb3xmW4TXm9',
+            'Reunião': 'https://docs.google.com/forms/', // Link ainda não fornecido
+            'Churn': 'https://forms.gle/YpDptwjq7ytb4LG87'
+        };
+
+        const urlForm = formLinks[tipoForm] || 'https://docs.google.com/forms/';
+
+        const result = await sendEmail({
+            to: destinatarios,
+            template: 'npsSurvey',
+            data: { destinatario: destinatarios, tipoForm, urlForm },
+            tag: `nps-${tipoForm.toLowerCase().replace('ã', 'a')}`
+        });
+
+        if (!result.sent) {
+            return res.status(500).json({ error: result.error || result.blocked || 'Erro ao enviar e-mail via Resend' });
+        }
+
+        res.json({ ok: true, message: 'Pesquisa enviada com sucesso!' });
+    } catch (err) {
+        console.error('[POST /api/emails/nps] Erro:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 
 // =============================================================================

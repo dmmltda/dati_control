@@ -4,6 +4,7 @@ import * as ui from './ui.js';
 import { switchView } from './navigation.js';
 import { api } from './api.js';
 import { confirmar } from './confirmar.js';
+import { getAuthToken } from './auth.js';
 
 // --- Contact Handlers ---
 export function saveNewContato() {
@@ -345,17 +346,19 @@ export function saveTempDashboard() {
 export function saveTempNPS() {
     try {
         const tipo = document.getElementById('new-nps-tipo').value;
+        const formType = document.getElementById('new-nps-form-type').value;
         const data = document.getElementById('new-nps-data').value;
         const dest = document.getElementById('new-nps-dest').value;
         const score = document.getElementById('new-nps-score').value;
 
-        if (!tipo || !data || !dest || !score) {
+        if (!tipo || !formType || !data || !dest || !score) {
             utils.showToast('Preencha os campos obrigatórios (*)', 'error');
             return;
         }
 
         state.tempNPSHistory.push({
             tipo,
+            formType,
             data,
             destinatarios: dest,
             forms: document.getElementById('new-nps-forms').value,
@@ -371,28 +374,53 @@ export function saveTempNPS() {
     }
 }
 
-export function enviarPesquisa() {
+export async function enviarPesquisa() {
     try {
         const tipo = document.getElementById('new-nps-tipo').value;
+        const formType = document.getElementById('new-nps-form-type').value;
         const data = document.getElementById('new-nps-data').value;
         const dest = document.getElementById('new-nps-dest').value;
 
-        if (!tipo || !data || !dest) {
-            utils.showToast('Preencha Data e Destinatários para enviar.', 'error');
+        if (!tipo || !formType || !data || !dest) {
+            utils.showToast('Preencha os campos obrigatórios (*)', 'error');
             return;
         }
 
-        // Simula o envio
-        utils.showToast('Pesquisa enviada com sucesso (via Google Forms)!', 'success');
+        const token = await getAuthToken();
+        const res = await fetch('/api/emails/nps', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ destinatarios: dest, tipoForm: formType })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `Erro HTTP ${res.status}`);
+        }
+
+        utils.showToast('Pesquisa enviada com sucesso ao cliente!', 'success');
 
         // Registra no "Histórico de Alterações" (Audit Log)
-        _recordAuditAction('UPDATE', 'activity', 'Pesquisa NPS enviada para: ' + dest);
+        _recordAuditAction('UPDATE', 'activity', `Pesquisa NPS (${formType}) enviada para: ` + dest);
 
-        // Opcional: Salva como registro manual também
-        saveTempNPS();
+        // Salva registro "Pendente"
+        state.tempNPSHistory.push({
+            tipo,
+            formType,
+            data,
+            destinatarios: dest,
+            forms: '',
+            score: 'Pendente'
+        });
+
+        document.getElementById('btn-cancel-nps').click();
+        ui.renderNPSHistoryTable();
     } catch (err) {
         console.error('❌ Erro ao enviar pesquisa:', err);
-        utils.showToast('Erro ao enviar pesquisa: ' + err.message, 'error');
+        utils.showToast('Erro ao disparar formulário NPS: ' + err.message, 'error');
     }
 }
 

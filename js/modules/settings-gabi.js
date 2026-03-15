@@ -138,6 +138,8 @@ window.gabiSaveEmails = async function() {
 function _renderApiKeyBadge(configured) {
     const badge = document.getElementById('gabi-apikey-badge');
     const card  = document.getElementById('gabi-apikey-card');
+    const input = document.getElementById('gabi-apikey-input');
+
     if (!badge) return;
     if (configured) {
         badge.textContent = '✅ Configurada';
@@ -146,6 +148,13 @@ function _renderApiKeyBadge(configured) {
         badge.style.color = '#10b981';
         badge.style.border = '1px solid rgba(16,185,129,0.3)';
         if (card) card.style.borderColor = 'rgba(16,185,129,0.3)';
+        if (input) {
+            input.value = '•••••••••••••••••••••••••••••••••••••••';
+            input.onfocus = function() {
+                if (this.value.includes('•')) this.value = '';
+                this.style.borderColor='rgba(251,191,36,0.6)';
+            };
+        }
     } else {
         badge.textContent = '⚠️ Não configurada';
         badge.style.display = 'inline-block';
@@ -153,6 +162,9 @@ function _renderApiKeyBadge(configured) {
         badge.style.color = '#f87171';
         badge.style.border = '1px solid rgba(239,68,68,0.3)';
         if (card) card.style.borderColor = 'rgba(239,68,68,0.4)';
+        if (input && input.value.includes('•')) {
+            input.value = '';
+        }
     }
 }
 
@@ -375,6 +387,7 @@ function _wireButtons() {
     document.getElementById('gabi-save-apikey-btn')?.addEventListener('click', async () => {
         const keyVal = document.getElementById('gabi-apikey-input')?.value?.trim();
         if (!keyVal) return showToast('Cole a chave da API antes de salvar.', 'error');
+        if (keyVal.includes('•')) return showToast('Cole uma nova chave para alterar.', 'info');
         const btn = document.getElementById('gabi-save-apikey-btn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i> Salvando...'; }
         try {
