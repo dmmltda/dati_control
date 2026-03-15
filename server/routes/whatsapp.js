@@ -385,16 +385,21 @@ router.post('/start', requireAuth(), extractUser, async (req, res) => {
             });
         }
 
-        // Tenta vincular a um contato/empresa
+        // Tenta vincular a um contato/empresa pelo campo WhatsApp
         const contact = await prisma.contacts.findFirst({
             where: {
                 OR: [
-                    { Phones: { array_contains: cleanPhone } },
-                    { Phones: { array_contains: `+${cleanPhone}` } },
+                    { WhatsApp: { contains: cleanPhone } },
+                    { WhatsApp: { contains: `+${cleanPhone}` } },
+                    { WhatsApp: cleanPhone },
+                    { WhatsApp: `+${cleanPhone}` },
                 ],
             },
-            include: { companies: true },
         });
+        // Busca empresa do contato (se houver)
+        const company = contact?.companyId
+            ? await prisma.companies.findUnique({ where: { id: contact.companyId }, select: { id: true, Nome_da_empresa: true } })
+            : null;
 
         // Cria conversa no banco
         const { randomUUID } = await import('crypto');
@@ -407,8 +412,8 @@ router.post('/start', requireAuth(), extractUser, async (req, res) => {
                 opened_at:       new Date(),
                 contact_id:      contact?.id || null,
                 contact_nome:    contactName || contact?.Nome_do_contato || null,
-                company_id:      contact?.company_id || null,
-                company_nome:    contact?.companies?.Nome_da_empresa || null,
+                company_id:      company?.id || null,
+                company_nome:    company?.Nome_da_empresa || null,
             },
         });
 
