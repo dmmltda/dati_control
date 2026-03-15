@@ -128,25 +128,30 @@ router.post('/incoming', async (req, res) => {
         // 3. Se necessita de atenção humana, criar card em Minhas Atividades
         if (action === 'escalated_to_human') {
             
-            // Tenta achar um assigne (master qualquer por ex. se não houver um CS mapeado direto)
-            const fallbackUser = await prisma.users.findFirst({ where: { user_type: 'master' } });
+            // Busca TODOS os usuários ativos para notificar a todos no Kanban
+            const allActiveUsers = await prisma.users.findMany({ 
+                where: { ativo: true },
+                select: { id: true }
+            });
 
             const newActivity = await prisma.activities.create({
                 data: {
                     activity_type: 'Ação necessária',
                     title: '[Intervenção IA] Analisar resposta de e-mail',
-                    description: `**Resumo da Gabi:** ${summary}\n\n**Intenção Detectada:** ${intent}\n\n**E-mail Original:**\n${text || 'Texto não disponível'}\n\n[ID do LOG: ${inboundLog.id}]`,
-                    priority: 'alta', // Urgência para transbordo
+                    description: `**Resumo da Gabi:** ${summary}\n\n**Intenção Detectada:** ${intent}\n\n**Remetente:** ${from}\n\n**E-mail Original:**\n${text || 'Texto não disponível'}\n\n[EMAIL_LOG:${inboundLog.id}]`,
+                    priority: 'alta',
                     status: 'A Fazer',
-                    company_id: companyId, // Pode ser null se não achou
-                    created_by_user_id: fallbackUser?.id || null,
+                    company_id: companyId,
+                    created_by_user_id: allActiveUsers[0]?.id || null,
                     activity_datetime: new Date(),
-                    // Atribuir ao usuário fallback (ou dono da conta no futuro)
-                    ...(fallbackUser?.id ? { activity_assignees: { create: [{ user_id: fallbackUser.id }] } } : {})
+                    // Atribui para TODOS os usuários ativos — garante que apareça no Kanban de todos
+                    activity_assignees: {
+                        create: allActiveUsers.map(u => ({ user_id: u.id }))
+                    }
                 }
             });
 
-            console.log(`[Webhook Email] Transbordo criado: Atividade ${newActivity.id}`);
+            console.log(`[Webhook Email] Transbordo criado: Atividade ${newActivity.id} — atribuída a ${allActiveUsers.length} usuário(s)`);
         }
 
         res.status(200).json({ ok: true, message: 'Processado pela Gabi AI' });

@@ -586,7 +586,7 @@ app.use('/api/webhooks/incoming-email', webhookEmailRouter);
 // POST /api/emails/nps — Envia formulário NPS para os destinatários
 app.post('/api/emails/nps', extractUsuario, async (req, res) => {
     try {
-        const { destinatarios, tipoForm } = req.body;
+        const { destinatarios, tipoForm, companyId, data: dataEnvio } = req.body;
         
         if (!destinatarios || !tipoForm) {
             return res.status(400).json({ error: 'Destinatários e Tipo de formulário são obrigatórios' });
@@ -596,9 +596,9 @@ app.post('/api/emails/nps', extractUsuario, async (req, res) => {
         const formLinks = {
             'Welcome': 'https://forms.gle/3SstsjLPFCYieiaq9',
             'Kickoff': 'https://forms.gle/KZen1amS4e9GJEd17',
-            'Onboarding': 'https://docs.google.com/forms/', // Link ainda não fornecido
+            'Onboarding': 'https://docs.google.com/forms/',
             'NPS': 'https://forms.gle/mBJRBDMb3xmW4TXm9',
-            'Reunião': 'https://docs.google.com/forms/', // Link ainda não fornecido
+            'Reunião': 'https://docs.google.com/forms/',
             'Churn': 'https://forms.gle/YpDptwjq7ytb4LG87'
         };
 
@@ -615,12 +615,33 @@ app.post('/api/emails/nps', extractUsuario, async (req, res) => {
             return res.status(500).json({ error: result.error || result.blocked || 'Erro ao enviar e-mail via Resend' });
         }
 
-        res.json({ ok: true, message: 'Pesquisa enviada com sucesso!' });
+        // ── Cria o registro NPS Pendente IMEDIATAMENTE no banco ──────────────────
+        let npsRecord = null;
+        if (companyId) {
+            try {
+                npsRecord = await prisma.company_nps.create({
+                    data: {
+                        companyId,
+                        Data: dataEnvio ? new Date(dataEnvio) : new Date(),
+                        Destinatario: destinatarios,
+                        Formulario: tipoForm,
+                        Score: 'Pendente',
+                    }
+                });
+                console.log(`[POST /api/emails/nps] ✅ Registro NPS Pendente criado no DB (id: ${npsRecord.id})`);
+            } catch (dbErr) {
+                console.error('[POST /api/emails/nps] ⚠️ Falha ao criar registro NPS no DB:', dbErr.message);
+                // Não falha o request — o e-mail já foi enviado
+            }
+        }
+
+        res.json({ ok: true, message: 'Pesquisa enviada com sucesso!', npsRecord });
     } catch (err) {
         console.error('[POST /api/emails/nps] Erro:', err);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 
 

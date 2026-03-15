@@ -658,9 +658,11 @@ function renderNPSHistoryTableRows(data) {
                     </div>
                 </div>
             </td>
-            <td style="text-align: right; display:flex; gap:0.5rem; justify-content:flex-end;">
-                ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon btn-view-nps-details" data-index="${index}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
-                <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-trash"></i></button>
+            <td style="text-align: right;">
+                <div style="display:flex; gap:0.5rem; justify-content:flex-end; width:100%;">
+                    ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon btn-view-nps-details" data-index="${index}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
+                    <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-trash"></i></button>
+                </div>
             </td>
         `;
         body.appendChild(tr);

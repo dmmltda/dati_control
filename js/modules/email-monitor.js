@@ -430,3 +430,26 @@ const emailMonitor = (() => {
 
 window.emailMonitor = emailMonitor;
 
+/**
+ * navigateToEmail(emailLogId)
+ * Navega para o Monitor de E-mails e abre direto a Thread/Cadeia do e-mail pelo ID do log.
+ * Chamado pelo link na descrição do card de atividade da Gabi.
+ */
+window.navigateToEmail = function(emailLogId) {
+    // 1. Fecha qualquer drawer/modal aberto antes de navegar
+    document.getElementById('tb-drawer-overlay')?.remove();
+    document.getElementById('email-details-modal')?.remove();
+
+    // 2. Navega para o Monitor de E-mails clicando no nav-item correspondente
+    const navItem = document.querySelector('[data-view="email-monitor"]');
+    if (navItem) {
+        navItem.click();
+    }
+
+    // 3. Após a view carregar os dados, abre a Thread do e-mail
+    setTimeout(() => {
+        if (window.emailMonitor?.showDetails) {
+            window.emailMonitor.showDetails(emailLogId);
+        }
+    }, 600);
+};

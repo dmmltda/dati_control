@@ -81,6 +81,7 @@ let _tasks = [];
 let _filters = { status: '', priority: '', prazo: '', search: '', dateFrom: '', dateTo: '' }; // global filters
 let _tbManager = null; // TableManager 2.0 para view Lista
 let _dragTaskId  = null;  // id da task sendo arrastada
+let _columnSorts = {};    // { [colKey]: 'newest'|'oldest'|'alpha'|'deadline' }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // API
@@ -315,8 +316,126 @@ function _renderContent(tasks) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// KANBAN
+// KANBAN — ordenação por coluna
 // ──────────────────────────────────────────────────────────────────────────────
+
+const SORT_OPTIONS = [
+    { value: 'newest',   label: 'Data de criação (mais recente primeiro)', icon: 'ph-sort-descending' },
+    { value: 'oldest',   label: 'Data de criação (mais antigo primeiro)',  icon: 'ph-sort-ascending'  },
+    { value: 'alpha',    label: 'Nome do cartão (em ordem alfabética)',    icon: 'ph-text-aa'         },
+    { value: 'deadline', label: 'Data de entrega',                          icon: 'ph-calendar-blank'  },
+];
+
+function _sortColTasks(tasks, sortKey) {
+    const arr = [...tasks];
+    switch (sortKey) {
+        case 'oldest':
+            return arr.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        case 'alpha':
+            return arr.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'pt-BR'));
+        case 'deadline':
+            return arr.sort((a, b) => {
+                const da = a.activity_datetime ? new Date(a.activity_datetime) : null;
+                const db = b.activity_datetime ? new Date(b.activity_datetime) : null;
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return da - db;
+            });
+        case 'newest':
+        default:
+            return arr.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+}
+
+export function openColumnSort(colKey, btnEl) {
+    if (!document.getElementById('kb-sort-styles')) {
+        const s = document.createElement('style');
+        s.id = 'kb-sort-styles';
+        s.textContent = `
+            .kb-sort-popover {
+                position:absolute; top:calc(100% + 6px); right:0; z-index:9999;
+                background:#1a2236; border:1px solid rgba(255,255,255,0.1);
+                border-radius:12px; padding:0.5rem 0; min-width:280px;
+                box-shadow:0 16px 48px rgba(0,0,0,0.5); animation:kbSortIn 0.18s ease;
+            }
+            @keyframes kbSortIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+            .kb-sort-popover-header {
+                display:flex; align-items:center; justify-content:space-between;
+                padding:0.6rem 1rem 0.5rem; border-bottom:1px solid rgba(255,255,255,0.07);
+                margin-bottom:0.25rem;
+            }
+            .kb-sort-popover-title { font-size:0.8rem; font-weight:700; color:var(--text-muted); letter-spacing:0.04em; text-transform:uppercase; }
+            .kb-sort-popover-close { background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:1rem; padding:0; line-height:1; display:flex; align-items:center; }
+            .kb-sort-popover-close:hover { color:var(--text-main); }
+            .kb-sort-option {
+                display:flex; align-items:center; gap:0.6rem;
+                padding:0.65rem 1rem; font-size:0.875rem; color:var(--text-main);
+                cursor:pointer; transition:background 0.15s; border:none; background:none; width:100%; text-align:left;
+            }
+            .kb-sort-option:hover { background:rgba(255,255,255,0.05); }
+            .kb-sort-option.active { color:#6366f1; background:rgba(99,102,241,0.08); }
+            .kb-sort-option i { font-size:1rem; flex-shrink:0; }
+            .kb-sort-back { display:flex; align-items:center; gap:0.4rem; background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:0.82rem; padding:0; }
+            .kb-sort-back:hover { color:var(--text-main); }
+        `;
+        document.head.appendChild(s);
+    }
+
+    document.querySelectorAll('.kb-sort-popover').forEach(el => el.remove());
+
+    const currentSort = _columnSorts[colKey] || 'newest';
+    const popover = document.createElement('div');
+    popover.className = 'kb-sort-popover';
+    popover.innerHTML = `
+        <div class="kb-sort-popover-header">
+            <button class="kb-sort-back" onclick="tasksBoard.closeColumnSort()">
+                <i class="ph ph-caret-left"></i>
+            </button>
+            <span class="kb-sort-popover-title">Ordenar lista</span>
+            <button class="kb-sort-popover-close" onclick="tasksBoard.closeColumnSort()">
+                <i class="ph ph-x"></i>
+            </button>
+        </div>
+        ${SORT_OPTIONS.map(opt => `
+            <button class="kb-sort-option ${currentSort === opt.value ? 'active' : ''}"
+                onclick="tasksBoard.setColumnSort('${colKey}', '${opt.value}')">
+                <i class="ph ${opt.icon}"></i>
+                ${opt.label}
+                ${currentSort === opt.value ? '<i class="ph ph-check" style="margin-left:auto;color:#6366f1;"></i>' : ''}
+            </button>
+        `).join('')}
+    `;
+
+    const anchor = btnEl.closest('[data-col-sort-anchor]');
+    if (anchor) {
+        anchor.appendChild(popover);
+    } else {
+        btnEl.appendChild(popover);
+    }
+
+    setTimeout(() => {
+        document.addEventListener('click', _closeSortOutside, { once: true, capture: true });
+    }, 0);
+}
+
+function _closeSortOutside(e) {
+    if (!e.target.closest('.kb-sort-popover')) {
+        document.querySelectorAll('.kb-sort-popover').forEach(el => el.remove());
+    } else {
+        document.addEventListener('click', _closeSortOutside, { once: true, capture: true });
+    }
+}
+
+export function closeColumnSort() {
+    document.querySelectorAll('.kb-sort-popover').forEach(el => el.remove());
+}
+
+export function setColumnSort(colKey, sortValue) {
+    _columnSorts[colKey] = sortValue;
+    document.querySelectorAll('.kb-sort-popover').forEach(el => el.remove());
+    _renderKanban(_tasks);
+}
 
 function _renderKanban(tasks) {
     const content = document.getElementById('tb-content');
@@ -396,14 +515,24 @@ function _renderKanban(tasks) {
                     }
                     return true;
                 });
+                const sortedColTasks = _sortColTasks(colTasks, _columnSorts[col.key]);
                 return `
                 <div class="kanban-column glass-panel" style="padding:0; position:relative;">
-                    <div style="display:flex; align-items:center; justify-content:space-between; padding:1rem; border-bottom:1px solid rgba(255,255,255,0.06); border-top-left-radius:var(--radius-md); border-top-right-radius:var(--radius-md);">
+                    <div data-col-sort-anchor style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; border-bottom:1px solid rgba(255,255,255,0.06); border-top-left-radius:var(--radius-md); border-top-right-radius:var(--radius-md); position:relative;">
                         <div style="display:flex;align-items:center;gap:0.5rem;">
                             <i class="ph ${col.icon}" style="color:${col.color};font-size:1rem;"></i>
                             <span style="font-weight:700;font-size:0.9rem;">${col.label}</span>
                         </div>
-                        <span style="background:${col.color}20;color:${col.color};border:1px solid ${col.color}44;border-radius:20px;padding:0.15rem 0.6rem;font-size:0.75rem;font-weight:700;">${colTasks.length}</span>
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            <span style="background:${col.color}20;color:${col.color};border:1px solid ${col.color}44;border-radius:20px;padding:0.15rem 0.6rem;font-size:0.75rem;font-weight:700;">${colTasks.length}</span>
+                            <button
+                                onclick="event.stopPropagation(); tasksBoard.openColumnSort('${col.key}', this)"
+                                title="Ordenar lista"
+                                style="background:none;border:none;cursor:pointer;color:var(--text-muted);padding:3px 5px;border-radius:6px;display:flex;align-items:center;transition:background 0.15s,color 0.15s;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.08)';this.style.color='var(--text-main)';"
+                                onmouseout="this.style.background='none';this.style.color='var(--text-muted)';"
+                            ><i class="ph ph-sort-descending" style="font-size:1rem;"></i></button>
+                        </div>
                     </div>
                     <div class="kanban-dropzone"
                          data-col="${col.key}"
@@ -411,7 +540,7 @@ function _renderKanban(tasks) {
                          ondragleave="window._kbDrag.leave(event,this)"
                          ondrop="window._kbDrag.drop(event,this)"
                          style="display:flex;flex-direction:column;gap:0.75rem;min-height:120px; padding:1rem;">
-                        ${colTasks.length ? colTasks.map(t => _renderKanbanCard(t)).join('') : `
+                        ${sortedColTasks.length ? sortedColTasks.map(t => _renderKanbanCard(t)).join('') : `
                             <div style="text-align:center;padding:2rem 1rem;color:var(--text-muted);font-size:0.82rem;border:1px dashed var(--dark-border);border-radius:8px;">
                                 <i class="ph ph-tray" style="display:block;font-size:1.5rem;margin-bottom:0.5rem;"></i>
                                 Nenhuma atividade
@@ -748,6 +877,23 @@ export function openActivityDetail(id, defaultTab = 'info') {
     _renderDetailDrawer(task, defaultTab);
 }
 
+// Helper: converte [EMAIL_LOG:uuid] na descrição em botão clicável para abrir a thread
+function _renderDescWithEmailLink(desc) {
+    if (!desc) return '';
+    const EMAIL_RE = /\[EMAIL_LOG:([a-zA-Z0-9\-]+)\]/g;
+    const hasLink = EMAIL_RE.test(desc);
+    const safe = desc.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const EMAIL_RE2 = /\[EMAIL_LOG:([a-zA-Z0-9\-]+)\]/g;
+    if (!hasLink) {
+        const lines = safe.split('\n').slice(0, 6);
+        return `<div style="background:rgba(0,0,0,0.15);padding:0.75rem 1rem;border-radius:8px;border:1px solid var(--dark-border);font-size:0.85rem;line-height:1.6;color:var(--text-muted);white-space:pre-wrap;max-height:120px;overflow-y:auto;">${lines.map(l=>l.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')).join('\n')}</div>`;
+    }
+    const rendered = safe
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(EMAIL_RE2, (_, id) => `<button type="button" onclick="window.navigateToEmail('${id}')" style="display:inline-flex;align-items:center;gap:0.4rem;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);color:#818cf8;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.82rem;cursor:pointer;font-weight:600;margin:0.25rem 0;transition:background 0.18s;" onmouseover="this.style.background='rgba(99,102,241,0.3)'" onmouseout="this.style.background='rgba(99,102,241,0.15)'"><i class="ph ph-eye"></i> Ver E-mail Completo (Thread)</button>`);
+    return `<div style="background:rgba(0,0,0,0.15);padding:0.75rem 1rem;border-radius:8px;border:1px solid var(--dark-border);font-size:0.85rem;line-height:1.8;color:var(--text-muted);white-space:pre-wrap;max-height:150px;overflow-y:auto;">${rendered}</div>`;
+}
+
 function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAfterSave = null) {
     document.getElementById('tb-drawer-overlay')?.remove();
 
@@ -930,7 +1076,8 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
           </div>
           <div class="input-group tb-field" style="margin-bottom:1.25rem;">
             <label>Descrição</label>
-            <textarea id="td-desc" class="input-control" rows="4" style="resize:vertical;">${t.description||''}</textarea>
+            ${_renderDescWithEmailLink(t.description || '')}
+            <textarea id="td-desc" class="input-control" rows="4" style="resize:vertical;margin-top:0.5rem;font-size:0.82rem;">${t.description||''}</textarea>
           </div>
 
           <div class="tb-section-lbl"><i class="ph ph-users" style="color:${sc};"></i>Participantes</div>
@@ -2144,7 +2291,7 @@ window._kbDrag = {
 
 window.tasksBoard = {
     initTasksBoard, switchView, applyFilter, clearAllFilters, openNewActivity, openActivityDetail,
-    deleteActivity,
+    deleteActivity, openColumnSort, closeColumnSort, setColumnSort,
     // Exposto para uso em outros módulos (activities.js) — mesmo modal exato
     renderActivityModal: (activity, isCreateMode = false, defaultTab = 'info', onAfterSave = null) => {
         // Permite sobrescrever o callback pós-save para outros módulos

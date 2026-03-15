@@ -263,7 +263,7 @@
    RELATÓRIOS — Tabela nativa de dados
 ══════════════════════════════════════════════════════════════════════════════ */
 
-#view-reports { display: flex; flex-direction: column; height: 100%; padding: 0; overflow: hidden; }
+#view-reports { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 1.5rem 2rem 1.5rem; }
 
 /* View preenche toda a altura e adiciona padding próprio */
 #view-audit-log:not([style*="none"]) {
@@ -318,6 +318,29 @@
     height: 100%;
     overflow: hidden;
     padding: 0;
+}
+
+/* Glass-panel dentro do rpt-panel-empresas cresce para preencher */
+#rpt-panel-empresas {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Filtros e toolbar — altura fixa */
+#view-reports .filters,
+#view-reports .bulk-toolbar,
+#view-reports #rpt-active-chips {
+    flex-shrink: 0;
+}
+
+/* Tabela cresce e rola */
+#view-reports .rpt-table-wrap {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */

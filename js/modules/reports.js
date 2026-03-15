@@ -230,27 +230,58 @@ function renderPagination() {
 }
 
 // ── Filtros ───────────────────────────────────────────────────────────────────
+
+// Armazena as opções disponíveis para cada filtro (populado via API)
+const filterOptions = {
+  status:   [],
+  tipo:     [],
+  segmento: [],
+  health:   [],
+  cs:       [],
+};
+
+// Labels legíveis para cada chave de filtro
+const FILTER_LABELS = {
+  status:   'Status',
+  tipo:     'Tipo',
+  segmento: 'Segmento',
+  health:   'Health Score',
+  cs:       'Responsável',
+};
+
 function bindFilterEvents() {
-  const fields = [
-    ['rpt-search',         'search',   'input'],
-    ['rpt-filter-status',  'status',   'change'],
-    ['rpt-filter-tipo',    'tipo',     'change'],
-    ['rpt-filter-segmento','segmento', 'change'],
-    ['rpt-filter-health',  'health',   'change'],
-    ['rpt-filter-cs',      'cs',       'change'],
-    ['rpt-filter-date-from','dateFrom','change'],
-    ['rpt-filter-date-to', 'dateTo',   'change'],
-  ];
-  fields.forEach(([id, key, evt]) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener(evt, () => {
-      filters[key] = el.value;
+  // Busca textual
+  const searchEl = document.getElementById('rpt-search');
+  if (searchEl) {
+    searchEl.addEventListener('input', () => {
+      filters.search = searchEl.value;
       applyFilters();
       renderTable();
+      renderActiveChips();
     });
-  });
+  }
 
+  // Date range
+  const dateFrom = document.getElementById('rpt-filter-date-from');
+  if (dateFrom) {
+    dateFrom.addEventListener('change', () => {
+      filters.dateFrom = dateFrom.value;
+      applyFilters();
+      renderTable();
+      renderActiveChips();
+    });
+  }
+  const dateTo = document.getElementById('rpt-filter-date-to');
+  if (dateTo) {
+    dateTo.addEventListener('change', () => {
+      filters.dateTo = dateTo.value;
+      applyFilters();
+      renderTable();
+      renderActiveChips();
+    });
+  }
+
+  // Limpar (via onclick no HTML, mas mantemos o listener também)
   const btnClear = document.getElementById('btn-rpt-clear');
   if (btnClear) btnClear.addEventListener('click', clearFilters);
 
@@ -265,38 +296,200 @@ function bindFilterEvents() {
     state.initialized = false;
     initReports();
   });
+
+  // Fecha popovers ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[id^="rpt-popover-"]') && !e.target.closest('[id^="rpt-btn-filter-"]')) {
+      document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
+    }
+  });
+
+  // Expõe helper global para o onclick do HTML
+  window._rptClearFilters = clearFilters;
 }
+
+// ── Popover de filtro (chamado pelo onclick no HTML) ──────────────────────────
+window._rptToggleFilterDropdown = function(filterKey, btnEl, event) {
+  event.stopPropagation();
+  const popover = document.getElementById(`rpt-popover-${filterKey}`);
+  if (!popover) return;
+
+  const isOpen = popover.classList.contains('show');
+
+  // Fecha todos os outros
+  document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
+
+  if (isOpen) return;
+
+  // Reconstrói o conteúdo do popover
+  const values   = filterOptions[filterKey] || [];
+  const current  = filters[filterKey] || '';
+  const labelKey = FILTER_LABELS[filterKey] || filterKey;
+
+  popover.innerHTML = `
+    <div class="filter-group">
+      <span class="filter-label">Filtrar por ${labelKey}</span>
+      <div class="filter-list">
+        <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._rptSetFilter('${filterKey}', '')">(Tudo)</div>
+        ${values.map(v => `
+          <div class="filter-option ${current === String(v) ? 'selected' : ''}" onclick="window._rptSetFilter('${filterKey}', '${String(v).replace(/'/g, "\\'")}')"
+          >${escHtml(String(v))}</div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn-clear-filter" onclick="window._rptSetFilter('${filterKey}', '')">
+        <i class="ph ph-x-circle"></i> Limpar Filtro
+      </button>
+    </div>
+  `;
+
+  popover.classList.add('show');
+
+  // Posicionamento inteligente
+  popover.classList.remove('align-right');
+  popover.style.top = '100%';
+  popover.style.bottom = 'auto';
+  requestAnimationFrame(() => {
+    const rect = popover.getBoundingClientRect();
+    if (rect.right > window.innerWidth - 20) popover.classList.add('align-right');
+    if (rect.bottom > window.innerHeight - 20) {
+      popover.style.top = 'auto';
+      popover.style.bottom = '100%';
+    }
+  });
+};
+
+window._rptSetFilter = function(filterKey, value) {
+  filters[filterKey] = value;
+  // Fecha popover
+  document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
+  applyFilters();
+  renderTable();
+  updateFilterButtonLabels();
+  renderActiveChips();
+};
+
+// Atualiza o texto dos botões de filtro para refletir a seleção atual
+function updateFilterButtonLabels() {
+  const mapping = [
+    ['status',   'rpt-label-status',   'Status'],
+    ['tipo',     'rpt-label-tipo',     'Tipo'],
+    ['segmento', 'rpt-label-segmento', 'Segmento'],
+    ['health',   'rpt-label-health',   'Health Score'],
+    ['cs',       'rpt-label-cs',       'Responsável'],
+  ];
+  mapping.forEach(([key, labelId, defaultLabel]) => {
+    const el = document.getElementById(labelId);
+    if (!el) return;
+    const active = filters[key];
+    el.textContent = active ? active : defaultLabel;
+    // Destaca o botão se estiver ativo
+    const btn = el.closest('button');
+    if (btn) {
+      if (active) {
+        btn.style.background = 'rgba(91,82,246,0.18)';
+        btn.style.borderColor = 'var(--primary)';
+        btn.style.color = 'var(--text-main)';
+      } else {
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }
+  });
+}
+
+// Renderiza chips de filtros ativos
+function renderActiveChips() {
+  const bar = document.getElementById('rpt-active-chips');
+  if (!bar) return;
+
+  const chips = [];
+
+  if (filters.search) {
+    chips.push(`<span class="filter-chip"><i class="ph ph-magnifying-glass"></i> "${escHtml(filters.search)}" <button class="chip-remove" onclick="window._rptRemoveFilter('search')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  }
+  if (filters.status)   chips.push(`<span class="filter-chip">Status: <strong>${escHtml(filters.status)}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('status')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  if (filters.tipo)     chips.push(`<span class="filter-chip">Tipo: <strong>${escHtml(filters.tipo)}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('tipo')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  if (filters.segmento) chips.push(`<span class="filter-chip">Segmento: <strong>${escHtml(filters.segmento)}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('segmento')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  if (filters.health)   chips.push(`<span class="filter-chip">Health: <strong>${escHtml(filters.health)}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('health')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  if (filters.cs)       chips.push(`<span class="filter-chip">CS: <strong>${escHtml(filters.cs)}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('cs')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  if (filters.dateFrom || filters.dateTo) {
+    const fd = filters.dateFrom ? filters.dateFrom.split('-').reverse().join('/') : '...';
+    const td = filters.dateTo   ? filters.dateTo.split('-').reverse().join('/')   : '...';
+    chips.push(`<span class="filter-chip">Data: <strong>${fd} - ${td}</strong> <button class="chip-remove" onclick="window._rptRemoveFilter('date')" title="Remover"><i class="ph ph-x"></i></button></span>`);
+  }
+
+  if (chips.length > 0) {
+    bar.innerHTML = chips.join('');
+    bar.style.display = 'flex';
+  } else {
+    bar.innerHTML = '';
+    bar.style.display = 'none';
+  }
+}
+
+window._rptRemoveFilter = function(key) {
+  if (key === 'search') {
+    filters.search = '';
+    const s = document.getElementById('rpt-search');
+    if (s) s.value = '';
+  } else if (key === 'date') {
+    filters.dateFrom = ''; filters.dateTo = '';
+    const f = document.getElementById('rpt-filter-date-from');
+    const t = document.getElementById('rpt-filter-date-to');
+    if (f) f.value = ''; if (t) t.value = '';
+  } else {
+    filters[key] = '';
+  }
+  applyFilters();
+  renderTable();
+  updateFilterButtonLabels();
+  renderActiveChips();
+};
 
 function clearFilters() {
   Object.keys(filters).forEach(k => filters[k] = '');
-  ['rpt-search','rpt-filter-status','rpt-filter-tipo','rpt-filter-segmento',
-   'rpt-filter-health','rpt-filter-cs','rpt-filter-date-from','rpt-filter-date-to'].forEach(id => {
+  const searchEl = document.getElementById('rpt-search');
+  if (searchEl) searchEl.value = '';
+  const dateFrom = document.getElementById('rpt-filter-date-from');
+  if (dateFrom) dateFrom.value = '';
+  const dateTo = document.getElementById('rpt-filter-date-to');
+  if (dateTo) dateTo.value = '';
+  // Limpa selects ocultos
+  ['rpt-filter-status','rpt-filter-tipo','rpt-filter-segmento','rpt-filter-health','rpt-filter-cs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   applyFilters();
   renderTable();
+  updateFilterButtonLabels();
+  renderActiveChips();
 }
 
 function populateFilterOptions(opts) {
+  // Armazena para uso nos popovers
+  filterOptions.status   = opts.status       || [];
+  filterOptions.tipo     = opts.tipo         || [];
+  filterOptions.segmento = opts.segmento     || [];
+  filterOptions.health   = opts.health_score || [];
+  filterOptions.cs       = opts.cs           || [];
+
+  // Popula também os selects ocultos para manter compat
   const pairs = [
-    ['rpt-filter-status',   opts.status,       'Status'],
-    ['rpt-filter-tipo',     opts.tipo,         'Tipo'],
-    ['rpt-filter-segmento', opts.segmento,     'Segmento'],
-    ['rpt-filter-health',   opts.health_score, 'Health Score'],
-    ['rpt-filter-cs',       opts.cs,           'Responsável'],
+    ['rpt-filter-status',   filterOptions.status,   'Status'],
+    ['rpt-filter-tipo',     filterOptions.tipo,     'Tipo'],
+    ['rpt-filter-segmento', filterOptions.segmento, 'Segmento'],
+    ['rpt-filter-health',   filterOptions.health,   'Health Score'],
+    ['rpt-filter-cs',       filterOptions.cs,       'Responsável'],
   ];
-  pairs.forEach(([id, values = [], placeholder]) => {
+  pairs.forEach(([id, values, placeholder]) => {
     const el = document.getElementById(id);
     if (!el) return;
     const current = el.value;
     el.innerHTML = `<option value="">${placeholder}</option>` +
-      (values || []).map(v => `<option value="${escHtml(v)}"${v === current ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
-
-    // Se o elemento foi transformado em CustomSelect, força re-leitura
-    if (el._customSelectInstance) {
-      el._customSelectInstance.refresh();
-    }
+      values.map(v => `<option value="${escHtml(v)}"${v === current ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
   });
 }
 

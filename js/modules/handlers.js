@@ -382,6 +382,7 @@ export async function enviarPesquisa() {
         const formType = document.getElementById('new-nps-form-type').value;
         const data = document.getElementById('new-nps-data').value;
         const dest = document.getElementById('new-nps-dest').value;
+        const companyId = document.getElementById('company-id')?.value;
 
         if (!tipo || !formType || !data || !dest) {
             utils.showToast('Preencha os campos obrigatórios (*)', 'error');
@@ -395,7 +396,7 @@ export async function enviarPesquisa() {
                 'Content-Type': 'application/json',
                 ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
-            body: JSON.stringify({ destinatarios: dest, tipoForm: formType })
+            body: JSON.stringify({ destinatarios: dest, tipoForm: formType, companyId, data })
         });
 
         if (!res.ok) {
@@ -403,13 +404,15 @@ export async function enviarPesquisa() {
             throw new Error(err.error || `Erro HTTP ${res.status}`);
         }
 
+        const result = await res.json();
         utils.showToast('Pesquisa enviada com sucesso ao cliente!', 'success');
 
         // Registra no "Histórico de Alterações" (Audit Log)
         _recordAuditAction('UPDATE', 'activity', `Pesquisa NPS (${formType}) enviada para: ` + dest);
 
-        // Salva registro "Pendente"
+        // Adiciona ao estado local usando o ID real retornado pelo banco (se disponivel)
         state.tempNPSHistory.push({
+            id: result.npsRecord?.id,
             tipo,
             formType,
             data,
