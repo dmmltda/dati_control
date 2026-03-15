@@ -336,6 +336,20 @@
     flex-shrink: 0;
 }
 
+/* Remove o box do .filters dentro do painel de relatórios */
+#rpt-panel-empresas .filters {
+    background: transparent;
+    border: none;
+    padding: 0 0 0.5rem 0;
+    margin-bottom: 0.5rem;
+}
+
+/* Força ocultação dos selects legados — nunca devem aparecer */
+#rpt-panel-empresas select[id^="rpt-filter-"] {
+    display: none !important;
+}
+
+
 /* Tabela cresce e rola */
 #view-reports .rpt-table-wrap {
     flex: 1;

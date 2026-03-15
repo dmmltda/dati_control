@@ -2028,70 +2028,25 @@
 
             <!-- ═══════════════════════════════════════════════════════════════
                  VIEW: Relatórios — Tabela nativa de dados do Journey
-            ═══════════════════════════════════════════════════════════════════ -->
-            <div id="view-reports" class="view-section" style="display:none;">
-                <div class="rpt-container">
-
-                    <!-- HEADER -->
-                    <div class="rpt-header">
-                        <div>
-                            <h2><i class="ph ph-chart-bar"></i> Relatórios</h2>
-                            <p>Explore, filtre e exporte os dados do Journey</p>
-                        </div>
-                        <div class="rpt-header-actions">
-                            <div class="rpt-col-picker-wrap">
-                                <button id="btn-rpt-columns" class="btn btn-secondary btn-sm">
-                                    <i class="ph ph-columns"></i> Colunas
-                                </button>
-                                <div id="rpt-col-picker" class="rpt-col-picker" style="display:none;"></div>
-                            </div>
-                            <button id="btn-rpt-export-csv" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-download-simple"></i> Exportar CSV
-                            </button>
-                            <button id="btn-rpt-export-excel" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-microsoft-excel-logo"></i> Exportar Excel
-                            </button>
-                            <button id="btn-rpt-refresh" class="btn btn-primary btn-sm">
-                                <i class="ph ph-arrows-clockwise"></i> Atualizar
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- TABS TOGGLE -->
-                    <div class="rpt-tabs-toggle">
-                        <button id="rpt-tab-empresas" class="rpt-tab-btn active" onclick="window._rptSwitchTab('empresas')">
-                            <i class="ph ph-buildings"></i> Tabela de Empresas
-                        </button>
-                        <button id="rpt-tab-aderencia" class="rpt-tab-btn" onclick="window._rptSwitchTab('aderencia')">
-                            <i class="ph ph-chart-bar"></i> Aderência Mensal
-                        </button>
-                    </div>
-
-                    <!-- PAINEL: Tabela de Empresas -->
-                    <div id="rpt-panel-empresas">
-
-                        <!-- BUSCA -->
-                        <div class="filters">
-                            <div class="search-container" style="flex: 1;">
-                                <div class="search-wrapper">
-                                    <i class="ph ph-magnifying-glass search-icon"></i>
-                                    <input type="text" id="rpt-search" class="search-input" placeholder="Buscar empresa..." autocomplete="off" />
-                                </div>
-                            </div>
-                        </div>
-
+            ═══════════════════════════════════════════════════════════════════ -
                         <!-- Chips de filtros ativos -->
                         <div id="rpt-active-chips" class="active-filters-bar" style="display:none; margin-bottom: 0.5rem;"></div>
 
-                        <!-- TOOLBAR DE FILTROS -->
+                        <!-- TOOLBAR DE FILTROS (tudo numa linha: busca + filtros + datas + limpar) -->
                         <div class="bulk-toolbar has-selection" id="rpt-bulk-toolbar">
-                            <div class="bulk-toolbar-left">
-                                <div class="bulk-selection-info">
+                            <div class="bulk-toolbar-left" style="gap:0.75rem; flex:1; min-width:0;">
+                                <div class="bulk-selection-info" style="flex-shrink:0;">
                                     <i class="ph ph-buildings"></i>
                                     <span id="rpt-count">0 empresas</span>
                                 </div>
+                                <!-- Busca inline -->
+                                <div style="flex:1; min-width:120px; max-width:280px; position:relative; display:flex; align-items:center; background:rgba(15,23,42,0.55); border:1px solid var(--dark-border); border-radius:8px; padding:0 10px; height:30px; gap:6px;">
+                                    <i class="ph ph-magnifying-glass" style="color:var(--text-muted); font-size:13px; flex-shrink:0;"></i>
+                                    <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off"
+                                        style="flex:1; background:transparent; border:none; outline:none; color:var(--text-main); font-size:12px; font-family:inherit; min-width:0;" />
+                                </div>
                             </div>
-                            <div class="bulk-toolbar-actions" style="gap: 0.4rem;">
+                            <div class="bulk-toolbar-actions" style="gap: 0.4rem; flex-shrink:0;">
                                 <!-- Status -->
                                 <div style="position:relative;">
                                     <button type="button" class="bulk-action-btn" id="rpt-btn-filter-status" onclick="window._rptToggleFilterDropdown('status', this, event)">
@@ -2132,6 +2087,25 @@
                                 <div style="position:relative;">
                                     <button type="button" class="bulk-action-btn" id="rpt-btn-filter-cs" onclick="window._rptToggleFilterDropdown('cs', this, event)">
                                         <i class="ph ph-user"></i>
+                                        <span id="rpt-label-cs">Responsável</span>
+                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
+                                    </button>
+                                    <div class="filter-popover" id="rpt-popover-cs"></div>
+                                </div>
+                                <!-- Data -->
+                                <input type="date" id="rpt-filter-date-from" title="Criado de"
+                                    style="height:30px;padding:0 8px;border-radius:8px;border:1px solid var(--dark-border);background:rgba(15,23,42,0.55);color:var(--text-main);font-family:inherit;font-size:12px;color-scheme:dark;outline:none;" />
+                                <span style="color:var(--text-muted);font-size:0.78rem;">até</span>
+                                <input type="date" id="rpt-filter-date-to" title="Criado até"
+                                    style="height:30px;padding:0 8px;border-radius:8px;border:1px solid var(--dark-border);background:rgba(15,23,42,0.55);color:var(--text-main);font-family:inherit;font-size:12px;color-scheme:dark;outline:none;" />
+                                <div class="bulk-toolbar-divider"></div>
+                                <button id="btn-rpt-clear" type="button" class="bulk-action-btn" onclick="window._rptClearFilters()">
+                                    <i class="ph ph-x"></i> Limpar
+                                </button>
+                            </div>
+                        </div>
+
+                             <i class="ph ph-user"></i>
                                         <span id="rpt-label-cs">Responsável</span>
                                         <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
                                     </button>
