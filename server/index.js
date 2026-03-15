@@ -174,6 +174,53 @@ app.post('/fix-masters', async (req, res) => {
     return res.json({ ok: true, ...results });
 });
 
+// Endpoint de correção: garante membership para todos os masters em todas as empresas
+// POST /fix-memberships com body { key: "dati-fix-2024" }
+app.post('/fix-memberships', async (req, res) => {
+    const { key } = req.body;
+    if (key !== (process.env.ADMIN_FIX_KEY || 'dati-fix-2024')) {
+        return res.status(403).json({ error: 'Key inválida' });
+    }
+    try {
+        const { randomUUID } = await import('crypto');
+        // Busca todos os masters
+        const masters = await prisma.users.findMany({ where: { user_type: 'master' }, select: { id: true, nome: true, email: true } });
+        // Busca todas as empresas
+        const companies = await prisma.companies.findMany({ select: { id: true, Nome_da_empresa: true } });
+
+        let created = 0, skipped = 0;
+        for (const user of masters) {
+            for (const company of companies) {
+                const existing = await prisma.user_memberships.findUnique({
+                    where: { user_id_company_id: { user_id: user.id, company_id: company.id } }
+                });
+                if (!existing) {
+                    await prisma.user_memberships.create({
+                        data: {
+                            id: randomUUID(),
+                            user_id: user.id,
+                            company_id: company.id,
+                            can_create: true,
+                            can_edit: true,
+                            can_delete: true,
+                            can_export: true,
+                            updatedAt: new Date()
+                        }
+                    });
+                    created++;
+                } else {
+                    skipped++;
+                }
+            }
+        }
+
+        return res.json({ ok: true, masters: masters.length, companies: companies.length, created, skipped });
+    } catch (err) {
+        console.error('[fix-memberships]', err);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // Endpoint de seed de atividades (protegido por chave)
 // POST /seed-activities com body { key: "dati-fix-2024", user_id: "clerk_user_id" }
 app.post('/seed-activities', async (req, res) => {
