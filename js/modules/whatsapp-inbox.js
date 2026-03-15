@@ -403,6 +403,98 @@ function _injectStyles() {
             font-weight: 700;
             color: #e2e8f0;
         }
+        /* ── NEW CONV BUTTON ─────────────────────────────── */
+        .wa-new-conv-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            border: 1px solid rgba(99,102,241,0.4);
+            background: rgba(99,102,241,0.15);
+            color: #a5b4fc;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+            margin-left: auto;
+        }
+        .wa-new-conv-btn:hover { background: rgba(99,102,241,0.28); border-color: rgba(99,102,241,0.7); }
+        /* ── NEW CONV MODAL ──────────────────────────────── */
+        .wa-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            backdrop-filter: blur(4px);
+        }
+        .wa-modal {
+            background: #1a2035;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 18px;
+            padding: 1.75rem;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+        }
+        .wa-modal h3 {
+            margin: 0 0 1.25rem;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #e2e8f0;
+        }
+        .wa-modal-field {
+            margin-bottom: 1rem;
+        }
+        .wa-modal-field label {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #8b98b4;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .wa-modal-input {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            padding: 0.65rem 0.9rem;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.875rem;
+            box-sizing: border-box;
+            transition: border-color 0.15s;
+        }
+        .wa-modal-input:focus { outline: none; border-color: rgba(99,102,241,0.5); }
+        .wa-modal-input::placeholder { color: #475569; }
+        textarea.wa-modal-input { resize: vertical; min-height: 90px; }
+        .wa-modal-hint {
+            font-size: 0.72rem;
+            color: #475569;
+            margin-top: 0.35rem;
+        }
+        .wa-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 1.4rem;
+        }
+        .wa-modal-status {
+            margin-top: 0.75rem;
+            font-size: 0.83rem;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
         /* ── LOADING ─────────────────────────────────────── */
         .wa-loading {
             display: flex;
@@ -441,10 +533,15 @@ function _renderRoot() {
                         WhatsApp HD
                         <span id="wa-sse-status" title="Stream SSE" style="width:8px;height:8px;border-radius:50%;background:#6b7280;display:inline-block;margin-left:4px;"></span>
                     </h2>
-                    <div class="wa-conv-filter-tabs">
-                        <button class="wa-tab-btn active" onclick="window._waSetFilter('open')" id="wa-tab-open">Abertas</button>
-                        <button class="wa-tab-btn" onclick="window._waSetFilter('closed')" id="wa-tab-closed">Fechadas</button>
-                        <button class="wa-tab-btn" onclick="window._waSetFilter('all')" id="wa-tab-all">Todas</button>
+                    <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                        <div class="wa-conv-filter-tabs">
+                            <button class="wa-tab-btn active" onclick="window._waSetFilter('open')" id="wa-tab-open">Abertas</button>
+                            <button class="wa-tab-btn" onclick="window._waSetFilter('closed')" id="wa-tab-closed">Fechadas</button>
+                            <button class="wa-tab-btn" onclick="window._waSetFilter('all')" id="wa-tab-all">Todas</button>
+                        </div>
+                        <button class="wa-new-conv-btn" onclick="window._waNewConvModal()" title="Iniciar nova conversa">
+                            <i class="ph ph-paper-plane-right"></i> Nova
+                        </button>
                     </div>
                 </div>
                 <div id="wa-stats-bar" class="wa-stats-bar">
@@ -822,6 +919,95 @@ async function init() {
     await _connectSSE();
     _initialized = true;
 }
+
+// ─── Nova Conversa: Modal ─────────────────────────────────────────────────────
+window._waNewConvModal = function() {
+    // Remove se já existe
+    document.getElementById('wa-new-conv-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'wa-modal-overlay';
+    overlay.id = 'wa-new-conv-overlay';
+    overlay.innerHTML = `
+        <div class="wa-modal" onclick="event.stopPropagation()">
+            <h3><i class="ph ph-paper-plane-right" style="color:#6366f1;"></i> Nova Conversa WhatsApp</h3>
+            <div class="wa-modal-field">
+                <label>Número do Destinatário <span style="color:#6366f1;">*</span></label>
+                <input class="wa-modal-input" id="wa-new-phone" type="tel"
+                    placeholder="5548999999999 (com DDI e DDD, sem +)"
+                    oninput="this.value=this.value.replace(/\\D/g,'')"
+                />
+                <div class="wa-modal-hint">Ex: 5548988480707 — Número completo com código do país (55) + DDD + número</div>
+            </div>
+            <div class="wa-modal-field">
+                <label>Nome do Contato (opcional)</label>
+                <input class="wa-modal-input" id="wa-new-contact-name" type="text" placeholder="Ex: João Silva" />
+            </div>
+            <div class="wa-modal-field">
+                <label>Primeira Mensagem <span style="color:#6366f1;">*</span></label>
+                <textarea class="wa-modal-input" id="wa-new-msg" placeholder="Digite a mensagem inicial..."></textarea>
+            </div>
+            <div class="wa-modal-status" id="wa-new-status"></div>
+            <div class="wa-modal-footer">
+                <button class="wa-btn wa-btn-secondary" onclick="document.getElementById('wa-new-conv-overlay')?.remove()">Cancelar</button>
+                <button class="wa-btn wa-btn-primary" id="wa-new-submit-btn" onclick="window._waStartConversation()">
+                    <i class="ph ph-paper-plane-tilt"></i> Enviar e Abrir Conversa
+                </button>
+            </div>
+        </div>
+    `;
+    // Fecha ao clicar fora
+    overlay.addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+    setTimeout(() => document.getElementById('wa-new-phone')?.focus(), 50);
+};
+
+window._waStartConversation = async function() {
+    const phone       = document.getElementById('wa-new-phone')?.value.trim();
+    const text        = document.getElementById('wa-new-msg')?.value.trim();
+    const contactName = document.getElementById('wa-new-contact-name')?.value.trim();
+    const statusEl    = document.getElementById('wa-new-status');
+    const btn         = document.getElementById('wa-new-submit-btn');
+
+    if (!phone || !text) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f87171;">⚠️ Número e mensagem são obrigatórios.</span>';
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.innerHTML = '<div class="wa-spinner"></div> Enviando...';
+
+    try {
+        const resp = await _fetch('/api/whatsapp/start', {
+            method: 'POST',
+            body: JSON.stringify({ phone, text, contactName }),
+        });
+        const data = await resp.json();
+
+        if (!resp.ok) {
+            if (resp.status === 409 && data.conversationId) {
+                // Já existe — navega para ela
+                if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b;">⚠️ Conversa já existe. Abrindo...</span>';
+                setTimeout(() => {
+                    document.getElementById('wa-new-conv-overlay')?.remove();
+                    window._waSelectConv(data.conversationId);
+                }, 800);
+                return;
+            }
+            throw new Error(data.error || `HTTP ${resp.status}`);
+        }
+
+        if (statusEl) statusEl.innerHTML = '<span style="color:#10b981;">✅ Mensagem enviada!</span>';
+        setTimeout(() => {
+            document.getElementById('wa-new-conv-overlay')?.remove();
+            _loadConversations().then(() => window._waSelectConv(data.conversationId));
+        }, 600);
+
+    } catch (err) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:#f87171;">❌ ${err.message}</span>`;
+        if (btn) btn.disabled = false;
+    }
+};
 
 // ─── Expose ───────────────────────────────────────────────────────────────────
 window.whatsappInbox = { init };

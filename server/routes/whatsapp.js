@@ -358,6 +358,102 @@ router.post('/send', requireAuth(), extractUser, async (req, res) => {
     }
 });
 
+// ─── POST /api/whatsapp/start ── Iniciar nova conversa a partir do sistema ────
+router.post('/start', requireAuth(), extractUser, async (req, res) => {
+    try {
+        const { phone, text, contactName } = req.body;
+        const userId = req.usuarioAtual.id;
+
+        if (!phone || !text?.trim()) {
+            return res.status(400).json({ error: 'phone e text são obrigatórios' });
+        }
+
+        // Normaliza número
+        const cleanPhone = normalizePhone(phone);
+        if (!cleanPhone) {
+            return res.status(400).json({ error: 'Número de telefone inválido. Use o formato: 5548999999999' });
+        }
+
+        // Verifica se já existe conversa aberta com esse número
+        const existing = await prisma.whatsapp_conversations.findFirst({
+            where: { wa_phone_number: cleanPhone, status: 'open' },
+        });
+        if (existing) {
+            return res.status(409).json({
+                error: 'Já existe uma conversa aberta com esse número.',
+                conversationId: existing.id,
+            });
+        }
+
+        // Tenta vincular a um contato/empresa
+        const contact = await prisma.contacts.findFirst({
+            where: {
+                OR: [
+                    { Phones: { array_contains: cleanPhone } },
+                    { Phones: { array_contains: `+${cleanPhone}` } },
+                ],
+            },
+            include: { companies: true },
+        });
+
+        // Cria conversa no banco
+        const { randomUUID } = await import('crypto');
+        const convId = randomUUID();
+        const conv = await prisma.whatsapp_conversations.create({
+            data: {
+                id:              convId,
+                wa_phone_number: cleanPhone,
+                status:          'open',
+                opened_at:       new Date(),
+                contact_id:      contact?.id || null,
+                contact_nome:    contactName || contact?.Nome_do_contato || null,
+                company_id:      contact?.company_id || null,
+                company_nome:    contact?.companies?.Nome_da_empresa || null,
+            },
+        });
+
+        // Envia a mensagem inicial
+        const result = await sendTextMessage(`+${cleanPhone}`, text.trim(), {
+            origin: 'agent',
+            conversation_id: convId,
+            company_id: conv.company_id,
+        });
+
+        if (!result.sent) {
+            // Apaga a conversa se não foi possível enviar
+            await prisma.whatsapp_conversations.delete({ where: { id: convId } });
+            return res.status(502).json({ error: result.error || 'Falha ao enviar mensagem. Verifique se o número está na lista de destinatários autorizados.' });
+        }
+
+        // Registra mensagem outbound
+        const msg = await prisma.whatsapp_messages.create({
+            data: {
+                conversation_id: convId,
+                wa_message_id:   result.wa_message_id || null,
+                direction:       'outbound',
+                content_type:    'text',
+                content:         text.trim(),
+                sent_by:         userId,
+                origin:          'agent',
+                status:          'sent',
+            },
+        });
+
+        // Emite SSE para todos os agentes
+        emitToAgents('new_message', {
+            conversationId: convId,
+            message: { ...msg, created_at: msg.created_at?.toISOString() },
+        });
+
+        console.log(`[WhatsApp] ✅ Nova conversa iniciada para +${cleanPhone} (conv: ${convId})`);
+        return res.json({ ok: true, conversationId: convId, message: msg });
+
+    } catch (err) {
+        console.error('[WhatsApp POST /start]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── POST /api/whatsapp/conversations/:id/close ── Encerrar + análise Gabi ───
 router.post('/conversations/:id/close', requireAuth(), extractUser, async (req, res) => {
     try {
