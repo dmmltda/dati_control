@@ -2070,81 +2070,59 @@
                     <!-- PAINEL: Tabela de Empresas -->
                     <div id="rpt-panel-empresas">
 
-                        <!-- Chips de filtros ativos -->
-                        <div id="rpt-active-chips" class="active-filters-bar" style="display:none; margin-bottom: 0.5rem;"></div>
-
-                        <!-- TOOLBAR: busca + filtros + datas + limpar — tudo numa linha -->
-                        <div class="bulk-toolbar has-selection" id="rpt-bulk-toolbar">
-                            <div class="bulk-toolbar-left" style="gap:0.75rem; flex:1; min-width:0;">
-                                <div class="bulk-selection-info" style="flex-shrink:0;">
-                                    <i class="ph ph-buildings"></i>
-                                    <span id="rpt-count">0 empresas</span>
-                                </div>
-                                <!-- Campo de busca inline -->
-                                <div style="flex:1; min-width:120px; max-width:280px; display:flex; align-items:center; background:rgba(15,23,42,0.55); border:1px solid var(--dark-border); border-radius:8px; padding:0 10px; height:30px; gap:6px;">
-                                    <i class="ph ph-magnifying-glass" style="color:var(--text-muted); font-size:13px; flex-shrink:0;"></i>
-                                    <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off"
-                                        style="flex:1; background:transparent; border:none; outline:none; color:var(--text-main); font-size:12px; font-family:inherit; min-width:0;" />
-                                </div>
+                        <!-- Filtros — padrão rpt-filters (igual ao Histórico de Alterações) -->
+                        <div class="rpt-filters">
+                            <!-- Campo de busca -->
+                            <div class="rpt-filter-search" style="flex:1; min-width:220px;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="rpt-search" placeholder="Buscar empresa..." autocomplete="off">
                             </div>
-                            <div class="bulk-toolbar-actions" style="gap:0.4rem; flex-shrink:0;">
-                                <!-- Status -->
-                                <div style="position:relative;">
-                                    <button type="button" class="bulk-action-btn" id="rpt-btn-filter-status" onclick="window._rptToggleFilterDropdown('status', this, event)">
-                                        <i class="ph ph-funnel-simple"></i>
-                                        <span id="rpt-label-status">Status</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
-                                    </button>
-                                    <div class="filter-popover" id="rpt-popover-status"></div>
-                                </div>
-                                <!-- Tipo -->
-                                <div style="position:relative;">
-                                    <button type="button" class="bulk-action-btn" id="rpt-btn-filter-tipo" onclick="window._rptToggleFilterDropdown('tipo', this, event)">
-                                        <i class="ph ph-squares-four"></i>
-                                        <span id="rpt-label-tipo">Tipo</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
-                                    </button>
-                                    <div class="filter-popover" id="rpt-popover-tipo"></div>
-                                </div>
-                                <!-- Segmento -->
-                                <div style="position:relative;">
-                                    <button type="button" class="bulk-action-btn" id="rpt-btn-filter-segmento" onclick="window._rptToggleFilterDropdown('segmento', this, event)">
-                                        <i class="ph ph-briefcase"></i>
-                                        <span id="rpt-label-segmento">Segmento</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
-                                    </button>
-                                    <div class="filter-popover" id="rpt-popover-segmento"></div>
-                                </div>
-                                <!-- Health Score -->
-                                <div style="position:relative;">
-                                    <button type="button" class="bulk-action-btn" id="rpt-btn-filter-health" onclick="window._rptToggleFilterDropdown('health', this, event)">
-                                        <i class="ph ph-heartbeat"></i>
-                                        <span id="rpt-label-health">Health Score</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
-                                    </button>
-                                    <div class="filter-popover" id="rpt-popover-health"></div>
-                                </div>
-                                <!-- Responsável -->
-                                <div style="position:relative;">
-                                    <button type="button" class="bulk-action-btn" id="rpt-btn-filter-cs" onclick="window._rptToggleFilterDropdown('cs', this, event)">
-                                        <i class="ph ph-user"></i>
-                                        <span id="rpt-label-cs">Responsável</span>
-                                        <i class="ph ph-caret-down" style="font-size:0.7rem;"></i>
-                                    </button>
-                                    <div class="filter-popover" id="rpt-popover-cs"></div>
-                                </div>
-                                <!-- Datas -->
-                                <input type="date" id="rpt-filter-date-from" title="Criado de"
-                                    style="height:30px;padding:0 8px;border-radius:8px;border:1px solid var(--dark-border);background:rgba(15,23,42,0.55);color:var(--text-main);font-family:inherit;font-size:12px;color-scheme:dark;outline:none;" />
-                                <span style="color:var(--text-muted);font-size:0.78rem;">até</span>
-                                <input type="date" id="rpt-filter-date-to" title="Criado até"
-                                    style="height:30px;padding:0 8px;border-radius:8px;border:1px solid var(--dark-border);background:rgba(15,23,42,0.55);color:var(--text-main);font-family:inherit;font-size:12px;color-scheme:dark;outline:none;" />
-                                <div class="bulk-toolbar-divider"></div>
-                                <button id="btn-rpt-clear" type="button" class="bulk-action-btn" onclick="window._rptClearFilters()">
-                                    <i class="ph ph-x"></i> Limpar
-                                </button>
+
+                            <!-- Status -->
+                            <select id="rpt-filter-status" onchange="window._rptSetFilter('status', this.value)">
+                                <option value="">Status</option>
+                            </select>
+
+                            <!-- Tipo -->
+                            <select id="rpt-filter-tipo" onchange="window._rptSetFilter('tipo', this.value)">
+                                <option value="">Tipo</option>
+                            </select>
+
+                            <!-- Segmento -->
+                            <select id="rpt-filter-segmento" onchange="window._rptSetFilter('segmento', this.value)">
+                                <option value="">Segmento</option>
+                            </select>
+
+                            <!-- Health Score -->
+                            <select id="rpt-filter-health" onchange="window._rptSetFilter('health', this.value)">
+                                <option value="">Health Score</option>
+                            </select>
+
+                            <!-- Responsável -->
+                            <select id="rpt-filter-cs" onchange="window._rptSetFilter('cs', this.value)">
+                                <option value="">Responsável</option>
+                            </select>
+
+                            <!-- Período -->
+                            <div class="rpt-date-range">
+                                <input type="date" id="rpt-filter-date-from" title="De:"
+                                    onchange="window._rptSetDateFilter('dateFrom', this.value)">
+                                <span>até</span>
+                                <input type="date" id="rpt-filter-date-to" title="Até:"
+                                    onchange="window._rptSetDateFilter('dateTo', this.value)">
                             </div>
                         </div>
+
+                        <!-- Info bar: contador + limpar -->
+                        <div class="rpt-info-bar">
+                            <span id="rpt-count" class="rpt-count-badge">0 empresas</span>
+                            <button id="btn-rpt-clear" type="button" class="btn-ghost btn-sm" onclick="window._rptClearFilters()" style="display:none;">
+                                <i class="ph ph-x"></i> Limpar filtros
+                            </button>
+                        </div>
+
+                        <!-- Chips de filtros ativos -->
+                        <div id="rpt-active-chips" class="active-filters-bar" style="display:none; margin-bottom: 0.5rem;"></div>
 
                         <!-- TABELA -->
                         <div class="rpt-table-wrap">
@@ -3646,18 +3624,10 @@
   background: #1a1f2e; overflow: hidden; cursor: pointer;
 }
 .vtt-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.vtt-play-overlay {
-  position: absolute; inset: 0; display: flex;
-  align-items: center; justify-content: center; transition: opacity 0.2s;
-}
-.vtt-play-circle {
-  width: 44px; height: 44px; border-radius: 50%;
-  background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3);
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, transform 0.15s;
-}
-.vtt-video-container:hover .vtt-play-circle { background: rgba(255,255,255,0.25); transform: scale(1.08); }
-.vtt-play-tri { width:0; height:0; border-top:8px solid transparent; border-bottom:8px solid transparent; border-left:14px solid rgba(255,255,255,0.95); margin-left:3px; }
+/* Play overlay hidden — canvas animation replaces video playback */
+.vtt-play-overlay { display: none !important; }
+.vtt-play-circle { display: none !important; }
+.vtt-play-tri { display: none !important; }
 .vtt-pause-icon { display:flex; gap:4px; }
 .vtt-pause-bar { width:3px; height:14px; background:rgba(255,255,255,0.95); border-radius:2px; }
 .vtt-progress-wrap { position:absolute; bottom:0; left:0; right:0; height:3px; background:rgba(255,255,255,0.1); }
