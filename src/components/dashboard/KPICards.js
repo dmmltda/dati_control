@@ -157,7 +157,7 @@ export function renderKPICards(containerId, empresas, stats) {
       label: 'Clientes Ativos', value: m.ativos, variacao: vars.ativos ?? 0,
       cor: kpiColors.ativos, destaque: false,
       emoji: '✅',
-      getItems: () => empresas.filter(e => e.status === 'Cliente Ativo')
+      getItems: () => empresas.filter(e => isStatus(e, 'ativo'))
         .sort((a, b) => (b.nps ?? 0) - (a.nps ?? 0))
         .slice(0, 8)
         .map(e => ({
@@ -170,7 +170,7 @@ export function renderKPICards(containerId, empresas, stats) {
       cor: kpiColors.inativos, destaque: false,
       emoji: '⚠️',
       getItems: () => empresas
-        .filter(e => e.status === 'Cliente Inativo' || e.status === 'Cliente Suspenso')
+        .filter(e => isStatus(e, 'inativo', 'suspenso'))
         .slice(0, 8)
         .map(e => ({
           nome: e.nome, dotCor: kpiColors.inativos,

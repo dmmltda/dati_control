@@ -1,0 +1,1306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Journey — UX Prototype</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .screen { display: none; }
+  .screen.active { display: flex; }
+  .sidebar-dark { background: #1e1e2e; }
+  .nav-pill { transition: all 0.2s ease; cursor: pointer; }
+  .nav-pill:hover { background: rgba(99,102,241,0.15); }
+  .nav-pill.active-pill { background: #6366f1; color: white; }
+  .card-hover { transition: all 0.2s ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 50; display: flex; align-items: center; justify-content: center; }
+  .status-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+  .step-indicator { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; transition: all 0.3s ease; }
+  .step-line { height: 2px; flex: 1; transition: all 0.3s ease; }
+  .sidebar-item { padding: 10px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; color: #a1a1b5; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+  .sidebar-item:hover { background: rgba(255,255,255,0.07); color: white; }
+  .sidebar-item.active { background: rgba(99,102,241,0.2); color: #818cf8; }
+  .toggle-switch { position: relative; width: 40px; height: 22px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 22px; transition: 0.3s; }
+  .toggle-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+  input:checked + .toggle-slider { background: #6366f1; }
+  input:checked + .toggle-slider:before { transform: translateX(18px); }
+  .permission-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
+  .permission-row:last-child { border-bottom: none; }
+  .locked-overlay { position: relative; }
+  .locked-overlay::after { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,0.6); border-radius: 12px; backdrop-filter: blur(1px); }
+  .locked-badge { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #6b7280; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  select, input[type="text"], input[type="email"] { outline: none; }
+  select:focus, input:focus { ring: 2px; }
+  .plan-card { border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; }
+  .plan-card:hover { border-color: #6366f1; background: #f5f3ff; }
+  .plan-card.selected { border-color: #6366f1; background: #eef2ff; }
+  .company-checkbox { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .company-checkbox:hover { border-color: #6366f1; background: #f5f3ff; }
+  .company-checkbox.checked { border-color: #6366f1; background: #eef2ff; }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- PROTOTYPE NAV BAR -->
+<div style="background: #0f0f1a; border-bottom: 1px solid rgba(255,255,255,0.08);" class="sticky top-0 z-40 px-6 py-3 flex items-center gap-3 flex-wrap">
+  <div class="flex items-center gap-2 mr-4">
+    <div style="width:28px;height:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <span style="color:#818cf8;font-size:12px;font-weight:600;letter-spacing:0.05em;">PROTOTYPE</span>
+  </div>
+  <button onclick="showScreen(1)" id="pill-1" class="nav-pill px-4 py-1.5 rounded-full text-xs font-semibold text-gray-400 border border-gray-700">Screen 1 — Operador</button>
+  <button onclick="showScreen(2)" id="pill-2" class="nav-pill px-4 py-1.5 rounded-full text-xs font-semibold text-gray-400 border border-gray-700">Screen 2 — Master</button>
+  <button onclick="showScreen(3)" id="pill-3" class="nav-pill px-4 py-1.5 rounded-full text-xs font-semibold text-gray-400 border border-gray-700">Screen 3 — Standard</button>
+  <button onclick="showScreen(4)" id="pill-4" class="nav-pill px-4 py-1.5 rounded-full text-xs font-semibold text-gray-400 border border-gray-700">Screen 4 — Convidar</button>
+  <button onclick="showScreen(5)" id="pill-5" class="nav-pill px-4 py-1.5 rounded-full text-xs font-semibold text-gray-400 border border-gray-700">Screen 5 — Novo Tenant</button>
+</div>
+
+<!-- ===================== SCREEN 1 — JOURNEY ADMIN ===================== -->
+<div id="screen-1" class="screen active fade-in flex-col min-h-screen bg-gray-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <span class="text-xl font-bold text-gray-900">Journey</span>
+        <span class="ml-3 text-sm font-medium text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">Painel do Operador</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4">
+      <span class="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
+        <span class="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 mb-0.5"></span>
+        Ambiente de Produção
+      </span>
+      <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold cursor-pointer">JA</div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="flex-1 px-8 py-8 max-w-7xl mx-auto w-full">
+    <!-- Stats Row -->
+    <div class="grid grid-cols-4 gap-5 mb-8">
+      <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total Tenants</p>
+        <p class="text-3xl font-bold text-gray-900">3</p>
+        <p class="text-xs text-green-600 mt-1 font-medium">+1 este mês</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Empresas Filhas</p>
+        <p class="text-3xl font-bold text-gray-900">11</p>
+        <p class="text-xs text-green-600 mt-1 font-medium">+3 este mês</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Usuários Ativos</p>
+        <p class="text-3xl font-bold text-gray-900">47</p>
+        <p class="text-xs text-green-600 mt-1 font-medium">+8 este mês</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">MRR</p>
+        <p class="text-3xl font-bold text-gray-900">R$ 4.290</p>
+        <p class="text-xs text-green-600 mt-1 font-medium">+12% vs mês ant.</p>
+      </div>
+    </div>
+
+    <!-- Table Header -->
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-xl font-bold text-gray-900">Tenants</h2>
+        <p class="text-sm text-gray-500 mt-0.5">Empresas contratantes da plataforma Journey</p>
+      </div>
+      <button onclick="showScreen(5)" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Novo Tenant
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Plano</th>
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresas Filhas</th>
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Usuários</th>
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+            <th class="text-left px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wide">Criado em</th>
+            <th class="px-6 py-4"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-5">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm">DA</div>
+                <div>
+                  <p class="font-semibold text-gray-900">DATI</p>
+                  <p class="text-xs text-gray-500">dati.journey.app</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-purple-100 text-purple-700">Enterprise</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">4</span>
+              <span class="text-gray-400 text-sm ml-1">/ ilimitado</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">18</span>
+              <span class="text-gray-400 text-sm ml-1">/ ilimitado</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-green-100 text-green-700">
+                <span class="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                Ativo
+              </span>
+            </td>
+            <td class="px-6 py-5 text-sm text-gray-500">12 Jan 2025</td>
+            <td class="px-6 py-5">
+              <button onclick="showScreen(2)" class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all">
+                Acessar
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </td>
+          </tr>
+          <tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-5">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">EX</div>
+                <div>
+                  <p class="font-semibold text-gray-900">Empresa XYZ</p>
+                  <p class="text-xs text-gray-500">xyz.journey.app</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-blue-100 text-blue-700">Pro</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">5</span>
+              <span class="text-gray-400 text-sm ml-1">/ 10</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">21</span>
+              <span class="text-gray-400 text-sm ml-1">/ 50</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-green-100 text-green-700">
+                <span class="inline-block w-1.5 h-1.5 bg-green-500 rounded-full mr-1"></span>
+                Ativo
+              </span>
+            </td>
+            <td class="px-6 py-5 text-sm text-gray-500">03 Fev 2025</td>
+            <td class="px-6 py-5">
+              <button class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all">
+                Acessar
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </td>
+          </tr>
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-5">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center text-white font-bold text-sm">SA</div>
+                <div>
+                  <p class="font-semibold text-gray-900">Startup ABC</p>
+                  <p class="text-xs text-gray-500">abc.journey.app</p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-gray-100 text-gray-600">Basic</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">2</span>
+              <span class="text-gray-400 text-sm ml-1">/ 3</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="font-semibold text-gray-900">8</span>
+              <span class="text-gray-400 text-sm ml-1">/ 15</span>
+            </td>
+            <td class="px-6 py-5">
+              <span class="status-badge bg-amber-100 text-amber-700">
+                <span class="inline-block w-1.5 h-1.5 bg-amber-500 rounded-full mr-1"></span>
+                Suspenso
+              </span>
+            </td>
+            <td class="px-6 py-5 text-sm text-gray-500">20 Fev 2025</td>
+            <td class="px-6 py-5">
+              <button class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg font-semibold text-sm transition-all">
+                Acessar
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 2 — MASTER VIEW ===================== -->
+<div id="screen-2" class="screen fade-in flex-col min-h-screen bg-gray-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between z-30 relative">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2.5">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <span class="font-bold text-gray-900 text-lg">Journey</span>
+      </div>
+      <div class="w-px h-6 bg-gray-200"></div>
+      <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-all border border-gray-200">
+        <div class="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold">D</div>
+        <span class="font-semibold text-gray-800 text-sm">DATI</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+      </button>
+      <div class="flex items-center gap-2 cursor-pointer">
+        <div class="relative">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">CM</div>
+          <span class="absolute -bottom-1 -right-1 bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold" style="font-size:9px;line-height:1.2;">Master</span>
+        </div>
+        <div class="text-right hidden sm:block">
+          <p class="text-sm font-semibold text-gray-800 leading-tight">Carlos Mendes</p>
+          <p class="text-xs text-gray-400">carlos@dati.com.br</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar-dark w-56 flex-shrink-0 flex flex-col py-5 px-3 overflow-y-auto">
+      <nav class="flex flex-col gap-1">
+        <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:#4a4a6a;">Principal</div>
+        <div class="sidebar-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Empresas
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Usuários
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Contatos
+        </div>
+        <div class="mt-3 px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:#4a4a6a;">Sistema</div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 1.4 13.5l-1.4-1.4A8 8 0 1 0 4.93 19.07l-1.4 1.4A10 10 0 0 1 4.93 4.93l1.4 1.4A8 8 0 1 0 19.07 4.93z"/></svg>
+          Configurações
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Relatórios
+        </div>
+      </nav>
+
+      <div class="mt-auto pt-4 border-t mx-3" style="border-color:#2e2e4e;">
+        <div class="flex items-center gap-2 px-2 py-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">D</div>
+          <div>
+            <p class="text-xs font-semibold text-white leading-none">DATI</p>
+            <p class="text-xs mt-0.5" style="color:#6366f1;">Plano Enterprise</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="flex items-center justify-between mb-7">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Empresas Filhas</h1>
+          <p class="text-gray-500 text-sm mt-1">Gerencie e acesse todas as empresas da sua organização</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <input type="text" placeholder="Buscar empresa..." class="pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 w-56 bg-white">
+            <svg class="absolute left-3 top-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <button onclick="showScreen(4)" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Nova Empresa
+          </button>
+        </div>
+      </div>
+
+      <!-- Company Cards -->
+      <div class="grid grid-cols-2 xl:grid-cols-2 gap-5 mb-8">
+
+        <!-- DATI SP -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold">SP</div>
+              <div>
+                <h3 class="font-bold text-gray-900">DATI SP</h3>
+                <p class="text-xs text-gray-500">São Paulo, SP</p>
+              </div>
+            </div>
+            <span class="status-badge bg-green-100 text-green-700">Ativo</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">12</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">3</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">94%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex -space-x-1.5">
+              <div class="w-6 h-6 rounded-full bg-indigo-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">A</div>
+              <div class="w-6 h-6 rounded-full bg-pink-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">B</div>
+              <div class="w-6 h-6 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">C</div>
+            </div>
+            <button onclick="showScreen(4)" class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Gerenciar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- DATI RJ -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold">RJ</div>
+              <div>
+                <h3 class="font-bold text-gray-900">DATI RJ</h3>
+                <p class="text-xs text-gray-500">Rio de Janeiro, RJ</p>
+              </div>
+            </div>
+            <span class="status-badge bg-green-100 text-green-700">Ativo</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">8</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">2</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">78%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex -space-x-1.5">
+              <div class="w-6 h-6 rounded-full bg-teal-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">M</div>
+              <div class="w-6 h-6 rounded-full bg-orange-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold">R</div>
+            </div>
+            <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Gerenciar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cliente Empresa A -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-white font-bold">CA</div>
+              <div>
+                <h3 class="font-bold text-gray-900">Cliente Empresa A</h3>
+                <p class="text-xs text-gray-500">Belo Horizonte, MG</p>
+              </div>
+            </div>
+            <span class="status-badge bg-green-100 text-green-700">Ativo</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">34</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">5</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">100%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex -space-x-1.5">
+              <div class="w-6 h-6 rounded-full bg-violet-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">L</div>
+              <div class="w-6 h-6 rounded-full bg-red-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold">P</div>
+              <div class="w-6 h-6 rounded-full bg-yellow-500 border-2 border-white flex items-center justify-center text-white text-xs font-bold">F</div>
+              <div class="w-6 h-6 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold" style="font-size:9px;">+2</div>
+            </div>
+            <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Gerenciar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cliente Empresa B -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-bold">CB</div>
+              <div>
+                <h3 class="font-bold text-gray-900">Cliente Empresa B</h3>
+                <p class="text-xs text-gray-500">Curitiba, PR</p>
+              </div>
+            </div>
+            <span class="status-badge bg-amber-100 text-amber-700">Pendente</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">21</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">4</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">61%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex -space-x-1.5">
+              <div class="w-6 h-6 rounded-full bg-rose-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold">G</div>
+              <div class="w-6 h-6 rounded-full bg-blue-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold">H</div>
+              <div class="w-6 h-6 rounded-full bg-green-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold">I</div>
+              <div class="w-6 h-6 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-white text-xs font-bold" style="font-size:9px;">+1</div>
+            </div>
+            <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Gerenciar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 3 — STANDARD USER ===================== -->
+<div id="screen-3" class="screen fade-in flex-col min-h-screen bg-gray-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between z-30 relative">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2.5">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:9px;display:flex;align-items:center;justify-content:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <span class="font-bold text-gray-900 text-lg">Journey</span>
+      </div>
+      <div class="w-px h-6 bg-gray-200"></div>
+      <div class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-all border border-gray-200">
+        <div class="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold">D</div>
+        <span class="font-semibold text-gray-800 text-sm">DATI</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <div class="flex items-center gap-2 cursor-pointer">
+        <div class="relative">
+          <div class="w-9 h-9 rounded-full bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-white text-sm font-bold">AS</div>
+          <span class="absolute -bottom-1 -right-1 bg-gray-600 text-white text-xs px-1.5 py-0.5 rounded-full font-bold" style="font-size:9px;line-height:1.2;">Standard</span>
+        </div>
+        <div class="text-right hidden sm:block">
+          <p class="text-sm font-semibold text-gray-800 leading-tight">Ana Silva</p>
+          <p class="text-xs text-gray-400">ana@dati.com.br</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Access notice -->
+  <div class="bg-amber-50 border-b border-amber-200 px-8 py-2.5 flex items-center gap-2">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <p class="text-sm text-amber-800 font-medium">Você tem acesso a <strong>2 de 4 empresas</strong>. Solicite ao administrador para expandir seu acesso.</p>
+  </div>
+
+  <!-- Body -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar-dark w-56 flex-shrink-0 flex flex-col py-5 px-3 overflow-y-auto">
+      <nav class="flex flex-col gap-1">
+        <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:#4a4a6a;">Principal</div>
+        <div class="sidebar-item active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Empresas
+          <span class="ml-auto text-xs bg-indigo-900 text-indigo-300 px-1.5 py-0.5 rounded-full font-semibold">2</span>
+        </div>
+        <div class="sidebar-item" style="opacity:0.4;pointer-events:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Usuários
+          <svg class="ml-auto" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="sidebar-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+          Contatos
+        </div>
+        <div class="mt-3 px-3 py-2 text-xs font-semibold uppercase tracking-wider" style="color:#4a4a6a;">Sistema</div>
+        <div class="sidebar-item" style="opacity:0.4;pointer-events:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 1.4 13.5l-1.4-1.4A8 8 0 1 0 4.93 19.07l-1.4 1.4A10 10 0 0 1 4.93 4.93l1.4 1.4A8 8 0 1 0 19.07 4.93z"/></svg>
+          Configurações
+          <svg class="ml-auto" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <div class="sidebar-item" style="opacity:0.4;pointer-events:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Relatórios
+          <svg class="ml-auto" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+      </nav>
+
+      <div class="mt-auto pt-4 border-t mx-3" style="border-color:#2e2e4e;">
+        <div class="flex items-center gap-2 px-2 py-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">D</div>
+          <div>
+            <p class="text-xs font-semibold text-white leading-none">DATI</p>
+            <p class="text-xs mt-0.5" style="color:#6366f1;">Plano Enterprise</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto p-8">
+      <div class="flex items-center justify-between mb-7">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Empresas Filhas</h1>
+          <p class="text-gray-500 text-sm mt-1">Você tem acesso às empresas abaixo conforme definido pelo administrador</p>
+        </div>
+      </div>
+
+      <!-- Company Cards — Only 2 accessible -->
+      <div class="grid grid-cols-2 gap-5 mb-6">
+        <!-- DATI SP — Accessible -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold">SP</div>
+              <div>
+                <h3 class="font-bold text-gray-900">DATI SP</h3>
+                <p class="text-xs text-gray-500">São Paulo, SP</p>
+              </div>
+            </div>
+            <span class="status-badge bg-green-100 text-green-700">Ativo</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">12</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">3</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">94%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-2.5 py-1 rounded-full font-semibold">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              Acesso completo
+            </div>
+            <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Entrar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cliente Empresa A — Accessible -->
+        <div class="bg-white rounded-2xl border border-gray-200 p-6 card-hover cursor-pointer shadow-sm">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-white font-bold">CA</div>
+              <div>
+                <h3 class="font-bold text-gray-900">Cliente Empresa A</h3>
+                <p class="text-xs text-gray-500">Belo Horizonte, MG</p>
+              </div>
+            </div>
+            <span class="status-badge bg-green-100 text-green-700">Ativo</span>
+          </div>
+          <div class="grid grid-cols-3 gap-4 mb-5">
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">34</p>
+              <p class="text-xs text-gray-500 mt-0.5">Contatos</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">5</p>
+              <p class="text-xs text-gray-500 mt-0.5">Usuários</p>
+            </div>
+            <div class="text-center p-3 bg-gray-50 rounded-xl">
+              <p class="text-xl font-bold text-gray-900">100%</p>
+              <p class="text-xs text-gray-500 mt-0.5">Atividade</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full font-semibold">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Visualizar e Criar
+            </div>
+            <button class="text-indigo-600 hover:text-indigo-800 font-semibold text-xs flex items-center gap-1 transition-colors">
+              Entrar
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Locked companies section -->
+      <div class="mb-3">
+        <p class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Sem acesso (2 empresas)</p>
+      </div>
+      <div class="grid grid-cols-2 gap-5">
+        <!-- DATI RJ — Locked -->
+        <div class="relative">
+          <div class="bg-white rounded-2xl border border-dashed border-gray-300 p-6 locked-overlay">
+            <div class="flex items-start justify-between mb-5">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold">RJ</div>
+                <div>
+                  <h3 class="font-bold text-gray-400">DATI RJ</h3>
+                  <p class="text-xs text-gray-400">Rio de Janeiro, RJ</p>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-5">
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Contatos</p></div>
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Usuários</p></div>
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Atividade</p></div>
+            </div>
+          </div>
+          <div class="locked-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Sem acesso
+          </div>
+        </div>
+
+        <!-- Cliente Empresa B — Locked -->
+        <div class="relative">
+          <div class="bg-white rounded-2xl border border-dashed border-gray-300 p-6 locked-overlay">
+            <div class="flex items-start justify-between mb-5">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold">CB</div>
+                <div>
+                  <h3 class="font-bold text-gray-400">Cliente Empresa B</h3>
+                  <p class="text-xs text-gray-400">Curitiba, PR</p>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 mb-5">
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Contatos</p></div>
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Usuários</p></div>
+              <div class="text-center p-3 bg-gray-50 rounded-xl"><p class="text-xl font-bold text-gray-300">—</p><p class="text-xs text-gray-300 mt-0.5">Atividade</p></div>
+            </div>
+          </div>
+          <div class="locked-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Sem acesso
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 4 — INVITE USER MODAL ===================== -->
+<div id="screen-4" class="screen fade-in flex-col min-h-screen" style="background:#f3f4f6;">
+  <!-- Background (Screen 2 blurred) -->
+  <header class="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between" style="filter:blur(2px);">
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2.5">
+        <div style="width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:9px;"></div>
+        <span class="font-bold text-gray-900 text-lg">Journey</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Modal -->
+  <div class="modal-overlay" style="position:absolute;top:0;left:0;right:0;bottom:0;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" style="max-height:90vh;overflow-y:auto;">
+      <!-- Modal Header -->
+      <div class="px-7 py-5 border-b border-gray-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Convidar Usuário</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Envie um convite para um novo membro da equipe</p>
+        </div>
+        <button onclick="showScreen(2)" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="px-7 py-6">
+        <!-- Email -->
+        <div class="mb-5">
+          <label class="block text-sm font-semibold text-gray-700 mb-1.5">E-mail do convidado</label>
+          <input type="email" value="novousuario@empresa.com.br" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all">
+        </div>
+
+        <!-- User Type -->
+        <div class="mb-6">
+          <label class="block text-sm font-semibold text-gray-700 mb-3">Tipo de usuário</label>
+          <div class="grid grid-cols-2 gap-3">
+            <div id="type-master" class="plan-card" onclick="selectUserType('master')">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                </div>
+                <span class="font-bold text-gray-900 text-sm">Master</span>
+              </div>
+              <p class="text-xs text-gray-500 leading-relaxed">Acesso completo a todas as empresas filhas e configurações.</p>
+            </div>
+            <div id="type-standard" class="plan-card selected" onclick="selectUserType('standard')">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+                </div>
+                <span class="font-bold text-gray-900 text-sm">Standard</span>
+              </div>
+              <p class="text-xs text-gray-500 leading-relaxed">Acesso limitado a empresas e permissões selecionadas.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Standard Options (visible by default) -->
+        <div id="standard-options">
+          <!-- Company Selection -->
+          <div class="mb-5">
+            <label class="block text-sm font-semibold text-gray-700 mb-3">
+              Empresas com acesso
+              <span class="text-gray-400 font-normal ml-1">(selecione ao menos 1)</span>
+            </label>
+            <div class="flex flex-col gap-2">
+              <label class="company-checkbox checked" onclick="toggleCompany(this)">
+                <input type="checkbox" checked class="w-4 h-4 accent-indigo-600">
+                <div class="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">SP</div>
+                <span class="text-sm font-medium text-gray-800">DATI SP</span>
+              </label>
+              <label class="company-checkbox" onclick="toggleCompany(this)">
+                <input type="checkbox" class="w-4 h-4 accent-indigo-600">
+                <div class="w-7 h-7 rounded-lg bg-teal-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">RJ</div>
+                <span class="text-sm font-medium text-gray-800">DATI RJ</span>
+              </label>
+              <label class="company-checkbox checked" onclick="toggleCompany(this)">
+                <input type="checkbox" checked class="w-4 h-4 accent-indigo-600">
+                <div class="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">CA</div>
+                <span class="text-sm font-medium text-gray-800">Cliente Empresa A</span>
+              </label>
+              <label class="company-checkbox" onclick="toggleCompany(this)">
+                <input type="checkbox" class="w-4 h-4 accent-indigo-600">
+                <div class="w-7 h-7 rounded-lg bg-rose-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">CB</div>
+                <span class="text-sm font-medium text-gray-800">Cliente Empresa B</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Permissions per company -->
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+              <p class="text-sm font-semibold text-gray-700">Permissões por empresa</p>
+              <p class="text-xs text-gray-500 mt-0.5">Configure o nível de acesso em cada empresa selecionada</p>
+            </div>
+
+            <!-- DATI SP permissions -->
+            <div class="px-4 py-4 border-b border-gray-100">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold">SP</div>
+                <span class="font-semibold text-gray-800 text-sm">DATI SP</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Visualizar</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Criar</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Editar</span>
+                  <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Deletar</span>
+                  <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg col-span-2">
+                  <span class="text-xs font-medium text-gray-700">Exportar dados</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cliente Empresa A permissions -->
+            <div class="px-4 py-4">
+              <div class="flex items-center gap-2 mb-3">
+                <div class="w-6 h-6 rounded-md bg-violet-600 flex items-center justify-center text-white text-xs font-bold">CA</div>
+                <span class="font-semibold text-gray-800 text-sm">Cliente Empresa A</span>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Visualizar</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Criar</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Editar</span>
+                  <label class="toggle-switch"><input type="checkbox" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg">
+                  <span class="text-xs font-medium text-gray-700">Deletar</span>
+                  <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                </div>
+                <div class="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg col-span-2">
+                  <span class="text-xs font-medium text-gray-700">Exportar dados</span>
+                  <label class="toggle-switch"><input type="checkbox"><span class="toggle-slider"></span></label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-7 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50">
+        <button onclick="showScreen(2)" class="px-5 py-2.5 text-gray-700 font-semibold text-sm hover:bg-gray-200 rounded-xl transition-all">
+          Cancelar
+        </button>
+        <button onclick="showInviteSent()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm hover:shadow-md">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Enviar Convite
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invite Sent Confirmation (hidden by default) -->
+<div id="invite-sent" style="display:none;position:fixed;bottom:24px;right:24px;z-index:1000;" class="bg-gray-900 text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 fade-in">
+  <div class="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div>
+    <p class="font-semibold text-sm">Convite enviado!</p>
+    <p class="text-xs text-gray-400">novousuario@empresa.com.br</p>
+  </div>
+</div>
+
+<!-- ===================== SCREEN 5 — NEW TENANT WIZARD ===================== -->
+<div id="screen-5" class="screen fade-in flex-col min-h-screen bg-gray-50">
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <span class="text-xl font-bold text-gray-900">Journey</span>
+        <span class="ml-3 text-sm font-medium text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-100">Painel do Operador</span>
+      </div>
+    </div>
+    <button onclick="showScreen(1)" class="flex items-center gap-2 text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Voltar ao painel
+    </button>
+  </header>
+
+  <!-- Wizard Content -->
+  <div class="flex-1 flex flex-col items-center py-10 px-6">
+    <div class="w-full max-w-2xl">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Criar Novo Tenant</h1>
+        <p class="text-gray-500 mt-1.5">Configure uma nova empresa contratante na plataforma Journey</p>
+      </div>
+
+      <!-- Step Indicators -->
+      <div class="flex items-center justify-center mb-10">
+        <div id="s-step1" class="step-indicator bg-indigo-600 text-white">1</div>
+        <div id="s-line1" class="step-line bg-indigo-600 mx-2" style="width:80px;"></div>
+        <div id="s-step2" class="step-indicator bg-gray-200 text-gray-500">2</div>
+        <div id="s-line2" class="step-line bg-gray-200 mx-2" style="width:80px;"></div>
+        <div id="s-step3" class="step-indicator bg-gray-200 text-gray-500">3</div>
+      </div>
+      <div class="flex justify-center gap-0 mb-10 -mt-7 text-xs font-medium" style="gap:40px;">
+        <span id="s-label1" class="text-indigo-600">Dados da Empresa</span>
+        <span id="s-label2" class="text-gray-400">Usuário Master</span>
+        <span id="s-label3" class="text-gray-400">Confirmação</span>
+      </div>
+
+      <!-- Step 1 -->
+      <div id="wizard-step-1" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-8 py-6 border-b border-gray-100">
+          <h2 class="font-bold text-gray-900">Dados da Empresa</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Informações sobre o tenant a ser criado</p>
+        </div>
+        <div class="px-8 py-7 flex flex-col gap-5">
+          <div class="grid grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nome da Empresa <span class="text-red-500">*</span></label>
+              <input type="text" value="Contoso Ltda" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">CNPJ <span class="text-red-500">*</span></label>
+              <input type="text" value="12.345.678/0001-90" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Segmento</label>
+              <select class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 bg-white">
+                <option>Tecnologia</option>
+                <option>Saúde</option>
+                <option>Varejo</option>
+                <option>Finanças</option>
+                <option>Educação</option>
+                <option>Serviços</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Subdomínio</label>
+              <div class="flex rounded-xl overflow-hidden border border-gray-200 focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-100">
+                <input type="text" value="contoso" class="flex-1 px-4 py-2.5 text-sm border-0 outline-none">
+                <span class="bg-gray-50 px-3 flex items-center text-xs text-gray-500 font-medium border-l border-gray-200">.journey.app</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Plan Selection -->
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-3">Plano <span class="text-red-500">*</span></label>
+            <div class="grid grid-cols-3 gap-3">
+              <div class="plan-card" onclick="selectPlan(this)">
+                <p class="font-bold text-gray-900 mb-1">Basic</p>
+                <p class="text-xl font-bold text-indigo-600 mb-2">R$ 299<span class="text-sm text-gray-400 font-normal">/mês</span></p>
+                <ul class="text-xs text-gray-500 flex flex-col gap-1">
+                  <li>— Até 3 empresas filhas</li>
+                  <li>— Até 15 usuários</li>
+                  <li>— Suporte via e-mail</li>
+                </ul>
+              </div>
+              <div class="plan-card selected" onclick="selectPlan(this)">
+                <div class="flex items-center justify-between mb-1">
+                  <p class="font-bold text-gray-900">Pro</p>
+                  <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold">Popular</span>
+                </div>
+                <p class="text-xl font-bold text-indigo-600 mb-2">R$ 799<span class="text-sm text-gray-400 font-normal">/mês</span></p>
+                <ul class="text-xs text-gray-500 flex flex-col gap-1">
+                  <li>— Até 10 empresas filhas</li>
+                  <li>— Até 50 usuários</li>
+                  <li>— Suporte prioritário</li>
+                </ul>
+              </div>
+              <div class="plan-card" onclick="selectPlan(this)">
+                <p class="font-bold text-gray-900 mb-1">Enterprise</p>
+                <p class="text-xl font-bold text-indigo-600 mb-2">Sob consulta</p>
+                <ul class="text-xs text-gray-500 flex flex-col gap-1">
+                  <li>— Empresas ilimitadas</li>
+                  <li>— Usuários ilimitados</li>
+                  <li>— SLA dedicado</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-end">
+          <button onclick="goWizardStep(2)" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            Próximo
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="wizard-step-2" style="display:none;" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-8 py-6 border-b border-gray-100">
+          <h2 class="font-bold text-gray-900">Usuário Master Inicial</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Este usuário terá acesso completo ao tenant</p>
+        </div>
+        <div class="px-8 py-7 flex flex-col gap-5">
+          <div class="grid grid-cols-2 gap-5">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Nome Completo <span class="text-red-500">*</span></label>
+              <input type="text" value="Roberto Almeida" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">E-mail <span class="text-red-500">*</span></label>
+              <input type="email" value="roberto@contoso.com.br" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1.5">Cargo</label>
+            <input type="text" value="Diretor de Operações" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3.5 flex items-start gap-3">
+            <div class="flex-shrink-0 mt-0.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-blue-800">Acesso por convite</p>
+              <p class="text-xs text-blue-600 mt-0.5">Um e-mail com link de ativação será enviado automaticamente ao criar o tenant.</p>
+            </div>
+          </div>
+        </div>
+        <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between">
+          <button onclick="goWizardStep(1)" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all hover:bg-gray-200">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Anterior
+          </button>
+          <button onclick="goWizardStep(3)" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition-all">
+            Próximo
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="wizard-step-3" style="display:none;" class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-8 py-6 border-b border-gray-100">
+          <h2 class="font-bold text-gray-900">Revisão e Confirmação</h2>
+          <p class="text-sm text-gray-500 mt-0.5">Verifique os dados antes de criar o tenant</p>
+        </div>
+        <div class="px-8 py-7 flex flex-col gap-4">
+          <!-- Summary Box -->
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">CO</div>
+                <div>
+                  <p class="font-bold text-gray-900">Contoso Ltda</p>
+                  <p class="text-xs text-gray-500">contoso.journey.app</p>
+                </div>
+              </div>
+            </div>
+            <div class="px-5 py-4 grid grid-cols-2 gap-y-3 gap-x-6">
+              <div>
+                <p class="text-xs text-gray-500 font-medium">CNPJ</p>
+                <p class="text-sm font-semibold text-gray-800 mt-0.5">12.345.678/0001-90</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 font-medium">Segmento</p>
+                <p class="text-sm font-semibold text-gray-800 mt-0.5">Tecnologia</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 font-medium">Plano</p>
+                <p class="text-sm font-semibold text-indigo-700 mt-0.5">Pro — R$ 799/mês</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500 font-medium">Status inicial</p>
+                <p class="text-sm font-semibold text-green-700 mt-0.5">Ativo imediatamente</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100 bg-gray-50">
+              <p class="text-sm font-semibold text-gray-700">Usuário Master</p>
+            </div>
+            <div class="px-5 py-4 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold">RA</div>
+              <div>
+                <p class="font-semibold text-gray-800">Roberto Almeida</p>
+                <p class="text-sm text-gray-500">roberto@contoso.com.br</p>
+              </div>
+              <span class="ml-auto status-badge bg-indigo-100 text-indigo-700">Master</span>
+            </div>
+          </div>
+
+          <div class="bg-green-50 border border-green-200 rounded-xl px-4 py-3.5 flex items-start gap-3">
+            <div class="flex-shrink-0 mt-0.5">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-green-800">Tudo pronto!</p>
+              <p class="text-xs text-green-600 mt-0.5">Ao clicar em "Criar Tenant", o ambiente será provisionado em instantes e o convite será enviado por e-mail.</p>
+            </div>
+          </div>
+        </div>
+        <div class="px-8 py-5 border-t border-gray-100 bg-gray-50 flex justify-between">
+          <button onclick="goWizardStep(2)" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all hover:bg-gray-200">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            Anterior
+          </button>
+          <button onclick="showTenantCreated()" class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-7 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm hover:shadow-md">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Criar Tenant
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tenant Created Toast -->
+<div id="tenant-created" style="display:none;position:fixed;bottom:24px;right:24px;z-index:1000;" class="bg-gray-900 text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 fade-in">
+  <div class="w-7 h-7 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div>
+    <p class="font-semibold text-sm">Tenant criado com sucesso!</p>
+    <p class="text-xs text-gray-400">Contoso Ltda — contoso.journey.app</p>
+  </div>
+</div>
+
+<script>
+  let currentStep = 1;
+
+  function showScreen(n) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('[id^="pill-"]').forEach(p => {
+      p.classList.remove('active-pill');
+      p.style.borderColor = '#374151';
+      p.style.color = '#9ca3af';
+    });
+    const screen = document.getElementById('screen-' + n);
+    const pill = document.getElementById('pill-' + n);
+    if (screen) {
+      screen.classList.add('active');
+      screen.classList.add('fade-in');
+      setTimeout(() => screen.classList.remove('fade-in'), 300);
+    }
+    if (pill) {
+      pill.classList.add('active-pill');
+      pill.style.borderColor = '#6366f1';
+      pill.style.color = 'white';
+    }
+    // Reset wizard when going to screen 5
+    if (n === 5) {
+      goWizardStep(1);
+    }
+  }
+
+  function selectUserType(type) {
+    const masterCard = document.getElementById('type-master');
+    const standardCard = document.getElementById('type-standard');
+    const standardOptions = document.getElementById('standard-options');
+
+    if (type === 'master') {
+      masterCard.classList.add('selected');
+      standardCard.classList.remove('selected');
+      standardOptions.style.display = 'none';
+    } else {
+      standardCard.classList.add('selected');
+      masterCard.classList.remove('selected');
+      standardOptions.style.display = 'block';
+    }
+  }
+
+  function toggleCompany(el) {
+    const cb = el.querySelector('input[type="checkbox"]');
+    if (cb) {
+      cb.checked = !cb.checked;
+      if (cb.checked) {
+        el.classList.add('checked');
+      } else {
+        el.classList.remove('checked');
+      }
+    }
+  }
+
+  function selectPlan(el) {
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function goWizardStep(step) {
+    currentStep = step;
+    [1, 2, 3].forEach(i => {
+      const stepEl = document.getElementById('wizard-step-' + i);
+      if (stepEl) stepEl.style.display = i === step ? 'block' : 'none';
+
+      const indicator = document.getElementById('s-step' + i);
+      const label = document.getElementById('s-label' + i);
+
+      if (i < step) {
+        // completed
+        indicator.style.background = '#6366f1';
+        indicator.style.color = 'white';
+        indicator.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+        label.style.color = '#6366f1';
+      } else if (i === step) {
+        // active
+        indicator.style.background = '#6366f1';
+        indicator.style.color = 'white';
+        indicator.textContent = i;
+        label.style.color = '#6366f1';
+        label.style.fontWeight = '700';
+      } else {
+        // future
+        indicator.style.background = '#e5e7eb';
+        indicator.style.color = '#9ca3af';
+        indicator.textContent = i;
+        label.style.color = '#9ca3af';
+        label.style.fontWeight = '500';
+      }
+    });
+
+    // Update lines
+    const line1 = document.getElementById('s-line1');
+    const line2 = document.getElementById('s-line2');
+    if (line1) line1.style.background = step > 1 ? '#6366f1' : '#e5e7eb';
+    if (line2) line2.style.background = step > 2 ? '#6366f1' : '#e5e7eb';
+  }
+
+  function showInviteSent() {
+    const toast = document.getElementById('invite-sent');
+    toast.style.display = 'flex';
+    setTimeout(() => { showScreen(2); toast.style.display = 'none'; }, 2000);
+  }
+
+  function showTenantCreated() {
+    const toast = document.getElementById('tenant-created');
+    toast.style.display = 'flex';
+    setTimeout(() => { showScreen(1); toast.style.display = 'none'; }, 2500);
+  }
+
+  // Initialize
+  showScreen(1);
+</script>
+</body>
+</html>

@@ -184,7 +184,13 @@ export function updateStatusStyle(select) {
     const isVisible = CS_VISIBLE_STATUSES.includes(status);
 
     if (csHeaderMetrics) csHeaderMetrics.style.display = isVisible ? 'flex' : 'none';
-    if (csTabBtn) csTabBtn.style.display = isVisible ? 'flex' : 'none';
+
+    // Só altera visibilidade do btn-tab-cs se ele NÃO foi bloqueado por falta de permissão.
+    // dataset.lockedTab === "1" significa que o loop de permissões (navigation.js) ocultou
+    // esta aba porque o usuário não tem company_tab.cs — não devemos sobrescrever isso.
+    if (csTabBtn && csTabBtn.dataset.lockedTab !== '1') {
+        csTabBtn.style.display = isVisible ? 'flex' : 'none';
+    }
 }
 
 export const getBase64 = (file) => new Promise((resolve, reject) => {

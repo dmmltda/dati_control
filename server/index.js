@@ -28,6 +28,7 @@ import monthlyReportRouter from './routes/monthly-report.js';
 import auditRouter from './routes/audit.js';
 import googleMeetRouter, { syncPendingRecordings } from './routes/google-meet.js';
 import whatsappRouter from './routes/whatsapp.js';
+import emailLogsRouter from './routes/email-logs.js';
 import * as audit from './services/audit.js';
 import { init as initScheduler } from './services/test-scheduler.js';
 
@@ -576,7 +577,7 @@ app.use('/api/monthly-report', monthlyReportRouter);
 app.use('/api/audit-logs', extractUsuario, auditRouter);
 app.use('/api/google-meet', extractUsuario, googleMeetRouter);
 app.use('/api/whatsapp', whatsappRouter);
-
+app.use('/api/email-logs', extractUsuario, emailLogsRouter);
 
 
 
@@ -2301,16 +2302,20 @@ app.post('/api/activities', extractUsuario, async (req, res) => {
         // ── Gatilhos de Notificação Imediata ──────────────────────────────────
         const createdBy = req.usuarioAtual.id;
 
-        // 1. Notificar ao atribuir
-        if (notify_on_assign && assignees.length > 0) {
+        // 1. Notificar ao salvar (imediato, para todos os participantes)
+        if (assignees.length > 0) {
             for (const uid of assignees) {
                 if (uid === createdBy) continue;
+                const isDirectEmail = uid.includes('@');
+                const jobOpts = isDirectEmail
+                    ? {}  // E-mails diretos: sem singleton, permite reenvio
+                    : { singletonKey: `assigned-${activityId}-${uid}` };
                 await boss.send('send-notification', {
                     type: 'task-assigned',
                     activityId,
                     userId: uid,
                     extra: { atribuidoPorId: createdBy }
-                }, { singletonKey: `assigned-${activityId}-${uid}` });
+                }, jobOpts);
             }
         }
 
@@ -2527,16 +2532,20 @@ app.post('/api/companies/:id/activities', extractUsuario, async (req, res) => {
             }
         }
 
-        // 3. Notificar ao atribuir (e-mail via job queue)
-        if (notify_on_assign && assignees.length > 0) {
+        // 3. Notificar ao salvar (e-mail via job queue para todos os participantes)
+        if (assignees.length > 0) {
             for (const uid of assignees) {
                 if (uid === createdBy) continue;
+                const isDirectEmail = uid.includes('@');
+                const jobOpts = isDirectEmail
+                    ? {}  // E-mails diretos: sem singleton, permite reenvio
+                    : { singletonKey: `assigned-${activityId}-${uid}` };
                 await boss.send('send-notification', {
                     type: 'task-assigned',
                     activityId,
                     userId: uid,
                     extra: { atribuidoPorId: createdBy }
-                }, { singletonKey: `assigned-${activityId}-${uid}` });
+                }, jobOpts);
             }
         }
 

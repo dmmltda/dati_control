@@ -1,0 +1,47 @@
+:root {
+  /* Dark palette (sidebar / login bg) */
+  --dark-900: #080d1a;
+  --dark-800: #0e1423;
+  --dark-700: #141b2d;
+  --dark-600: #1a2338;
+  --dark-500: #222d45;
+  --dark-400: #2e3a54;
+  --dark-300: #3d4d6e;
+  --dark-200: #5a6a8a;
+  --dark-100: #8896b8;
+  --dark-50:  #b0bcdb;
+
+  /* Brand */
+  --indigo:        #6366f1;
+  --indigo-bright: #818cf8;
+  --indigo-dim:    rgba(99,102,241,0.15);
+  --indigo-glow:   rgba(99,102,241,0.25);
+  --purple:        #7c3aed;
+  --purple-dim:    rgba(124,58,237,0.18);
+
+  /* Status */
+  --green:      #22c55e;
+  --green-dim:  rgba(34,197,94,0.15);
+  --amber:      #f59e0b;
+  --amber-dim:  rgba(245,158,11,0.15);
+  --red:        #ef4444;
+  --red-dim:    rgba(239,68,68,0.15);
+
+  /* Surface */
+  --card-bg:      rgba(255,255,255,0.04);
+  --card-border:  rgba(255,255,255,0.08);
+  --card-hover:   rgba(255,255,255,0.07);
+  --input-bg:     rgba(255,255,255,0.06);
+  --input-border: rgba(255,255,255,0.1);
+  --input-focus:  rgba(99,102,241,0.5);
+
+  /* Text */
+  --text-1: #f0f4ff;
+  --text-2: #8896b8;
+  --text-3: #4d5d7e;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --mono: 'DM Mono', monospace;
+}

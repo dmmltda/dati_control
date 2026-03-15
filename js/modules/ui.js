@@ -601,7 +601,7 @@ function renderNPSHistoryTableRows(data) {
     body.innerHTML = '';
 
     if (data.length === 0) {
-        body.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada. Clique em "Registrar Pesquisa" para adicionar.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma pesquisa NPS registrada. Clique em "Registrar Pesquisa" para adicionar.</td></tr>`;
         return;
     }
 
@@ -626,7 +626,14 @@ function renderNPSHistoryTableRows(data) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td style="font-weight: 500; white-space:nowrap;">${nps.data}</td>
-            <td style="color:var(--text-muted); font-size:0.85rem;">${nps.destinatarios}</td>
+            <td style="color:var(--text-muted); font-size:0.85rem;">
+                <div style="display:flex; flex-direction:column;">
+                    <span>${nps.destinatarios}</span>
+                    <span style="font-size:0.65rem; color:${nps.tipo === 'Google Forms' ? '#6366f1' : 'var(--text-muted)'}; font-weight:600;">
+                        <i class="ph ${nps.tipo === 'Google Forms' ? 'ph-google-logo' : 'ph-keyboard'}"></i> ${nps.tipo || 'Manual'}
+                    </span>
+                </div>
+            </td>
             <td style="text-align:center; font-size:0.85rem;">${respostas}</td>
             <td style="text-align:center; min-width:160px;">
                 <div style="display:flex; flex-direction:column; align-items:center; gap:0.25rem;">
@@ -942,11 +949,12 @@ function getManagerForKey(key) {
     if (key.startsWith('meet_')) return meetingGeralTableManager;
     if (key.startsWith('comp_')) return companiesTableManagerV2;
     if (key.startsWith('prod_')) return getCompanyProductsManager(); // ✅ produtos
+    if (key.startsWith('adh_')) return window._adhTM;               // ✅ aderência CS
     return logTableManager;
 }
 
 function getDataKey(key) {
-    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_|prod_)/, '');
+    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_|prod_|adh_)/, '');
 }
 
 window.getManagerForKeyPagination = function (containerId) {
@@ -1579,4 +1587,30 @@ export function switchProdTab(event, tabId) {
 /** @deprecated — use initTooltipSystem() diretamente */
 export function initProxPassoTooltip() {
     initTooltipSystem();
+}
+
+export function handleNPSTipoChange(tipo) {
+    const rest = document.getElementById('nps-form-rest');
+    const btnEnv = document.getElementById('btn-enviar-pesquisa');
+    const btnSave = document.getElementById('btn-save-nps');
+    
+    if (tipo) {
+        if (rest) {
+            rest.style.opacity = '1';
+            rest.style.pointerEvents = 'auto';
+        }
+        
+        if (tipo === 'Google Forms') {
+            if (btnEnv) btnEnv.style.display = 'inline-flex';
+            if (btnSave) btnSave.style.display = 'none';
+        } else {
+            if (btnEnv) btnEnv.style.display = 'none';
+            if (btnSave) btnSave.style.display = 'inline-flex';
+        }
+    } else {
+        if (rest) {
+            rest.style.opacity = '0.5';
+            rest.style.pointerEvents = 'none';
+        }
+    }
 }

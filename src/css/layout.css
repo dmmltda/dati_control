@@ -1,0 +1,91 @@
+.app-shell {
+  display: flex;
+  flex: 1;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--dark-800);
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.sidebar-top {
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid var(--card-border);
+  display: flex;
+  align-items: center; justify-content: space-between;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-1);
+  letter-spacing: -0.03em;
+}
+
+.sidebar-mark {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--indigo), var(--purple));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 12px 10px;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--card-border);
+}
+
+/* MAIN CONTENT AREA */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--dark-700);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 28px 0;
+}
+
+.main-content {
+  padding: 24px 28px;
+}
+
+/* MOBILE RESPONSIVENESS (Basic) */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    left: -240px;
+    z-index: 100;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+}

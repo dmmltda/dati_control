@@ -1362,15 +1362,18 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
                     b.style.color = on?'#818cf8':'var(--text-muted)';
                     b.style.fontWeight = on?'600':'500';
                 });
-                const inp = document.getElementById('td-part-input');
-                if(inp){ inp.placeholder={user:'Buscar usuário...',email:'Ex: fulano@email.com',whatsapp:'Ex: 11999998888'}[_partMode]||''; inp.value=''; }
-                const drop = document.getElementById('td-part-dropdown');
+                const inp = overlay.querySelector('#td-part-input');
+                if(inp){ 
+                    inp.placeholder = {user:'Buscar usuário...', email:'Ex: fulano@email.com', whatsapp:'Ex: 11999998888'}[_partMode]||''; 
+                    inp.value=''; 
+                }
+                const drop = overlay.querySelector('#td-part-dropdown');
                 if(drop) drop.style.display='none';
             });
         });
 
-        const partInput = document.getElementById('td-part-input');
-        const partDrop  = document.getElementById('td-part-dropdown');
+        const partInput = overlay.querySelector('#td-part-input');
+        const partDrop  = overlay.querySelector('#td-part-dropdown');
         if (partInput && partDrop) {
             const showDrop = q => {
                 if(_partMode!=='user'){ partDrop.style.display='none'; return; }
@@ -1387,6 +1390,19 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
             partInput.addEventListener('input',()=>{ clearTimeout(_debT); _debT=setTimeout(()=>showDrop(partInput.value),200); });
             partInput.addEventListener('focus',()=>{ if(_partMode==='user') showDrop(partInput.value); });
             partInput.addEventListener('blur', ()=>{ setTimeout(()=>partDrop.style.display='none',200); });
+
+            // Suporte ao Enter no input de participantes
+            partInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = partInput.value.trim();
+                    if (v) {
+                        addPartChip(v, v, _partMode);
+                        partInput.value = '';
+                        partDrop.style.display = 'none';
+                    }
+                }
+            });
         }
 
         function addPartChip(id, label, type) {
@@ -1402,9 +1418,12 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
             chips.appendChild(sp);
         }
 
-        document.getElementById('td-part-add-btn')?.addEventListener('click',()=>{
-            const v=document.getElementById('td-part-input')?.value?.trim(); if(!v) return;
-            addPartChip(v,v,_partMode); document.getElementById('td-part-input').value='';
+        overlay.querySelector('#td-part-add-btn')?.addEventListener('click',()=>{
+            const v = overlay.querySelector('#td-part-input')?.value?.trim(); 
+            if(!v) return;
+            addPartChip(v, v, _partMode); 
+            const inp = overlay.querySelector('#td-part-input');
+            if (inp) inp.value='';
         });
     })();
 
@@ -1423,15 +1442,18 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
                     b.style.color = on?'#10b981':'var(--text-muted)';
                     b.style.fontWeight = on?'600':'500';
                 });
-                const inp = document.getElementById('td-nxt-input');
-                if(inp){ inp.placeholder={user:'Buscar usuário...',email:'Ex: fulano@email.com',whatsapp:'Ex: 11999998888'}[_nxtMode]||''; inp.value=''; }
-                const drop = document.getElementById('td-nxt-dropdown');
+                const inp = overlay.querySelector('#td-nxt-input');
+                if(inp){ 
+                    inp.placeholder = {user:'Buscar usuário...', email:'Ex: fulano@email.com', whatsapp:'Ex: 11999998888'}[_nxtMode]||''; 
+                    inp.value=''; 
+                }
+                const drop = overlay.querySelector('#td-nxt-dropdown');
                 if(drop) drop.style.display='none';
             });
         });
 
-        const nxtInput = document.getElementById('td-nxt-input');
-        const nxtDrop  = document.getElementById('td-nxt-dropdown');
+        const nxtInput = overlay.querySelector('#td-nxt-input');
+        const nxtDrop  = overlay.querySelector('#td-nxt-dropdown');
         if (nxtInput && nxtDrop) {
             const showDrop = q => {
                 if(_nxtMode!=='user'){ nxtDrop.style.display='none'; return; }
@@ -1448,6 +1470,19 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
             nxtInput.addEventListener('input',()=>{ clearTimeout(_debT); _debT=setTimeout(()=>showDrop(nxtInput.value),200); });
             nxtInput.addEventListener('focus',()=>{ if(_nxtMode==='user') showDrop(nxtInput.value); });
             nxtInput.addEventListener('blur', ()=>{ setTimeout(()=>nxtDrop.style.display='none',200); });
+
+            // Suporte ao Enter no input de próximo passo
+            nxtInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = nxtInput.value.trim();
+                    if (v) {
+                        addNxtChip(v, v, _nxtMode);
+                        nxtInput.value = '';
+                        nxtDrop.style.display = 'none';
+                    }
+                }
+            });
         }
 
         function addNxtChip(id, label, type) {
@@ -1463,9 +1498,12 @@ function _renderDetailDrawer(t, defaultTab = 'info', isCreateMode = false, onAft
             chips.appendChild(sp);
         }
 
-        document.getElementById('td-nxt-add-btn')?.addEventListener('click',()=>{
-            const v=document.getElementById('td-nxt-input')?.value?.trim(); if(!v) return;
-            addNxtChip(v,v,_nxtMode); document.getElementById('td-nxt-input').value='';
+        overlay.querySelector('#td-nxt-add-btn')?.addEventListener('click',()=>{
+            const v = overlay.querySelector('#td-nxt-input')?.value?.trim(); 
+            if(!v) return;
+            addNxtChip(v, v, _nxtMode); 
+            const inp = overlay.querySelector('#td-nxt-input');
+            if (inp) inp.value='';
         });
     })();
 

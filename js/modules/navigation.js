@@ -200,7 +200,8 @@ export function openCompanyForm(id = null) {
             btn.removeAttribute('data-th-tooltip');
             btn.querySelector('.tab-lock-icon')?.remove();
 
-            if (btn.id !== 'btn-tab-cs' || (comp && comp.status === 'Em Contrato')) {
+            const CS_STATUSES = ['Em Contrato', 'Ativo', 'Inativo', 'Suspenso'];
+            if (btn.id !== 'btn-tab-cs' || (comp && CS_STATUSES.includes(comp.status))) {
                 if (!firstVisibleTab) firstVisibleTab = btn;
             } else if (btn.id !== 'btn-tab-cs') {
                 if (!fallbackTab) fallbackTab = btn;
@@ -209,10 +210,11 @@ export function openCompanyForm(id = null) {
     });
 
 
-    // Se a lógica do app exibe CS mas o usuário tem permissão nela, mantemos a visibilidade (sem display:none pra quem não tem lock)
+    // CS aparece para todos os status pós-contrato: Em Contrato, Ativo, Inativo, Suspenso
+    const CS_STATUSES_DISPLAY = ['Em Contrato', 'Ativo', 'Inativo', 'Suspenso'];
     const csBtn = document.getElementById('btn-tab-cs');
     if (csBtn && csBtn.dataset.lockedTab !== "1") {
-        if (id && comp && comp.status === 'Em Contrato') {
+        if (id && comp && CS_STATUSES_DISPLAY.includes(comp.status)) {
              csBtn.style.display = 'flex';
         } else if (window.canDo && window.canDo('company_tab.cs')) {
              csBtn.style.display = 'none'; // oculto logicamente pois não é cliente

@@ -61,6 +61,13 @@ const PRIORITY_CONFIG = {
     urgente: { label: 'Urgente', color: '#ef4444', bg: 'rgba(239,68,68,0.12)',  icon: 'ph-warning' },
 };
 
+const STATUS_COLORS = { 
+    'A Fazer':      '#6366f1',
+    'Em Andamento': '#f59e0b',
+    'Concluída':    '#10b981',
+    'Cancelada':    '#64748b' 
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // ESTADO DO MÓDULO
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1159,19 +1166,45 @@ export function _addFile(file) { _addPendingAttachment(file); }
 // CARD DE DETALHES DA ATIVIDADE (abre ao clicar na linha)
 // ──────────────────────────────────────────────────────────────────────────────
 
-export function openActivityCard(activityId) {
+export async function openActivityCard(activityId) {
     try {
-        const act = _manager?._originalData?.find(a => a.id === activityId);
-        if (!act) { utils.showToast('Atividade não encontrada.', 'error'); return; }
+        let act = _manager?._originalData?.find(a => a.id === activityId);
+        
+        if (!act) {
+            // Se não encontrou no manager local, tenta buscar na API
+            utils.showToast('Carregando detalhes...', 'info');
+            try {
+                const res = await fetch(`/api/activities/${activityId}`);
+                if (res.ok) {
+                    act = await res.json();
+                }
+            } catch (fetchErr) {
+                console.warn('[openActivityCard] Falha ao buscar via API:', fetchErr);
+            }
+        }
+
+        if (!act) { 
+            utils.showToast('Atividade não encontrada.', 'error'); 
+            return; 
+        }
+
         if (!window.tasksBoard?.renderActivityModal) {
-            utils.showToast('Módulo de atividades não carregado.', 'error');
+            // No módulo de atividades, se não temos o renderActivityModal do outro módulo,
+            // podemos usar a nossa própria implementação interna
+            _renderActivityDetailCard(act);
             return;
         }
+        
         window.tasksBoard.renderActivityModal(
             act,
             false, // isCreateMode (edição)
             'info',
-            async () => { await _reloadActivities(); }
+            async () => { 
+                await _reloadActivities();
+                window.dispatchEvent(new CustomEvent('journey:activity-changed', {
+                    detail: { action: 'update', id: activityId }
+                }));
+            }
         );
     } catch(err) {
         console.error('[openActivityCard] ERRO:', err);
@@ -1773,6 +1806,19 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
             nxtInput.addEventListener('input',()=>{ clearTimeout(_debT); _debT=setTimeout(()=>showDrop(nxtInput.value),200); });
             nxtInput.addEventListener('focus',()=>{ if(_nxtMode==='user') showDrop(nxtInput.value); });
             nxtInput.addEventListener('blur', ()=>{ setTimeout(()=>nxtDrop.style.display='none',200); });
+
+            // Suporte ao Enter no input de próximo passo
+            nxtInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const v = nxtInput.value.trim();
+                    if (v) {
+                        adcAddNxtChip(v, v, _nxtMode);
+                        nxtInput.value = '';
+                        nxtDrop.style.display = 'none';
+                    }
+                }
+            });
         }
 
         function adcAddNxtChip(id, label, type) {
@@ -1788,7 +1834,7 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
             chips.appendChild(sp);
         }
 
-        document.getElementById('adc-nxt-add-btn')?.addEventListener('click',()=>{
+        overlay.querySelector('#adc-nxt-add-btn')?.addEventListener('click',()=>{
             const v=document.getElementById('adc-nxt-input')?.value?.trim(); if(!v) return;
             adcAddNxtChip(v,v,_nxtMode); document.getElementById('adc-nxt-input').value='';
         });
@@ -1839,15 +1885,18 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
                 b.style.color = on?'#818cf8':'var(--text-muted)';
                 b.style.fontWeight = on?'600':'500';
             });
-            const inp = document.getElementById('adc-part-input');
-            if(inp){ inp.placeholder={user:'Buscar usuário...',email:'Ex: fulano@email.com',whatsapp:'Ex: 11999998888'}[_adcPartMode]||''; inp.value=''; }
-            const drop = document.getElementById('adc-part-dropdown');
+            const inp = overlay.querySelector('#adc-part-input');
+            if(inp){ 
+                inp.placeholder = {user:'Buscar usuário...', email:'Ex: fulano@email.com', whatsapp:'Ex: 11999998888'}[_adcPartMode]||''; 
+                inp.value=''; 
+            }
+            const drop = overlay.querySelector('#adc-part-dropdown');
             if(drop) drop.style.display='none';
         });
     });
 
-    const adcPartInput = document.getElementById('adc-part-input');
-    const adcPartDrop  = document.getElementById('adc-part-dropdown');
+    const adcPartInput = overlay.querySelector('#adc-part-input');
+    const adcPartDrop  = overlay.querySelector('#adc-part-dropdown');
     if(adcPartInput && adcPartDrop) {
         const showDrop = q => {
             if(_adcPartMode !== 'user'){ adcPartDrop.style.display='none'; return; }
@@ -1864,6 +1913,19 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         adcPartInput.addEventListener('input',()=>{clearTimeout(_adcDebT);_adcDebT=setTimeout(()=>showDrop(adcPartInput.value),200);});
         adcPartInput.addEventListener('focus',()=>{ if(_adcPartMode==='user') showDrop(adcPartInput.value); });
         adcPartInput.addEventListener('blur', ()=>{ setTimeout(()=>adcPartDrop.style.display='none',200); });
+
+        // Suporte ao Enter no input de participantes
+        adcPartInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const v = adcPartInput.value.trim();
+                if (v) {
+                    adcAddChip(v, v, _adcPartMode);
+                    adcPartInput.value = '';
+                    adcPartDrop.style.display = 'none';
+                }
+            }
+        });
     }
 
     function adcAddChip(id, label, type) {
@@ -1879,9 +1941,12 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
         chips.appendChild(sp);
     }
 
-    document.getElementById('adc-part-add')?.addEventListener('click',()=>{
-        const v=document.getElementById('adc-part-input')?.value?.trim(); if(!v) return;
-        adcAddChip(v,v,_adcPartMode); document.getElementById('adc-part-input').value='';
+    overlay.querySelector('#adc-part-add')?.addEventListener('click',()=>{
+        const v = overlay.querySelector('#adc-part-input')?.value?.trim(); 
+        if(!v) return;
+        adcAddChip(v, v, _adcPartMode); 
+        const inp = overlay.querySelector('#adc-part-input');
+        if (inp) inp.value='';
     });
 
     // ── close ─────────────────────────────────────────────────────────────────
@@ -2090,4 +2155,6 @@ function _renderActivityDetailCard(a, companyIdForCreate) {
             }
         });
     }
+
+    document.body.appendChild(overlay);
 }

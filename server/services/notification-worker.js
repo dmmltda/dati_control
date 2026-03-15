@@ -85,31 +85,46 @@ export async function processNotificationJob({ type, activityId, userId, extra }
         return;
     }
 
-    // 2. Busca o usuário destinatário no Clerk
-    let clerkUser;
-    try {
-        clerkUser = await clerkClient.users.getUser(userId);
-    } catch (err) {
-        console.error(`[notification-worker] Error fetching Clerk user ${userId}:`, err.message);
-        throw err; // retry
-    }
+    // 2. Busca o usuário destinatário (Clerk ou E-mail direto)
+    let email;
+    let usuario;
 
-    if (!clerkUser) {
-        console.warn(`[notification-worker] Clerk user ${userId} not found`);
-        return;
-    }
+    const isDirectEmail = userId && userId.includes('@');
 
-    const email = clerkUser.emailAddresses[0]?.emailAddress;
-    if (!email) {
-        console.warn(`[notification-worker] Clerk user ${userId} has no email`);
-        return;
-    }
+    if (isDirectEmail) {
+        // E-mail direto (ex: dmmltda@gmail.com) — sem Clerk lookup
+        email   = userId;
+        usuario = {
+            id:    userId,
+            nome:  userId.split('@')[0], // fallback de nome
+            email: userId,
+        };
+    } else {
+        let clerkUser;
+        try {
+            clerkUser = await clerkClient.users.getUser(userId);
+        } catch (err) {
+            console.error(`[notification-worker] Error fetching Clerk user ${userId}:`, err.message);
+            throw err; // retry
+        }
 
-    const usuario = {
-        id: clerkUser.id,
-        nome: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || clerkUser.username || 'Usuário',
-        email: email
-    };
+        if (!clerkUser) {
+            console.warn(`[notification-worker] Clerk user ${userId} not found`);
+            return;
+        }
+
+        email = clerkUser.emailAddresses[0]?.emailAddress;
+        if (!email) {
+            console.warn(`[notification-worker] Clerk user ${userId} has no email`);
+            return;
+        }
+
+        usuario = {
+            id:    clerkUser.id,
+            nome:  `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || clerkUser.username || 'Usuário',
+            email: email,
+        };
+    }
 
     const empresa = activity?.companies?.Nome_da_empresa || 'Nenhuma';
 
@@ -170,8 +185,10 @@ export async function processNotificationJob({ type, activityId, userId, extra }
     }
 
     // 4. Envia o e-mail
-    const dedupKey = `${type}-${activityId || 'noact'}-${userId}-${extra?.dedupSuffix || Date.now()}`;
-    
+    // Para e-mails diretos (não-Clerk), usa timestamp para permitir reenvio a cada save
+    const dedupSuffix = isDirectEmail ? Date.now() : (extra?.dedupSuffix || Date.now());
+    const dedupKey = `${type}-${activityId || 'noact'}-${userId}-${dedupSuffix}`;
+
     await sendEmail({
         to: email,
         template,

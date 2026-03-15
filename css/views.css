@@ -245,6 +245,14 @@
     min-height: 0;
 }
 
+/* Cabeçalho da tabela fica sticky dentro do scroll */
+#view-company-list .company-table-container .company-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--dark-surface);
+}
+
 /* Paginação — pinada na base do panel */
 #view-company-list #pagination-companies {
     flex-shrink: 0;

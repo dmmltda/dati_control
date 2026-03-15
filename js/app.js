@@ -539,7 +539,7 @@ function handleTempDataActions(target) {
 function handleToggleActions(target) {
     const toggleConfigs = [
         { toggleId: 'btn-toggle-dashboard-form', containerId: 'dashboard-form-container', cancelId: 'btn-cancel-dashboard', reset: ['new-db-data', 'new-db-dest', 'new-db-link'], mode: 'block' },
-        { toggleId: 'btn-toggle-nps-form', containerId: 'nps-form-container', cancelId: 'btn-cancel-nps', reset: ['new-nps-data', 'new-nps-dest', 'new-nps-forms', 'new-nps-score'], mode: 'block' },
+        { toggleId: 'btn-toggle-nps-form', containerId: 'nps-form-container', cancelId: 'btn-cancel-nps', reset: ['new-nps-tipo', 'new-nps-data', 'new-nps-dest', 'new-nps-forms', 'new-nps-score'], mode: 'block' },
         { toggleId: 'btn-toggle-cs-meet-form', containerId: 'cs-meet-form-container', cancelId: 'btn-cancel-cs-meet', reset: ['new-cs-meet-data', 'new-cs-meet-parts', 'new-cs-meet-obs', 'new-cs-meet-link'], mode: 'block' },
         { toggleId: 'btn-toggle-ticket-form', containerId: 'ticket-form-container', cancelId: 'btn-cancel-ticket', reset: ['new-tk-data', 'new-tk-autor', 'new-tk-num', 'new-tk-link', 'new-tk-resumo'], mode: 'block' },
         { toggleId: 'btn-toggle-contact-form', containerId: 'contact-form-container', cancelId: 'btn-cancel-contact', reset: [], mode: 'block' },
@@ -568,6 +568,9 @@ function handleToggleActions(target) {
                 if (el) el.value = '';
             });
         }
+        if (matchCancel.toggleId === 'btn-toggle-nps-form') {
+            ui.handleNPSTipoChange('');
+        }
         return true;
     }
 
@@ -579,6 +582,7 @@ function handleSaveActions(target) {
     if (targetId === 'btn-save-contact') { handlers.saveNewContato(); return true; }
     if (targetId === 'btn-save-dashboard') { handlers.saveTempDashboard(); return true; }
     if (targetId === 'btn-save-nps') { handlers.saveTempNPS(); return true; }
+    if (target.closest('#btn-enviar-pesquisa')) { handlers.enviarPesquisa(); return true; }
     if (targetId === 'btn-save-cs-meet') { handlers.saveTempCSMeet(); return true; }
     if (targetId === 'btn-save-ticket') { handlers.saveTempTicket(); return true; }
     if (targetId === 'btn-add-cs-note') { handlers.addCSNote(); return true; }

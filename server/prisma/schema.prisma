@@ -633,15 +633,19 @@ model app_settings {
 // O UNIQUE em dedup_key é aplicado atomicamente pelo Postgres,
 // protegendo contra race conditions e múltiplas instâncias do servidor.
 model email_send_log {
-  id         String   @id @default(uuid())
-  dedup_key  String   @unique           // Chave única de negócio (ex: "lembrete-abc123-2026-03-01")
-  recipient  String                     // Destinatário(s) — para auditoria
-  subject    String                     // Assunto — para auditoria
-  template   String?                    // Nome do template usado (ex: "activityReminder")
-  tag        String?                    // Tag livre para logs (ex: "gabi-alert")
-  sent_at    DateTime @default(now())   // Quando foi enviado
+  id            String   @id @default(uuid())
+  dedup_key     String   @unique           // Chave única de negócio (ex: "lembrete-abc123-2026-03-01")
+  recipient     String                     // Destinatário(s) — para auditoria
+  subject       String                     // Assunto — para auditoria
+  template      String?                    // Nome do template usado (ex: "activityReminder")
+  tag           String?                    // Tag livre para logs (ex: "gabi-alert")
+  status        String   @default("sent")  // sent | failed | blocked | pending
+  resend_id     String?                    // ID retornado pela API Resend
+  error_message String?                    // Mensagem de erro se falhou
+  sent_at       DateTime @default(now())   // Quando foi enviado
 
   @@index([sent_at])
+  @@index([status])
   @@map("email_send_log")
 }
 

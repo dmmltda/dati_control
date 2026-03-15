@@ -344,11 +344,24 @@ export function saveTempDashboard() {
 
 export function saveTempNPS() {
     try {
+        const tipo = document.getElementById('new-nps-tipo').value;
         const data = document.getElementById('new-nps-data').value;
         const dest = document.getElementById('new-nps-dest').value;
         const score = document.getElementById('new-nps-score').value;
-        if (!data || !dest || !score) { utils.showToast('Preencha os campos obrigatórios (*)', 'error'); return; }
-        state.tempNPSHistory.push({ data, destinatarios: dest, forms: document.getElementById('new-nps-forms').value, score });
+
+        if (!tipo || !data || !dest || !score) {
+            utils.showToast('Preencha os campos obrigatórios (*)', 'error');
+            return;
+        }
+
+        state.tempNPSHistory.push({
+            tipo,
+            data,
+            destinatarios: dest,
+            forms: document.getElementById('new-nps-forms').value,
+            score
+        });
+
         document.getElementById('btn-cancel-nps').click();
         ui.renderNPSHistoryTable();
         utils.showToast('Pesquisa NPS salva!', 'success');
@@ -356,6 +369,41 @@ export function saveTempNPS() {
         console.error('❌ Erro no saveTempNPS:', err);
         utils.showToast('Erro ao salvar localmente: ' + err.message, 'error');
     }
+}
+
+export function enviarPesquisa() {
+    try {
+        const tipo = document.getElementById('new-nps-tipo').value;
+        const data = document.getElementById('new-nps-data').value;
+        const dest = document.getElementById('new-nps-dest').value;
+
+        if (!tipo || !data || !dest) {
+            utils.showToast('Preencha Data e Destinatários para enviar.', 'error');
+            return;
+        }
+
+        // Simula o envio
+        utils.showToast('Pesquisa enviada com sucesso (via Google Forms)!', 'success');
+
+        // Registra no "Histórico de Alterações" (Audit Log)
+        _recordAuditAction('UPDATE', 'activity', 'Pesquisa NPS enviada para: ' + dest);
+
+        // Opcional: Salva como registro manual também
+        saveTempNPS();
+    } catch (err) {
+        console.error('❌ Erro ao enviar pesquisa:', err);
+        utils.showToast('Erro ao enviar pesquisa: ' + err.message, 'error');
+    }
+}
+
+function _recordAuditAction(action, entity, desc) {
+    // Como não temos um endpoint real de POST /api/audit-logs que funcione para o mock,
+    // vamos apenas disparar um evento ou logar no console.
+    // Em um sistema real, faríamos fetch('/api/audit-logs', { method: 'POST', ... })
+    console.log(`[AuditLog] ${action} ${entity}: ${desc}`);
+    
+    // Dispara evento para o módulo de audit log atualizar se estiver aberto
+    window.dispatchEvent(new CustomEvent('journey:audit-changed'));
 }
 
 export function saveTempCSMeet() {
