@@ -1087,6 +1087,34 @@ app.post('/api/companies', extractUsuario, async (req, res) => {
 
         console.log(`[POST] ✅ Empresa criada: ${companyId}\n`);
 
+        // ── PASSO 6: Auto-membership para o criador ───────────────────────────────
+        // Garante que a empresa criada apareça na lista do usuário que a criou,
+        // independente de ser master ou standard. Para standard, é essencial pois
+        // o GET /api/companies filtra por user_memberships.
+        try {
+            const creatorId = req.usuarioAtual?.id;
+            if (creatorId) {
+                await prisma.user_memberships.upsert({
+                    where: { user_id_company_id: { user_id: creatorId, company_id: companyId } },
+                    update: {}, // já existe → não altera
+                    create: {
+                        id: randomUUID(),
+                        user_id: creatorId,
+                        company_id: companyId,
+                        can_create: true,
+                        can_edit: true,
+                        can_delete: true,
+                        can_export: true,
+                        updatedAt: new Date(),
+                    }
+                });
+                console.log(`[POST] ✅ Membership criado para user ${creatorId} na empresa ${companyId}`);
+            }
+        } catch (memberErr) {
+            // Não falha a criação da empresa se o membership der erro
+            console.warn(`[POST] ⚠️ Falha ao criar membership auto:`, memberErr.message);
+        }
+
         audit.log(prisma, {
             actor: req.usuarioAtual,
             action: 'CREATE',
