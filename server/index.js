@@ -159,6 +159,11 @@ app.post('/fix-masters', async (req, res) => {
         results.master_fixed = r2.count;
     } catch(e) { results.master_fixed_err = e.message; }
     try {
+        // Corrige espaço duplo no nome de daniel@godati.com.br
+        const r4 = await prisma.users.updateMany({ where: { email: 'daniel@godati.com.br', nome: { contains: '  ' } }, data: { nome: 'Daniel Martins' } });
+        results.name_fixed = r4.count;
+    } catch(e) { results.name_fixed_err = e.message; }
+    try {
         const VALID = ['dashboard.view','companies.view','my_tasks.view','reports.view','audit.view','test_logs.view','gabi.view','company_tab.basic_data','company_tab.products','company_tab.contacts','company_tab.cs','company_tab.activities','company_edit.basic_data','company_edit.products','company_edit.contacts','company_edit.cs','company_edit.activities'];
         const r3 = await prisma.user_feature_permissions.deleteMany({ where: { permission: { notIn: VALID } } });
         results.perms_cleaned = r3.count;
