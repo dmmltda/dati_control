@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
             order = 'desc',
         } = req.query;
 
-        const take = Math.min(parseInt(limit) || 50, 200);
+        const take = Math.min(parseInt(limit) || 50, 2000);
         const skip = (parseInt(page) - 1) * take;
 
         const where = {};

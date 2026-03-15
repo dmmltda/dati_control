@@ -29,6 +29,7 @@ import auditRouter from './routes/audit.js';
 import googleMeetRouter, { syncPendingRecordings } from './routes/google-meet.js';
 import whatsappRouter from './routes/whatsapp.js';
 import emailLogsRouter from './routes/email-logs.js';
+import webhooksRouter from './routes/webhooks.js';
 import * as audit from './services/audit.js';
 import { init as initScheduler } from './services/test-scheduler.js';
 
@@ -578,6 +579,7 @@ app.use('/api/audit-logs', extractUsuario, auditRouter);
 app.use('/api/google-meet', extractUsuario, googleMeetRouter);
 app.use('/api/whatsapp', whatsappRouter);
 app.use('/api/email-logs', extractUsuario, emailLogsRouter);
+app.use('/api/webhooks', webhooksRouter);
 
 // POST /api/emails/nps — Envia formulário NPS para os destinatários
 app.post('/api/emails/nps', extractUsuario, async (req, res) => {

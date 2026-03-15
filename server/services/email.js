@@ -33,6 +33,7 @@
 
 import { Resend } from 'resend';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { activityReminderTemplate } from './email-templates/activity-reminder.js';
 import { mentionTemplate }          from './email-templates/mention.js';
 import { gabiAlertTemplate }        from './email-templates/gabi-alert.js';
@@ -125,26 +126,26 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
 
     // ── Dedup: INSERT antes de enviar ──────────────────────────────────────────────────────────────
     const logTag = tag ? ` [${tag}]` : '';
-    if (dedupKey) {
-        try {
-            await _prisma.email_send_log.create({
-                data: {
-                    dedup_key: dedupKey,
-                    recipient: recipients.join(','),
-                    subject,
-                    template:  template || null,
-                    tag:       tag     || null,
-                },
-            });
-        } catch (dedupErr) {
-            if (dedupErr.code === 'P2002') {
-                // Unique constraint: e-mail já enviado com essa chave
-                console.warn(`[Email] 🛑 Bloqueado duplicado${logTag}: ${dedupKey}`);
-                return { sent: false, blocked: 'duplicate' };
-            }
-            // Outro erro de DB: loga mas não bloqueia o envio
-            console.warn(`[Email] Aviso dedup${logTag}: ${dedupErr.message}`);
+    dedupKey = dedupKey || crypto.randomUUID();
+    
+    try {
+        await _prisma.email_send_log.create({
+            data: {
+                dedup_key: dedupKey,
+                recipient: recipients.join(','),
+                subject,
+                template:  template || null,
+                tag:       tag     || null,
+            },
+        });
+    } catch (dedupErr) {
+        if (dedupErr.code === 'P2002') {
+            // Unique constraint: e-mail já enviado com essa chave
+            console.warn(`[Email] 🛑 Bloqueado duplicado${logTag}: ${dedupKey}`);
+            return { sent: false, blocked: 'duplicate' };
         }
+        // Outro erro de DB: loga mas não bloqueia o envio
+        console.warn(`[Email] Aviso dedup${logTag}: ${dedupErr.message}`);
     }
 
     // ── Envio ────────────────────────────────────────────────────────────────────────────────

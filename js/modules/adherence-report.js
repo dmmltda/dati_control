@@ -112,9 +112,18 @@ export function initAdherenceReport(companyId) {
       { key: 'automatico', label: 'Realizados',  type: 'number', sortable: true, filterable: true },
       { key: 'percentual', label: '% Aderência', type: 'number', sortable: true, filterable: true },
     ],
+    renderFilters: () => {
+      if (window._adhRenderActiveFilters) {
+        window._adhRenderActiveFilters();
+      }
+    },
     renderRows(data) {
       if (data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:2rem; opacity:.5;">Nenhum indicador encontrado.</td></tr>`;
+        if (countEl) {
+          countEl.textContent = '0 indicadores';
+        }
+        _updateCharts(data);
         return;
       }
 
@@ -163,6 +172,47 @@ export function initAdherenceReport(companyId) {
     searchEl.parentNode.replaceChild(newSearch, searchEl);
     newSearch.addEventListener('input', e => _tm.setSearch(e.target.value));
   }
+
+  // ── Callbacks de Filtros Globais ───────────────────────────────────────────
+  window._adhRenderActiveFilters = function() {
+    if (!_tm) return;
+    const chipsContainer = document.getElementById('adh-active-chips');
+    if (!chipsContainer) return;
+
+    const active = _tm.getActiveFilters();
+    if (active.length === 0) {
+      chipsContainer.style.display = 'none';
+      chipsContainer.innerHTML = '';
+      return;
+    }
+
+    chipsContainer.style.display = 'flex';
+    chipsContainer.innerHTML = `
+      <div class="active-filters-chips">
+        ${active.map(({ key, label, value }) => `
+          <div class="filter-chip">
+            <span><strong>${label}:</strong> ${value}</span>
+            <i class="ph ph-x-circle" onclick="window._adhClearFilter('${key}')"></i>
+          </div>
+        `).join('')}
+      </div>
+      <button class="btn-clear-all-filters" onclick="window._adhClearAllFilters()">
+        <i class="ph ph-trash"></i> Limpar Tudo
+      </button>
+    `;
+  };
+
+  window._adhClearFilter = function(key) {
+    if (_tm) _tm.setFilter(key, null);
+  };
+
+  window._adhClearAllFilters = function() {
+    if (_tm) _tm.clearFilters();
+    if (searchEl) {
+      const el = document.getElementById('adh-search');
+      if (el) el.value = '';
+    }
+  };
 
   _injectStyles();
 }
@@ -247,7 +297,7 @@ function _buildCharts(data) {
         datasets: [{
           label: 'Acessos',
           data: grupos.map(g => data.filter(r => r.grupo === g).reduce((s, r) => s + (r.acessos || 0), 0)),
-          backgroundColor: ['rgba(129,140,248,0.75)', 'rgba(251,191,36,0.75)', 'rgba(52,211,153,0.75)'],
+          backgroundColor: grupos.map(g => g === 'Processos' ? 'rgba(129,140,248,0.75)' : (g === 'Chamados' ? 'rgba(251,191,36,0.75)' : 'rgba(52,211,153,0.75)')),
           borderRadius: 6,
           borderSkipped: false,
         }]
@@ -267,7 +317,7 @@ function _buildCharts(data) {
         datasets: [{
           label: 'Usuários',
           data: grupos.map(g => data.filter(r => r.grupo === g).reduce((s, r) => s + (r.usuarios || 0), 0)),
-          backgroundColor: ['rgba(52,211,153,0.75)', 'rgba(251,191,36,0.75)', 'rgba(129,140,248,0.75)'],
+          backgroundColor: grupos.map(g => g === 'Processos' ? 'rgba(52,211,153,0.75)' : (g === 'Chamados' ? 'rgba(251,191,36,0.75)' : 'rgba(129,140,248,0.75)')),
           borderRadius: 6,
           borderSkipped: false,
         }]
@@ -334,6 +384,7 @@ function _updateCharts(data) {
     _chartAcessos.data.datasets[0].data = grupos.map(g =>
       data.filter(r => r.grupo === g).reduce((s, r) => s + (r.acessos || 0), 0)
     );
+    _chartAcessos.data.datasets[0].backgroundColor = grupos.map(g => g === 'Processos' ? 'rgba(129,140,248,0.75)' : (g === 'Chamados' ? 'rgba(251,191,36,0.75)' : 'rgba(52,211,153,0.75)'));
     _chartAcessos.update('active');
   }
 
@@ -342,6 +393,7 @@ function _updateCharts(data) {
     _chartUsuarios.data.datasets[0].data = grupos.map(g =>
       data.filter(r => r.grupo === g).reduce((s, r) => s + (r.usuarios || 0), 0)
     );
+    _chartUsuarios.data.datasets[0].backgroundColor = grupos.map(g => g === 'Processos' ? 'rgba(52,211,153,0.75)' : (g === 'Chamados' ? 'rgba(251,191,36,0.75)' : 'rgba(129,140,248,0.75)'));
     _chartUsuarios.update('active');
   }
 

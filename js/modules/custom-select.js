@@ -457,6 +457,7 @@ export function setupGlobalCustomSelects() {
         'select.cs-status-select',
         'select[id^="rpt-filter-"]',
         'select[id^="audit-filter-"]',
+        'select[id^="email-mon-"]',
         'select[id^="filter-"]'
     ].join(', ');
 

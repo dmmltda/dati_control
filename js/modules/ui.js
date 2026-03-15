@@ -951,6 +951,7 @@ function renderLogTableRows(data) {
 
 function getManagerForKey(key) {
     if (key.startsWith('contatos_')) return getCompanyContactsManager(); // ✅ TM2 contatos
+    if (key.startsWith('eml_')) return window._emlTM;
     if (key.startsWith('db_')) return dashboardTableManager;
     if (key.startsWith('nps_')) return npsTableManager;
     if (key.startsWith('csmt_')) return csMeetingTableManager;
@@ -962,7 +963,7 @@ function getManagerForKey(key) {
 }
 
 function getDataKey(key) {
-    return key.replace(/^(produtos_|contatos_|db_|nps_|csmt_|meet_|comp_|prod_|adh_)/, '');
+    return key.replace(/^(produtos_|contatos_|eml_|db_|nps_|csmt_|meet_|comp_|prod_|adh_)/, '');
 }
 
 window.getManagerForKeyPagination = function (containerId) {
@@ -972,6 +973,7 @@ window.getManagerForKeyPagination = function (containerId) {
     if (containerId === 'pagination-cs-meetings') return csMeetingTableManager;
     if (containerId === 'pagination-meetings-geral') return meetingGeralTableManager;
     if (containerId === 'pagination-log') return logTableManager;
+    if (containerId === 'pagination-email-mon') return window._emlTM;
     if (containerId === 'pagination-contatos') return getCompanyContactsManager(); // ✅ TM2 contatos
     return null;
 };
