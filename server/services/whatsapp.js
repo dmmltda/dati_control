@@ -98,13 +98,7 @@ export function normalizePhone(phone) {
  * @returns {string}
  */
 export function normalizePhoneForSend(phone) {
-    const cleaned = normalizePhone(phone);
-    // Número BR com 12 dígitos: 55 + 2 DDD + 8 número = precisa do 9
-    if (/^55\d{10}$/.test(cleaned)) {
-        // Insere 9 após o DDD (posição 4)
-        return cleaned.slice(0, 4) + '9' + cleaned.slice(4);
-    }
-    return cleaned;
+    return normalizePhone(phone);
 }
 
 
@@ -156,8 +150,8 @@ export async function sendTextMessage(to, text, opts = {}) {
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    // Normaliza: remove + e espaços, e insere 9 para BR móvel se necessário
-    const toClean = normalizePhoneForSend(to);
+    // Normaliza: remove + e espaços para envio (usa mesmo formato do webhook inbound)
+    const toClean = normalizePhone(to);
     if (!toClean) {
         console.warn('[WhatsApp] Número de destino inválido:', to);
         return { sent: false, error: 'Número inválido' };
@@ -227,7 +221,7 @@ export async function sendTemplateMessage(to, templateName, languageCode = 'pt_B
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    const toClean = normalizePhoneForSend(to);
+    const toClean = normalizePhone(to);
     if (!toClean) {
         return { sent: false, error: 'Número inválido' };
     }
