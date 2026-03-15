@@ -148,10 +148,6 @@ const emailMonitor = (() => {
 
         // 3. Renderiza a barra
         if (chips.length > 0) {
-            chips.push(`
-                <button class="filter-chip-clear-all" onclick="emailMonitor.clearFilters()">
-                    <i class="ph ph-x-circle"></i> Limpar tudo
-                </button>`);
             bar.innerHTML = chips.join('');
             bar.style.display = 'flex';
         } else {

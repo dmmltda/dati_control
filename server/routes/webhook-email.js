@@ -1,0 +1,125 @@
+import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'crypto';
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Rota para receber respostas de email via Webhook (Ex: Resend, SendGrid)
+router.post('/incoming', async (req, res) => {
+    try {
+        console.log('[Webhook Email] Requisição recebida:', JSON.stringify(req.body).substring(0, 200));
+
+        // Resend envia um formato específico, ajuste conforme o provedor real
+        // Geralmente: req.body.from, req.body.to, req.body.subject, req.body.text
+        const { from, to, subject, text, html } = req.body;
+        
+        let recipientRaw = '';
+        if (Array.isArray(to)) recipientRaw = to.join(',');
+        else if (typeof to === 'string') recipientRaw = to;
+
+        // Extrair o dedup_key original do endereço de envio (ex: reply+abc12345@dominio.com.br)
+        const match = recipientRaw.match(/reply\+([^@]+)@/i);
+        const parentDedupKey = match ? match[1] : null;
+
+        let parentEmailLog = null;
+        let companyId = null;
+        let clientId = null;
+        let assigneeId = null; // Dono da empresa/atividade
+
+        if (parentDedupKey) {
+            parentEmailLog = await prisma.email_send_log.findUnique({
+                where: { dedup_key: parentDedupKey }
+            });
+
+            // Tentar descobrir a empresa a partir do email de origem/destino
+            if (parentEmailLog) {
+                // Aqui seria possível ter uma lógica para buscar o author da action original,
+                // ou vincular à atividade baseada no template enviado.
+                // Como não sabemos a priori, podemos buscar pelo email do remetente (cliente) nos contatos
+                const cleanEmail = from.match(/<([^>]+)>/)?.[1] || from;
+                const contato = await prisma.contacts.findFirst({
+                    where: { Email_1: cleanEmail },
+                    include: { companies: true }
+                });
+                
+                if (contato) {
+                    companyId = contato.companyId;
+                }
+            }
+        }
+
+        // 1. Salvar o email na tabela de logs como inbound
+        const inboundLog = await prisma.email_send_log.create({
+            data: {
+                dedup_key: randomUUID(),
+                recipient: from,
+                subject: subject || 'Sem assunto',
+                template: 'inbound_reply',
+                tag: 'gabi-inbound',
+                direction: 'inbound',
+                parent_email_id: parentEmailLog?.id || null,
+                status: 'received',
+                // A análise da Gabi será atualizada depois
+                gabi_analysis: { processed_by_ai: false }
+            }
+        });
+
+        // 2. Chamar a IA (Gabi) para classificar o email
+        // Em um sistema real, isso chamaria a API do Gemini aqui, passando o texto do email.
+        // Simulando a decisão da IA com base no tamanho do texto (transbordo)
+        
+        const isComplex = (text || html || '').length > 200 || /cancelar|problema|erro|ajuda|socorro/i.test(text || '');
+        
+        let intent = isComplex ? 'suporte_complexo' : 'resposta_simples';
+        let action = isComplex ? 'escalated_to_human' : 'auto_replied';
+        let summary = isComplex 
+            ? 'O cliente respondeu com dúvidas ou problemas detalhados. Necessário intervenção humana.'
+            : 'O cliente respondeu de forma objetiva / confirmando.';
+
+        // Atualizar log com análise
+        await prisma.email_send_log.update({
+            where: { id: inboundLog.id },
+            data: {
+                gabi_analysis: {
+                    processed_by_ai: true,
+                    intent,
+                    confidence_score: isComplex ? 0.3 : 0.9,
+                    action_taken: action,
+                    summary
+                }
+            }
+        });
+
+        // 3. Se necessita de atenção humana, criar card em Minhas Atividades
+        if (action === 'escalated_to_human') {
+            
+            // Tenta achar um assigne (master qualquer por ex. se não houver um CS mapeado direto)
+            const fallbackUser = await prisma.users.findFirst({ where: { user_type: 'master' } });
+
+            const newActivity = await prisma.activities.create({
+                data: {
+                    activity_type: 'Ação necessária',
+                    title: '[Intervenção IA] Analisar resposta de e-mail',
+                    description: `**Resumo da Gabi:** ${summary}\n\n**Intenção Detectada:** ${intent}\n\n**E-mail Original:**\n${text || 'Texto não disponível'}\n\n[ID do LOG: ${inboundLog.id}]`,
+                    priority: 'alta', // Urgência para transbordo
+                    status: 'A Fazer',
+                    company_id: companyId, // Pode ser null se não achou
+                    created_by_user_id: fallbackUser?.id || null,
+                    activity_datetime: new Date(),
+                    // Atribuir ao usuário fallback (ou dono da conta no futuro)
+                    ...(fallbackUser?.id ? { activity_assignees: { create: [{ user_id: fallbackUser.id }] } } : {})
+                }
+            });
+
+            console.log(`[Webhook Email] Transbordo criado: Atividade ${newActivity.id}`);
+        }
+
+        res.status(200).json({ ok: true, message: 'Processado pela Gabi AI' });
+    } catch (err) {
+        console.error('[Webhook Email] Erro no processamento:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+export default router;

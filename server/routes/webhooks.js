@@ -8,10 +8,10 @@ router.post('/google-forms', async (req, res) => {
     try {
         console.log('[Webhook] Recebido payload do Google Forms:', req.body);
         
-        const { email, score, formType } = req.body;
+        const { email, score, formType, respostasFull } = req.body;
         
-        if (!email || score === undefined) {
-            console.warn('[Webhook] Payload inválido (sem email ou score)');
+        if (!email) {
+            console.warn('[Webhook] Payload inválido (sem email)');
             return res.status(400).json({ error: 'Parâmetros ausentes' });
         }
 
@@ -36,10 +36,14 @@ router.post('/google-forms', async (req, res) => {
             return res.status(404).json({ message: 'Nenhuma pesquisa pendente encontrada.' });
         }
 
-        // Atualizar o registro com o novo score
+        // Atualizar o registro com o novo score (se enviado) e as respostas brutas JSON
+        const updateData = {};
+        if (score !== undefined) updateData.Score = String(score);
+        if (respostasFull) updateData.Respostas_JSON = respostasFull;
+
         await prisma.company_nps.update({
             where: { id: pendingNps.id },
-            data: { Score: String(score) }
+            data: updateData
         });
 
         console.log(`[Webhook] ✅ NPS atualizado para ${email}: Score ${score} (ID: ${pendingNps.id})`);

@@ -86,11 +86,12 @@ const TEMPLATES = {
  * @param {string}          [opts.html]      - HTML manual (quando não usa template)
  * @param {string}          [opts.tag]       - Tag descritiva para logs (ex: 'lembrete-gabi')
  * @param {string}          [opts.dedupKey]  - Chave única de dedup (ex: 'lembrete-{id}-{data}')
- *                                             Se fornecida: garante exactly-once via DB + Resend
+ * @param {string}          [opts.replyTo]   - Endereço de resposta para inbound parsing
+ * @param {object}          [opts.headers]   - Cabeçalhos customizados (ex: References)
  *
  * @returns {Promise<{ sent: boolean, blocked?: string, error?: string }>}
  */
-export async function sendEmail({ to, from, template, data, subject, html, tag, dedupKey }) {
+export async function sendEmail({ to, from, template, data, subject, html, tag, dedupKey, replyTo, headers }) {
     // ── Guarda: Resend não configurado ────────────────────────────────────────
     if (!_resend) {
         console.warn(`[Email] RESEND_API_KEY não configurada — e-mail ignorado${tag ? ` [${tag}]` : ''}`);
@@ -150,13 +151,34 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
 
     // ── Envio ────────────────────────────────────────────────────────────────────────────────
     try {
-        await _resend.emails.send({
+        const sendOpts = {
             from:            from || DEFAULT_FROM,
             to:              recipients,
             subject,
             html,
             ...(dedupKey && { idempotencyKey: dedupKey }), // 3ª camada de proteção
-        });
+        };
+        
+        // Se definirmos um domínio de inbound geral (ex: respostas@dati.com.br), ou deixamos dinâmico
+        if (replyTo) sendOpts.reply_to = replyTo;
+        else if (process.env.EMAIL_INBOUND_ADDRESS) {
+            // Se configurado no env, usa UUID do e-mail tracker "reply+uuid@dominio.com" pra parse nativo
+            const [local, domain] = process.env.EMAIL_INBOUND_ADDRESS.split('@');
+            sendOpts.reply_to = `${local}+${dedupKey}@${domain}`;
+        }
+
+        if (headers) sendOpts.headers = headers;
+
+        const response = await _resend.emails.send(sendOpts);
+        
+        // Atualiza a tabela email_send_log com o resend_id pra termos o In-Reply-To oficial
+        if (response?.data?.id) {
+            await _prisma.email_send_log.update({
+                where: { dedup_key: dedupKey },
+                data: { resend_id: response.data.id }
+            }).catch(() => {});
+        }
+
         console.log(`[Email] ✅ Enviado${logTag} → ${recipients.join(', ')}`);
         return { sent: true };
     } catch (err) {

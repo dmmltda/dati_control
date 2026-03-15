@@ -132,6 +132,7 @@ model company_nps {
   Destinatario String?
   Formulario   String?
   Score        String?
+  Respostas_JSON Json?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime
   companies    companies @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -643,6 +644,11 @@ model email_send_log {
   resend_id     String?                    // ID retornado pela API Resend
   error_message String?                    // Mensagem de erro se falhou
   sent_at       DateTime @default(now())   // Quando foi enviado
+
+  // ── CAMPOS RECEBIMENTO (INBOUND / AI) ──────────────────────────────────────
+  direction       String   @default("outbound") // "outbound" (disparo) ou "inbound" (resposta)
+  parent_email_id String?                       // ID do email_send_log original (Thread)
+  gabi_analysis   Json?                         // Processado por IA, Intent, Confidence, Summary
 
   @@index([sent_at])
   @@index([status])

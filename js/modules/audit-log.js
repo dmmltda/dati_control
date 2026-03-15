@@ -319,15 +319,101 @@ function _applyExternalFilters(rows) {
 
 // ─── Mostrar / ocultar botão "Limpar Filtros" ─────────────────────────────────
 function _syncClearBtn() {
-    const hasExternal = _filters.action || _filters.dateFrom || _filters.dateTo;
-    const hasInternal = _manager && _manager.getActiveFilters().length > 0;
-    const hasSearch   = _manager && _manager._search;
-    const show = hasExternal || hasInternal || hasSearch;
+    if (_manager) _renderActiveFilters(_manager.getActiveFilters(), _manager._search);
+}
 
-    const btn     = document.getElementById('btn-clear-audit-filters');
-    const divider = document.getElementById('audit-clear-divider');
-    if (btn) btn.style.display = show ? 'inline-flex' : 'none';
-    if (divider) divider.style.display = show ? 'block' : 'none';
+function _renderActiveFilters(activeFilters, search) {
+    const bar = document.getElementById('audit-active-chips');
+    if (!bar) return;
+
+    const chips = [];
+
+    // 1. Filtros Globais
+    if (_filters.action) {
+        chips.push(`
+            <span class="filter-chip">
+                Ação: <strong>${_escapeHtml(ACTION_CONFIG[_filters.action]?.label || _filters.action)}</strong>
+                <button class="chip-remove" data-remove-global="action" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    if (_filters.dateFrom || _filters.dateTo) {
+        const fd = _filters.dateFrom ? _filters.dateFrom.split('-').reverse().join('/') : '...';
+        const td = _filters.dateTo   ? _filters.dateTo.split('-').reverse().join('/')   : '...';
+        chips.push(`
+            <span class="filter-chip">
+                Data: <strong>${fd} - ${td}</strong>
+                <button class="chip-remove" data-remove-global="date" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    // 2. Filtros Internos (TableManager JS)
+    if (search) {
+        chips.push(`
+            <span class="filter-chip">
+                <i class="ph ph-magnifying-glass"></i> "${_escapeHtml(search)}"
+                <button class="chip-remove" data-remove-tm-search="1" title="Remover busca">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    (activeFilters || []).forEach(f => {
+        chips.push(`
+            <span class="filter-chip">
+                ${_escapeHtml(f.label)}: <strong>${_escapeHtml(f.value)}</strong>
+                <button class="chip-remove" data-remove-tm-filter="${_escapeHtml(f.key)}" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    });
+
+    if (chips.length > 0) {
+        bar.innerHTML = chips.join('');
+        bar.style.display = 'flex';
+    } else {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+    }
+
+    bar.querySelectorAll('[data-remove-global]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const type = btn.dataset.removeGlobal;
+            if (type === 'action') {
+                const el = document.getElementById('audit-filter-action');
+                if (el && el._customSelectInstance) el._customSelectInstance.setValue('');
+                else if (el) el.value = '';
+                _filters.action = '';
+                _reloadWithFilters();
+            } else if (type === 'date') {
+                const dF = document.getElementById('audit-date-from');
+                const dT = document.getElementById('audit-date-to');
+                if (dF) dF.value = '';
+                if (dT) dT.value = '';
+                _filters.dateFrom = '';
+                _filters.dateTo = '';
+                _reloadWithFilters();
+            }
+        });
+    });
+
+    bar.querySelectorAll('[data-remove-tm-search]').forEach(btn => {
+        btn.addEventListener('click', () => {
+             const el = document.getElementById('audit-search-global');
+             if(el) el.value = '';
+             if (_manager) _manager.setSearch(''); 
+        });
+    });
+
+    bar.querySelectorAll('[data-remove-tm-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (_manager) _manager.setFilter(btn.dataset.removeTmFilter, null);
+        });
+    });
 }
 
 // ─── Fetch & init ─────────────────────────────────────────────────────────────
@@ -366,6 +452,7 @@ async function _load() {
                 tableId:          'audit-log-table',
                 renderRows:       _renderRows,
                 renderPagination: _renderPagination,
+                renderFilters:    _renderActiveFilters,
             });
         } else {
             _manager.setData(filtered);
@@ -726,8 +813,13 @@ export function clearFilters() {
 
     const s = document.getElementById('audit-search-global');
     if (s) s.value = '';
+    
     const a = document.getElementById('audit-filter-action');
-    if (a) a.value = '';
+    if (a) {
+        if (a._customSelectInstance) a._customSelectInstance.setValue('');
+        else a.value = '';
+    }
+    
     const df = document.getElementById('audit-date-from');
     if (df) df.value = '';
     const dt = document.getElementById('audit-date-to');
@@ -735,6 +827,7 @@ export function clearFilters() {
 
     if (_manager) {
         _manager.clearFilters();
+        _manager.setSearch('');
     }
 
     _syncClearBtn();

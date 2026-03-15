@@ -633,7 +633,8 @@
 
 
 
-
+                        <!-- Active Filters Indicator (padrao do sistema) -->
+                        <div id="test-log-active-chips" class="active-filters-bar" style="display: none; margin-bottom: 1rem;"></div>
 
                         <div class="company-table-container">
                             <table class="company-table" id="log-testes-table">
@@ -2225,20 +2226,55 @@
                 <div class="glass-panel" style="padding:0; overflow:hidden;">
                     <div style="padding:1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
                         <h3 style="margin:0; font-size:0.95rem; font-weight:600; color:#e2e8f0;">Membros</h3>
-                        <div class="search-wrapper" style="max-width:280px; flex:1;">
-                            <i class="ph ph-magnifying-glass search-icon"></i>
-                            <input type="text" id="users-search" class="search-input" placeholder="Buscar usuário..." oninput="window._usersSearch(this.value)">
+                        
+                        <div style="display:flex; align-items:center; gap:0.5rem; flex:1; max-width:400px; justify-content: flex-end;">
+                            <button id="btn-clear-users-filters" class="btn-ghost btn-sm" style="display:none;" onclick="window._usersClearFilters()">
+                                <i class="ph ph-x"></i> Limpar
+                            </button>
+                            <div class="search-wrapper" style="width: 280px;">
+                                <i class="ph ph-magnifying-glass search-icon"></i>
+                                <input type="text" id="users-search" class="search-input" placeholder="Buscar usuário..." oninput="window._usersSearch(this.value)">
+                            </div>
                         </div>
                     </div>
+                    
+                    <!-- Active Filters Indicator -->
+                    <div id="users-active-chips" class="active-filters-bar" style="display: none; padding: 0.5rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.06);"></div>
+
                     <div style="overflow-x:auto;">
-                        <table class="company-table" style="width:100%;">
+                        <table class="company-table" id="users-table" style="width:100%;">
                             <thead>
                                 <tr>
                                     <th style="width:40px;"></th>
-                                    <th>Usuário</th>
-                                    <th style="text-align:center;">Tipo</th>
-                                    <th>Empresas com Acesso</th>
-                                    <th style="text-align:center;">Status</th>
+                                    <th class="sortable-header" data-key="nome">
+                                        <div class="header-content">
+                                            <span onclick="window._usersSort('nome')">Usuário</span>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" data-key="user_type" style="text-align:center;">
+                                        <div class="header-content" style="justify-content:center;">
+                                            <span onclick="window._usersSort('user_type')">Tipo</span>
+                                            <button type="button" class="btn-filter-column" onclick="window._usersToggleFilter('user_type', event)" title="Filtrar por Tipo">
+                                                <i class="ph ph-funnel-simple"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" data-key="companies">
+                                        <div class="header-content">
+                                            <span onclick="window._usersSort('companies')">Empresas com Acesso</span>
+                                            <button type="button" class="btn-filter-column" onclick="window._usersToggleFilter('companies', event)" title="Filtrar por Empresa">
+                                                <i class="ph ph-funnel-simple"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="sortable-header" data-key="ativo" style="text-align:center;">
+                                        <div class="header-content" style="justify-content:center;">
+                                            <span onclick="window._usersSort('ativo')">Status</span>
+                                            <button type="button" class="btn-filter-column" onclick="window._usersToggleFilter('ativo', event)" title="Filtrar por Status">
+                                                <i class="ph ph-funnel-simple"></i>
+                                            </button>
+                                        </div>
+                                    </th>
                                     <th style="text-align:center;">Ações</th>
                                 </tr>
                             </thead>
@@ -2251,6 +2287,9 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Pagination container -->
+                    <div id="pagination-users" style="padding:1rem 1.25rem;"></div>
                 </div>
             </div>
             <!-- /view-config-usuarios -->
@@ -2504,19 +2543,15 @@
                                 title="Até:"
                                 onchange="auditLog.handleDateTo(this.value)">
                         </div>
-
-                        <button id="btn-clear-audit-filters" class="btn-ghost btn-sm" style="display:none;"
-                            onclick="auditLog.clearFilters()">
-                            <i class="ph ph-x"></i> Limpar
-                        </button>
                     </div>
 
                     <!-- Info bar — padrão rpt-info-bar (igual a Relatórios) -->
                     <div class="rpt-info-bar">
                         <span id="audit-log-count" class="rpt-count-badge">Carregando...</span>
-                        <div id="audit-log-badges" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-left:1rem;"></div>
-                        <div id="audit-clear-divider" style="display:none;"></div>
                     </div>
+
+                    <!-- Active Filters Indicator (padrao do sistema) -->
+                    <div id="audit-active-chips" class="active-filters-bar" style="display: none; margin-bottom: 1rem;"></div>
 
                     <!-- Tabela no padrão TableManager 2.0 -->
                     <div class="company-table-container">
@@ -3536,12 +3571,14 @@
            newVideo.id = videoEl.id;
            newVideo.width = 300;
            newVideo.height = 169;
-           // src aponta para assets/video_tooltip_key.mp4
+           // Safari on Mac favors standard MP4 for seamless playback 
            const vName = (videoEl.id === 'vttCanvas') ? 'main' : key;
            newVideo.src = 'assets/video_tooltip_' + vName + '.mp4';
            newVideo.loop = true;
            newVideo.muted = true;
+           newVideo.autoplay = true; // Crucial for Safari interpretation
            newVideo.setAttribute('playsinline', '');
+           newVideo.setAttribute('autoplay', '');
            videoEl.parentNode.replaceChild(newVideo, videoEl);
            videoEl = newVideo;
        }

@@ -136,8 +136,9 @@ function renderAderenciaChart(empresas) {
         <div style="width: 100%; max-width: 20px; flex: 1; min-height: 40px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; position: relative; display: flex; align-items: flex-end;">
             <div style="width: 100%; background: ${d.color}; height: ${barHeight}%; border-radius: 3px; transition: height 0.6s ease; opacity: 0.95;"></div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center;">
-          <span style="font-size: 9.5px; font-weight: 700; color: ${colors.textMuted}; text-transform: uppercase;">${d.label}</span>
+        <div style="display: flex; flex-direction: column; align-items: center; margin-top: 2px;">
+          <span style="font-size: 9.5px; font-weight: 800; color: ${colors.textMuted}; text-transform: uppercase;">${d.label}</span>
+          <span style="font-size: 8.5px; font-weight: 600; color: ${colors.textMuted}; opacity: 0.7; letter-spacing: -0.02em; margin-top: 1px;">${d.tooltip}</span>
         </div>
       </div>
     `;
@@ -292,6 +293,7 @@ function attachHealthTooltips(el, dados) {
 function attachAdhTooltips(el, dadosAderencia) {
   const emojiMap = { ruim: '🔴', medio: '🟡', bom: '🟢', excelente: '🟣' };
   const labelMap = { ruim: 'Ruim', medio: 'Médio', bom: 'Bom', excelente: 'Ótimo' };
+  const ruleMap  = { ruim: '< 50%', medio: '51% - 69%', bom: '70% - 80%', excelente: '> 81%' };
   const colorMap = { ruim: colors.danger, medio: colors.warning, bom: colors.success, excelente: '#818cf8' };
 
   el.querySelectorAll('.adh-bar-wrap').forEach(bar => {
@@ -313,7 +315,7 @@ function attachAdhTooltips(el, dadosAderencia) {
     bar.addEventListener('mouseenter', (ev) => {
       showTooltip(ev, {
         emoji: emojiMap[key] || '📊',
-        titulo: labelMap[key],
+        titulo: labelMap[key] + ' (' + ruleMap[key] + ')',
         items,
       });
     });

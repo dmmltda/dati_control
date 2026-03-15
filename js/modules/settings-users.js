@@ -19,16 +19,17 @@
 import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
 import { confirmar } from './confirmar.js';
+import { TableManager } from '../core/table-manager.js';
 
 // ─── Estado interno ────────────────────────────────────────────────────────
 let _usuarios = [];      // cache completo carregado da API
-let _filtrado = [];      // lista atual filtrada
+let _flatUsers = [];     // mapeado para TableManager
+let _manager = null;     // Instância do TableManager
 let _companies = [];     // empresas disponíveis para o modal
 
 // ─── Init (chamado pelo app.js ao navegar para config-usuarios) ────────────
 export async function initSettingsUsers() {
     await Promise.all([_carregarUsuarios(), _carregarEmpresas()]);
-    _renderTabela(_usuarios);
     _atualizarKPIs();
     _wiredButtons();
 }
@@ -42,7 +43,40 @@ async function _carregarUsuarios() {
         });
         if (!res.ok) throw new Error(await res.text());
         _usuarios = await res.json();
-        _filtrado = [..._usuarios];
+        
+        _flatUsers = _usuarios.map(u => ({
+            _raw: u,
+            id: u.id,
+            nome: u.nome,
+            user_type: u.user_type === 'master' ? 'Master' : 'Standard',
+            companies: (u.companies && u.companies.length) 
+                        ? u.companies.map(c => c.nome || c.Nome_da_empresa).join(', ') 
+                        : '(Sem empresas vinculadas)',
+            ativo: u.ativo !== false ? 'Ativo' : 'Inativo',
+            email: u.email
+        }));
+
+        if (!_manager) {
+            _manager = new TableManager({
+                data: _flatUsers,
+                columns: [
+                    { key: 'nome', label: 'Usuário', type: 'string', sortable: true, searchable: true },
+                    { key: 'user_type', label: 'Tipo', type: 'string', sortable: true, filterable: true, filterType: 'select', searchable: true },
+                    { key: 'companies', label: 'Empresas com Acesso', type: 'string', sortable: true, filterable: true, filterType: 'select', searchable: true },
+                    { key: 'ativo', label: 'Status', type: 'string', sortable: true, filterable: true, filterType: 'select', searchable: false }
+                ],
+                pageSize: 25,
+                tableId: null, // Evitar atualização genérica de header
+                renderRows: _renderTabela,
+                renderPagination: _renderPagination,
+                renderFilters: _renderActiveFilters
+            });
+        } else {
+            _manager.setData(_flatUsers);
+        }
+
+        _buildFilterPopovers();
+
     } catch (err) {
         console.error('[SettingsUsers] Erro ao carregar usuários:', err);
         _showError('Erro ao carregar usuários: ' + err.message);
@@ -64,11 +98,11 @@ async function _carregarEmpresas() {
 }
 
 // ─── Render: Tabela de usuários ────────────────────────────────────────────
-function _renderTabela(lista) {
+function _renderTabela(data) {
     const tbody = document.getElementById('users-table-body');
     if (!tbody) return;
 
-    if (!lista || lista.length === 0) {
+    if (!data || data.length === 0) {
         tbody.innerHTML = `
             <tr>
                 <td colspan="6" style="text-align:center; padding:3rem; color:#64748b;">
@@ -79,7 +113,8 @@ function _renderTabela(lista) {
         return;
     }
 
-    tbody.innerHTML = lista.map(u => {
+    tbody.innerHTML = data.map(row => {
+        const u = row._raw;
         const iniciais = u.avatar || (u.nome ? u.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'U');
         const isMaster = u.user_type === 'master';
         const isAtivo = u.ativo !== false;
@@ -93,7 +128,7 @@ function _renderTabela(lista) {
                       <span style="display:inline-block; background:rgba(96,165,250,0.12); color:#60a5fa;
                             border:1px solid rgba(96,165,250,0.25); border-radius:6px;
                             padding:0.15rem 0.5rem; font-size:0.72rem; font-weight:600; margin:0.1rem;">
-                          ${c.nome}
+                          ${c.nome || c.Nome_da_empresa}
                       </span>`).join('')
                   + (u.companies.length > 3 ? `<span style="color:#64748b; font-size:0.72rem;"> +${u.companies.length - 3}</span>` : '')
                 : `<span style="color:#64748b; font-size:0.75rem; font-style:italic;">Sem empresas vinculadas</span>`);
@@ -105,13 +140,13 @@ function _renderTabela(lista) {
                                 background:${isMaster ? 'linear-gradient(135deg,#6d28d9,#4f46e5)' : 'linear-gradient(135deg,#1e3a5f,#0f3460)'};
                                 color:#fff; display:inline-flex; align-items:center;
                                 justify-content:center; font-size:12px; font-weight:700;">
-                        ${iniciais}
+                        ${_escapeHtml(iniciais)}
                     </div>
                 </td>
                 <td>
-                    <div style="font-weight:600; color:#e2e8f0; font-size:0.875rem;">${u.nome}</div>
-                    <div style="color:#64748b; font-size:0.786rem; margin-top:0.286rem;">${u.email}</div>
-                    ${u.department ? `<div style="color:#8b98b4; font-size:0.7rem;">${u.department}</div>` : ''}
+                    <div style="font-weight:600; color:#e2e8f0; font-size:0.875rem;">${_escapeHtml(u.nome)}</div>
+                    <div style="color:#64748b; font-size:0.786rem; margin-top:0.286rem;">${_escapeHtml(u.email)}</div>
+                    ${u.department ? `<div style="color:#8b98b4; font-size:0.7rem;">${_escapeHtml(u.department)}</div>` : ''}
                 </td>
                 <td style="text-align:center;">
                     <span style="display:inline-flex; align-items:center; gap:0.3rem;
@@ -150,20 +185,20 @@ function _renderTabela(lista) {
                         <button class="btn btn-secondary"
                             style="padding:0.3rem 0.6rem; font-size:0.75rem; color:#a78bfa;"
                             title="Gerenciar permissões"
-                            onclick="window._gerenciarPermissoes('${u.id}', '${u.nome.replace(/'/g, "&#39;")}', ${isMaster})">
+                            onclick="window._gerenciarPermissoes('${u.id}', '${_escapeHtml(u.nome).replace(/'/g, "&#39;")}', ${isMaster})">
                             <i class="ph ph-shield-check"></i>
                         </button>
 
                         <button class="btn btn-secondary"
                             style="padding:0.3rem 0.6rem; font-size:0.75rem; color:${isAtivo ? '#ef4444' : '#10b981'};"
                             title="${isAtivo ? 'Desativar usuário' : 'Reativar usuário'}"
-                            onclick="window._alterarStatusUsuario('${u.id}', ${!isAtivo}, '${u.nome}')">
+                            onclick="window._alterarStatusUsuario('${u.id}', ${!isAtivo}, '${_escapeHtml(u.nome)}')">
                             <i class="ph ph-${isAtivo ? 'user-minus' : 'user-plus'}"></i>
                         </button>
                         <button class="btn btn-secondary"
                             style="padding:0.3rem 0.6rem; font-size:0.75rem; color:#ef4444;"
                             title="Deletar usuário permanentemente"
-                            onclick="window._deletarUsuario('${u.id}', '${u.nome.replace(/'/g, "&#39;")}')">
+                            onclick="window._deletarUsuario('${u.id}', '${_escapeHtml(u.nome).replace(/'/g, "&#39;")}')">
                             <i class="ph ph-trash"></i>
                         </button>
                     </div>
@@ -186,19 +221,246 @@ function _atualizarKPIs() {
     if (el('kpi-convites')) el('kpi-convites').textContent = '0';
 }
 
-// ─── Busca (filtro local) ──────────────────────────────────────────────────
-window._usersSearch = function (query) {
-    const q = (query || '').toLowerCase().trim();
-    _filtrado = q
-        ? _usuarios.filter(u =>
-            (u.nome || '').toLowerCase().includes(q) ||
-            (u.email || '').toLowerCase().includes(q) ||
-            (u.user_type || '').toLowerCase().includes(q) ||
-            (u.department || '').toLowerCase().includes(q)
-          )
-        : [..._usuarios];
-    _renderTabela(_filtrado);
+// ─── Componentes de UI Adicionais ──────────────────────────────────────────
+function _renderPagination(state) {
+    const container = document.getElementById('pagination-users');
+    if (!container) return;
+    if (state.totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+    const { currentPage, totalPages, totalRecords } = state;
+    let html = `<div class="pagination">
+        <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="window._usersGoPage(${currentPage - 1})">
+            <i class="ph ph-caret-left"></i>
+        </button>`;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            html += `<button class="pagination-page ${i === currentPage ? 'active' : ''}" onclick="window._usersGoPage(${i})">${i}</button>`;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            html += `<span class="pagination-dots">...</span>`;
+        }
+    }
+    html += `<button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="window._usersGoPage(${currentPage + 1})">
+            <i class="ph ph-caret-right"></i>
+        </button>
+    </div>
+    <div class="pagination-info">Página ${currentPage} de ${totalPages} (${totalRecords} usuários)</div>`;
+    container.innerHTML = html;
+}
+
+function _renderActiveFilters(activeFilters, search) {
+    const bar = document.getElementById('users-active-chips');
+    if (!bar) return;
+
+    const chips = [];
+    if (search) {
+        chips.push(`
+            <span class="filter-chip">
+                <i class="ph ph-magnifying-glass"></i> "${_escapeHtml(search)}"
+                <button class="chip-remove" data-remove-tm-search="1" title="Remover busca">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    (activeFilters || []).forEach(f => {
+        chips.push(`
+            <span class="filter-chip">
+                ${_escapeHtml(f.label)}: <strong>${_escapeHtml(String(f.value))}</strong>
+                <button class="chip-remove" data-remove-tm-filter="${_escapeHtml(f.key)}" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    });
+
+    if (chips.length > 0) {
+        bar.innerHTML = chips.join('');
+        bar.style.display = 'flex';
+    } else {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+    }
+
+    bar.querySelectorAll('[data-remove-tm-search]').forEach(btn => {
+        btn.addEventListener('click', () => {
+             const el = document.getElementById('users-search');
+             if(el) el.value = '';
+             if (_manager) _manager.setSearch(''); 
+        });
+    });
+
+    bar.querySelectorAll('[data-remove-tm-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (_manager) {
+                _manager.setFilter(btn.dataset.removeTmFilter, null);
+                const th = document.querySelector(`#users-table th[data-key="${btn.dataset.removeTmFilter}"]`);
+                if (th) {
+                    const btnF = th.querySelector('.btn-filter-column');
+                    if (btnF) btnF.classList.remove('active');
+                }
+            }
+        });
+    });
+}
+
+function _buildFilterPopovers() {
+    if (!_manager) return;
+    const tipos    = _manager.getUniqueValues('user_type');
+    const empresas = _manager.getUniqueValues('companies');
+    const statuss  = _manager.getUniqueValues('ativo');
+
+    _buildSelectPopover('filter-popover-users-user_type', tipos, 'user_type');
+    _buildSelectPopover('filter-popover-users-companies', empresas, 'companies');
+    _buildSelectPopover('filter-popover-users-ativo', statuss, 'ativo');
+}
+
+function _buildSelectPopover(id, values, filterKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const current    = _manager?.filters[filterKey] || '';
+    const currentDir = _manager?.sort.key === filterKey ? _manager.sort.dir : 'none';
+
+    el.innerHTML = `
+        <div class="filter-group">
+            <span class="filter-label">Ordenar</span>
+            <div class="sort-buttons">
+                <button class="btn-sort ${currentDir === 'asc' ? 'active' : ''}" onclick="window._usersSortEx('${filterKey}', 'asc', event)">
+                    <i class="ph ph-sort-ascending"></i> A→Z
+                </button>
+                <button class="btn-sort ${currentDir === 'desc' ? 'active' : ''}" onclick="window._usersSortEx('${filterKey}', 'desc', event)">
+                    <i class="ph ph-sort-descending"></i> Z→A
+                </button>
+            </div>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Filtrar Valores</span>
+            <div class="filter-list">
+                <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._usersFilter('${filterKey}', '', event)">
+                    (Tudo)
+                </div>
+                ${values.filter(v=>v).map(v => `
+                    <div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._usersFilter('${filterKey}', '${v}', event)">
+                        ${v}
+                    </div>`).join('')}
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn-clear-filter" onclick="window._usersFilter('${filterKey}', '', event)">
+                <i class="ph ph-trash"></i> Limpar Filtro
+            </button>
+        </div>`;
+}
+
+// ─── API HTML Event Handlers ───────────────────────────────────────────────
+window._usersGoPage = function(page) {
+    if (_manager) _manager.goToPage(page);
 };
+
+window._usersSearch = function(query) {
+    if (!_manager) return;
+    _manager.setSearch(query);
+    const clearBtn = document.getElementById('btn-clear-users-filters');
+    if (clearBtn) clearBtn.style.display = (_manager.getActiveFilters().length > 0 || _manager._search) ? 'inline-flex' : 'none';
+};
+
+window._usersSort = function(key) {
+    if (!_manager) return;
+    _manager.setSort(key);
+    _buildFilterPopovers(); // Atualiza indicação de ordenação no popover
+};
+
+window._usersSortEx = function(key, dir, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+    _manager.setSortExplicit(key, dir);
+    _buildFilterPopovers();
+    document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+};
+
+window._usersFilter = function(key, value, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+    _manager.setFilter(key, value || null);
+    _buildFilterPopovers();
+    
+    // Atualiza o CSS do botão do header
+    const th = document.querySelector(`#users-table th[data-key="${key}"]`);
+    if (th) {
+        const btn = th.querySelector('.btn-filter-column');
+        if (btn) btn.classList.toggle('active', !!value);
+    }
+
+    const clearBtn = document.getElementById('btn-clear-users-filters');
+    if (clearBtn) clearBtn.style.display = (_manager.getActiveFilters().length > 0 || _manager._search) ? 'inline-flex' : 'none';
+    
+    document.querySelectorAll('.filter-popover.show').forEach(p => p.classList.remove('show'));
+};
+
+window._usersClearFilters = function() {
+    if (!_manager) return;
+    _manager.clearFilters();
+    _manager.setSearch('');
+    const input = document.getElementById('users-search');
+    if (input) input.value = '';
+    
+    document.querySelectorAll('#users-table .btn-filter-column').forEach(btn => btn.classList.remove('active'));
+    
+    const clearBtn = document.getElementById('btn-clear-users-filters');
+    if (clearBtn) clearBtn.style.display = 'none';
+};
+
+window._usersToggleFilter = function(filterKey, event) {
+    if (event) event.stopPropagation();
+    if (!_manager) return;
+
+    const popoverId = `filter-popover-users-${filterKey}`;
+    let popover = document.getElementById(popoverId);
+
+    if (!popover) {
+        const th = document.querySelector(`#users-table th[data-key="${filterKey}"]`);
+        if (!th) return;
+        popover = document.createElement('div');
+        popover.id = popoverId;
+        popover.className = 'filter-popover';
+        th.appendChild(popover);
+    }
+
+    document.querySelectorAll('.filter-popover').forEach(p => {
+        if (p !== popover) p.classList.remove('show');
+    });
+
+    const isOpen = popover.classList.contains('show');
+    if (isOpen) {
+        popover.classList.remove('show');
+    } else {
+        _buildFilterPopovers();
+        popover.classList.add('show');
+        popover.classList.remove('align-right');
+        popover.style.bottom = 'auto';
+        popover.style.top = '100%';
+
+        const rect = popover.getBoundingClientRect();
+        if (rect.right > window.innerWidth - 20) popover.classList.add('align-right');
+        if (rect.bottom > window.innerHeight - 20) {
+            popover.style.top = 'auto';
+            popover.style.bottom = '100%';
+        }
+    }
+};
+
+// Hide popovers when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.filter-popover') && !e.target.closest('.btn-filter-column')) {
+        document.querySelectorAll('.filter-popover.show').forEach(p => p.classList.remove('show'));
+    }
+}, { capture: false });
+
+function _escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // ─── Ações: Alterar tipo ───────────────────────────────────────────────────
 window._alterarTipoUsuario = function (userId, novoTipo, nome) {
@@ -218,7 +480,6 @@ window._alterarTipoUsuario = function (userId, novoTipo, nome) {
 
             showToast(`${nome} agora é ${novoTipo === 'master' ? 'Master' : 'Standard'}.`, 'success');
             await _carregarUsuarios();
-            _renderTabela(_filtrado);
             _atualizarKPIs();
         } catch (err) {
             showToast('Erro: ' + err.message, 'error');
@@ -242,7 +503,6 @@ window._alterarStatusUsuario = function (userId, novoAtivo, nome) {
 
             showToast(`${nome} ${novoAtivo ? 'reativado' : 'desativado'}.`, 'success');
             await _carregarUsuarios();
-            _renderTabela(_filtrado);
             _atualizarKPIs();
         } catch (err) {
             showToast('Erro: ' + err.message, 'error');

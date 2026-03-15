@@ -542,6 +542,7 @@ export async function refreshLogTestes() {
                 tableId:    null, // sem auto-update de headers (fazemos manual)
                 renderRows: _renderRows,
                 renderPagination: _renderPagination,
+                renderFilters: _renderActiveFilters,
             });
         } else {
             _manager.setData(_allCases);
@@ -598,12 +599,77 @@ export function handleLogSearch(query) {
     _manager.setSearch(query);
 }
 
-/**
- * Ordenação de coluna — chamada pelos headers.
- */
 export function handleLogSort(key) {
     if (!_manager) return;
     _manager.setSort(key);
+}
+
+/**
+ * Filtros ativos (barrinha de chips)
+ */
+function _renderActiveFilters(activeFilters, search) {
+    const bar = document.getElementById('test-log-active-chips');
+    if (!bar) return;
+
+    const chips = [];
+
+    if (search) {
+        chips.push(`
+            <span class="filter-chip">
+                <i class="ph ph-magnifying-glass"></i> "${_escapeHtml(search)}"
+                <button class="chip-remove" data-remove-tm-search="1" title="Remover busca">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    (activeFilters || []).forEach(f => {
+        let displayValue = String(f.value);
+        if (typeof f.value === 'object' && f.value !== null) {
+            if (f.value.min !== undefined && f.value.max !== undefined) {
+                 if (f.value.min === null) displayValue = `< ${f.value.max/1000}s`;
+                 else if (f.value.max === null) displayValue = `> ${f.value.min/1000}s`;
+                 else displayValue = `${f.value.min/1000}s – ${f.value.max/1000}s`;
+            }
+        }
+        
+        chips.push(`
+            <span class="filter-chip">
+                ${_escapeHtml(f.label)}: <strong>${_escapeHtml(displayValue)}</strong>
+                <button class="chip-remove" data-remove-tm-filter="${_escapeHtml(f.key)}" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    });
+
+    if (chips.length > 0) {
+        bar.innerHTML = chips.join('');
+        bar.style.display = 'flex';
+    } else {
+        bar.innerHTML = '';
+        bar.style.display = 'none';
+    }
+
+    bar.querySelectorAll('[data-remove-tm-search]').forEach(btn => {
+        btn.addEventListener('click', () => {
+             const el = document.getElementById('log-search-global');
+             if(el) el.value = '';
+             if (_manager) _manager.setSearch(''); 
+        });
+    });
+
+    bar.querySelectorAll('[data-remove-tm-filter]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (_manager) {
+                _manager.setFilter(btn.dataset.removeTmFilter, null);
+                const th = document.querySelector(`#log-testes-table th[data-key="${btn.dataset.removeTmFilter}"]`);
+                if (th) {
+                    const btnF = th.querySelector('.btn-filter-column');
+                    if (btnF) btnF.classList.remove('active');
+                }
+            }
+        });
+    });
 }
 
 /**
@@ -612,12 +678,15 @@ export function handleLogSort(key) {
 export function clearLogFilters() {
     if (!_manager) return;
     _manager.clearFilters();
+    _manager.setSearch('');
 
     const searchInput = document.getElementById('log-search-global');
     if (searchInput) searchInput.value = '';
 
     const clearBtn = document.getElementById('btn-clear-log-filters');
     if (clearBtn) clearBtn.style.display = 'none';
+    
+    document.querySelectorAll('#log-testes-table .btn-filter-column').forEach(btn => btn.classList.remove('active'));
 }
 
 // ─── Expõe globais para uso no HTML inline (onclick="...") ------------------
