@@ -221,32 +221,6 @@ app.post('/fix-memberships', async (req, res) => {
     }
 });
 
-// Endpoint temporário de reset do banco de empresas — REMOVER APÓS USO
-// POST /reset-companies com body { key: "dati-fix-2024" }
-app.post('/reset-companies', async (req, res) => {
-    const { key } = req.body;
-    if (key !== (process.env.ADMIN_FIX_KEY || 'dati-fix-2024')) {
-        return res.status(403).json({ error: 'Key inválida' });
-    }
-    const results = {};
-    try { const r = await prisma.activity_time_entries.deleteMany({}); results.time_entries = r.count; } catch(e) { results.time_entries_err = e.message; }
-    try { const r = await prisma.activity_next_step_responsibles.deleteMany({}); results.next_step_resp = r.count; } catch(e) { results.next_step_resp_err = e.message; }
-    try { const r = await prisma.activity_assignees.deleteMany({}); results.assignees = r.count; } catch(e) { results.assignees_err = e.message; }
-    try { const r = await prisma.notifications.deleteMany({}); results.notifications = r.count; } catch(e) { results.notifications_err = e.message; }
-    try { const r = await prisma.activities.deleteMany({}); results.activities = r.count; } catch(e) { results.activities_err = e.message; }
-    try { const r = await prisma.company_products.deleteMany({}); results.company_products = r.count; } catch(e) { results.company_products_err = e.message; }
-    try { const r = await prisma.contacts.deleteMany({}); results.contacts = r.count; } catch(e) { results.contacts_err = e.message; }
-    try { const r = await prisma.company_meetings.deleteMany({}); results.meetings = r.count; } catch(e) { results.meetings_err = e.message; }
-    try { const r = await prisma.company_dashboards.deleteMany({}); results.dashboards = r.count; } catch(e) { results.dashboards_err = e.message; }
-    try { const r = await prisma.company_nps.deleteMany({}); results.nps = r.count; } catch(e) { results.nps_err = e.message; }
-    try { const r = await prisma.company_tickets.deleteMany({}); results.tickets = r.count; } catch(e) { results.tickets_err = e.message; }
-    try { const r = await prisma.company_notes.deleteMany({}); results.notes = r.count; } catch(e) { results.notes_err = e.message; }
-    try { const r = await prisma.company_followups.deleteMany({}); results.followups = r.count; } catch(e) { results.followups_err = e.message; }
-    try { const r = await prisma.user_memberships.deleteMany({}); results.memberships = r.count; } catch(e) { results.memberships_err = e.message; }
-    try { const r = await prisma.companies.deleteMany({}); results.companies = r.count; } catch(e) { results.companies_err = e.message; }
-    console.warn('[RESET] ⚠️ Banco de empresas limpo!', results);
-    return res.json({ ok: true, deleted: results });
-});
 
 // Endpoint de seed de atividades (protegido por chave)
 // POST /seed-activities com body { key: "dati-fix-2024", user_id: "clerk_user_id" }
