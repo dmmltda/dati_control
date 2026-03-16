@@ -573,7 +573,18 @@ export const deployMonitor = {
                                     <tr>
                                         <th class="sortable-header" data-key="date" style="width:135px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('date')">Quando</span>
+                                                <span onclick="window._deploySort('date')">Quando<span id="vcw-dep-date" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-date" class="vtt-tooltip" style="width:280px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-date" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Métrica de Tempo</div>
+                                                                <div class="vtt-title">Quando</div>
+                                                                <div class="vtt-desc">Data e hora exata em que o deploy foi finalizado no ambiente de produção do Railway.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('date', event)">
                                                     <i class="ph ph-funnel"></i>
                                                 </button>
@@ -582,7 +593,18 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="author" style="width:145px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('author')">Quem</span>
+                                                <span onclick="window._deploySort('author')">Quem<span id="vcw-dep-author" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-author" class="vtt-tooltip" style="width:280px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-author" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Autoria</div>
+                                                                <div class="vtt-title">Quem</div>
+                                                                <div class="vtt-desc">Quem aprovou ou disparou o deploy. 'Railway' indica deploys automáticos da esteira.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('author', event)">
                                                     <i class="ph ph-funnel"></i>
                                                 </button>
@@ -591,7 +613,18 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="area" style="width:140px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('area')">Área</span>
+                                                <span onclick="window._deploySort('area')">Área<span id="vcw-dep-area" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-area" class="vtt-tooltip" style="width:280px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-area" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Módulo Afetado</div>
+                                                                <div class="vtt-title">Área</div>
+                                                                <div class="vtt-desc">Módulo ou seção do sistema afetada por este deploy, categorizada automaticamente pela IA.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('area', event)">
                                                     <i class="ph ph-funnel"></i>
                                                 </button>
@@ -599,19 +632,67 @@ export const deployMonitor = {
                                             <div id="filter-popover-deploy_area" class="filter-popover"></div>
                                         </th>
                                         <th data-key="de" style="width:130px;">
-                                            <div class="header-content"><span>De</span></div>
+                                            <div class="header-content">
+                                                <span>De<span id="vcw-dep-de" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-de" class="vtt-tooltip" style="width:280px;right:-140px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="left:50%; margin-left:-4px;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-de" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Motivação</div>
+                                                                <div class="vtt-title">Estado Anterior</div>
+                                                                <div class="vtt-desc">Estado ou versão anterior antes da modificação. O problema ou gargalo que motivou o deploy.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
+                                            </div>
                                         </th>
                                         <th data-key="para">
-                                            <div class="header-content"><span>Para</span></div>
+                                            <div class="header-content">
+                                                <span>Para<span id="vcw-dep-para" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-para" class="vtt-tooltip" style="width:280px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-para" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Resultado</div>
+                                                                <div class="vtt-title">O que foi feito</div>
+                                                                <div class="vtt-desc">O que esta versão alterou ou entregou. Clique no botão de atalho para navegar diretamente para a área afetada no sistema.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
+                                            </div>
                                         </th>
                                         <th class="sortable-header" data-key="hash" style="width:85px;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('hash')">Versão</span>
+                                                <span onclick="window._deploySort('hash')">Versão<span id="vcw-dep-hash" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-hash" class="vtt-tooltip" style="width:280px;right:-15px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-hash" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Identificação Única</div>
+                                                                <div class="vtt-title">Código SHA</div>
+                                                                <div class="vtt-desc">Identificador curto e único do bloqueio de código (commit) inserido no repositório oficial.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
                                             </div>
                                         </th>
                                         <th class="sortable-header" data-key="status" style="width:110px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('status')">Status</span>
+                                                <span onclick="window._deploySort('status')">Status<span id="vcw-dep-status" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                        <div id="vct-dep-status" class="vtt-tooltip" style="width:280px;right:-15px;">
+                                                            <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
+                                                            <div class="vtt-video-container"><canvas id="vcc-dep-status" class="vtt-canvas"></canvas></div>
+                                                            <div class="vtt-body">
+                                                                <div class="vtt-label">Sincronização API</div>
+                                                                <div class="vtt-title">Progresso na Esteira</div>
+                                                                <div class="vtt-desc">Status real do deploy no Railway. "Construindo" ou "Publicando" significa que o código ainda não está visível para os usuários finais.</div>
+                                                            </div>
+                                                        </div>
+                                                    </span>
+                                                </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('status', event)">
                                                     <i class="ph ph-funnel"></i>
                                                 </button>
@@ -628,6 +709,168 @@ export const deployMonitor = {
                     </div>
                 </div>
             `;
+
+            // Inicializar e configurar os canvases VTT do Deploy Tracker
+            setTimeout(() => {
+                const W = 300, H = Math.floor(300 * 9 / 16);
+                function init(canvas) { canvas.width=W; canvas.height=H; return canvas.getContext('2d'); }
+                function ease(t){ return t<0.5 ? 2*t*t : -1+(4-2*t)*t; }
+                function prog(f, start, dur) { return Math.max(0, Math.min(1, (f - start)/dur)); }
+
+                const anims = {
+                    'dep-date': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        ctx.strokeStyle='#334155'; ctx.lineWidth=6; ctx.beginPath(); ctx.arc(0,0, 40, 0, Math.PI*2); ctx.stroke();
+                        
+                        const rot = ease(prog(f, 20, 160)) * Math.PI*2;
+                        ctx.rotate(rot);
+                        ctx.strokeStyle='#6366f1'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,-25); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(15,15); ctx.stroke();
+                        ctx.restore();
+                    },
+                    'dep-author': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        const y = Math.sin(prog(f,0,120)*Math.PI*2)*10;
+                        ctx.fillStyle='#6366f1';
+                        ctx.beginPath(); ctx.arc(0,-10+y, 15, 0, Math.PI*2); ctx.fill();
+                        ctx.beginPath(); ctx.arc(0,25+y, 25, Math.PI, Math.PI*2); ctx.fill();
+                        
+                        // Badge verde (Railway autômato)
+                        if (f > 80 && f < 180) {
+                            const sc = Math.sin(prog(f,80,20)*Math.PI)*1.2;
+                            ctx.fillStyle='#10b981';
+                            ctx.beginPath(); ctx.arc(15,-10+y, 6*sc, 0, Math.PI*2); ctx.fill();
+                        }
+                        ctx.restore();
+                    },
+                    'dep-area': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        for(let i=0; i<3; i++) {
+                            const sc = 1 + Math.sin((f + i*40)*0.05)*0.1;
+                            ctx.fillStyle= i===0 ? '#6366f1' : i===1 ? '#10b981' : '#f59e0b';
+                            ctx.globalAlpha = 0.8;
+                            ctx.beginPath(); ctx.roundRect(-40 + i*25, -20 + (i%2)*15, 30*sc, 30*sc, 6); ctx.fill();
+                        }
+                        ctx.restore();
+                    },
+                    'dep-de': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        // Icone de bug/falha piscante
+                        const opacity = 0.3 + Math.sin(f*0.1)*0.7;
+                        ctx.globalAlpha = opacity;
+                        ctx.fillStyle='#ef4444';
+                        ctx.beginPath(); ctx.arc(0,0, 20, 0, Math.PI*2); ctx.fill();
+                        ctx.fillStyle='#fff'; ctx.font='bold 24px sans-serif'; ctx.textAlign='center'; ctx.fillText('!', 0, 8);
+                        
+                        ctx.restore();
+                    },
+                    'dep-para': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        // Código subindo com check
+                        const y = -10 + ((f%100)/100)*20;
+                        ctx.fillStyle='rgba(255,255,255,0.1)';
+                        ctx.fillRect(-30, y, 60, 4);
+                        ctx.fillRect(-30, y+10, 40, 4);
+                        
+                        if(f > 60 && f < 160) {
+                            ctx.globalAlpha = Math.sin(prog(f,60,20)*Math.PI);
+                            ctx.fillStyle='#10b981';
+                            ctx.beginPath(); ctx.arc(0,0, 25, 0, Math.PI*2); ctx.fill();
+                            ctx.fillStyle='#fff';
+                            ctx.beginPath(); ctx.moveTo(-8,2); ctx.lineTo(-2,8); ctx.lineTo(10,-4);
+                            ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.stroke();
+                        }
+                        ctx.restore();
+                    },
+                    'dep-hash': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        ctx.font='16px monospace'; ctx.textAlign='center';
+                        ctx.fillStyle='#6366f1';
+                        
+                        const chars = '0123456789abcdef';
+                        let str = '';
+                        for(let i=0; i<7; i++) {
+                            // "typing" effect
+                            if (f > i*10) {
+                                // finalizou o char
+                                str += (i===0?'a':i===1?'4':i===2?'d':i===3?'2':i===4?'b':i===5?'7':i===6?'c': chars[Math.floor(Math.random()*16)]);
+                            } else if (f > (i-1)*10) {
+                                // rodando char
+                                str += chars[Math.floor(Math.random()*16)];
+                            }
+                        }
+                        ctx.fillText(str || '...', 0, 5);
+                        ctx.restore();
+                    },
+                    'dep-status': function(ctx,f) {
+                        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+                        ctx.save(); ctx.translate(W/2, H/2);
+                        
+                        // Progress bar do railway
+                        ctx.fillStyle='rgba(255,255,255,0.1)';
+                        ctx.beginPath(); ctx.roundRect(-50,-5, 100, 10, 5); ctx.fill();
+                        
+                        const w = prog(f,20,140) * 100;
+                        ctx.fillStyle='#6366f1';
+                        if (w > 0) {
+                            ctx.beginPath(); ctx.roundRect(-50,-5, w, 10, 5); ctx.fill();
+                        }
+                        
+                        // Sparkle ao completar
+                        if (f > 160) {
+                            const sc = Math.sin(prog(f,160,20)*Math.PI);
+                            ctx.fillStyle='rgba(99,102,241,0.5)';
+                            ctx.beginPath(); ctx.arc(50,0, 15*sc, 0, Math.PI*2); ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+                };
+
+                function setupVtt(id, durationFrames) {
+                    const wrap = document.getElementById(`vcw-${id}`);
+                    const tooltip = document.getElementById(`vct-${id}`);
+                    const canvas = document.getElementById(`vcc-${id}`);
+                    if(!wrap || !tooltip || !canvas) return;
+
+                    const ctx = init(canvas);
+                    let animId=null, frame=0, visible=false;
+                    
+                    function draw(){ anims[id](ctx,frame); }
+                    function tick(){ draw(); frame=(frame+1)%durationFrames; animId=requestAnimationFrame(tick); }
+                    
+                    wrap.addEventListener('mouseenter', () => {
+                        if(visible) return; visible=true;
+                        document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
+                        tooltip.classList.add('vtt-visible'); frame=0; if(animId)cancelAnimationFrame(animId); animId=requestAnimationFrame(tick);
+                        window._vttPulse?.seen(id);
+                    });
+                    wrap.addEventListener('mouseleave', (e) => {
+                        if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); if(animId)cancelAnimationFrame(animId); animId=null; frame=0; draw(); }
+                    });
+                    draw();
+                    window._vttPulse?.add(wrap, id);
+                }
+
+                setupVtt('dep-date', 200);
+                setupVtt('dep-author', 240);
+                setupVtt('dep-area', 200);
+                setupVtt('dep-de', 160);
+                setupVtt('dep-para', 220);
+                setupVtt('dep-hash', 180);
+                setupVtt('dep-status', 220);
+
+            }, 50);
         }
     }
 };

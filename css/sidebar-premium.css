@@ -1,0 +1,217 @@
+/* ── Sidebar Premium ── */
+:root {
+  --sb-bg:         #0d1017;
+  --sb-bg2:        #13181f;
+  --sb-bg3:        #1a2030;
+  --sb-accent:     #5b73f8;
+  --sb-accent-dim: rgba(91, 115, 248, 0.13);
+  --sb-accent-hov: rgba(91, 115, 248, 0.07);
+  --sb-text:       #dde2ee;
+  --sb-text2:      #7a849e;
+  --sb-text3:      #363d52;
+  --sb-border:     rgba(255, 255, 255, 0.055);
+  --sb-radius:     10px;
+  --sb-ease:       cubic-bezier(.4, 0, .2, 1);
+  --sb-dur:        .24s;
+}
+
+aside.sidebar {
+  /* Override the old layout.css */
+  width: 240px; /* Adjusting exactly to the requested 232px but allowing 240 for spacing */
+  background: var(--sb-bg2);
+  border-right: 1px solid var(--sb-border);
+  padding: 20px 16px; 
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, padding 0.3s ease;
+  height: 100vh;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+  overflow: visible; /* to allow toggle button to overflow */
+}
+
+/* Collapse behavior override for new DOM */
+aside.sidebar.collapsed {
+  width: 82px;
+  padding: 20px 10px;
+}
+aside.sidebar.collapsed .sidebar__logo-text,
+aside.sidebar.collapsed .sidebar__actions,
+aside.sidebar.collapsed .nav-solo__label,
+aside.sidebar.collapsed .nav-group__label,
+aside.sidebar.collapsed .nav-group__chevron,
+aside.sidebar.collapsed .nav-child {
+  display: none !important;
+}
+aside.sidebar.collapsed .nav-solo,
+aside.sidebar.collapsed .nav-group__header {
+  justify-content: center;
+  padding: 12px 0;
+}
+aside.sidebar.collapsed .sidebar__header {
+  justify-content: center;
+  padding: 14px 0;
+}
+aside.sidebar.collapsed .nav-group__children {
+  /* keep it fully hidden or show icons only? Let's hide completely for collapsed unless we need submenus */
+  display: none !important;
+}
+aside.sidebar.collapsed .nav-group__dot {
+    margin: 0;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+
+/* ── Header ── */
+.sidebar__header {
+  padding: 0 0 20px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--sb-border);
+  margin-bottom: 12px;
+}
+.sidebar__logo { display: flex; align-items: center; gap: 10px; }
+.sidebar__logo-icon {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+  background: linear-gradient(135deg, #5b73f8, #8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  box-shadow: 0 2px 8px rgba(91,115,248,.3);
+}
+.sidebar__logo-text { font-size: 16px; font-weight: 600; color: var(--sb-text); letter-spacing: -.01em; }
+.sidebar__actions { display: flex; align-items: center; gap: 4px; }
+.sidebar__icon-btn {
+  width: 30px; height: 30px; border-radius: 8px; background: transparent;
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--sb-text2); transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+  position: relative;
+}
+.sidebar__icon-btn:hover { background: var(--sb-bg3); color: var(--sb-text); }
+.sidebar__badge {
+  position: absolute; top: 4px; right: 4px; width: 14px; height: 14px;
+  border-radius: 50%; background: #e84040; color: #fff;
+  font-size: 8px; font-weight: 700; display: flex; align-items: center;
+  justify-content: center; border: 2px solid var(--sb-bg2);
+}
+.sidebar__avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, #2dd4a0, #0b9e6a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 600; color: #fff; cursor: pointer;
+}
+
+/* ── Nav ── */
+.sidebar__nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding-bottom: 40px; }
+/* Hide scrollbar */
+.sidebar__nav::-webkit-scrollbar { width: 0; }
+
+.nav-solo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--sb-radius);
+  cursor: pointer; color: var(--sb-text2);
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+  position: relative; margin-bottom: 2px;
+}
+.nav-solo:hover { background: var(--sb-accent-hov); color: var(--sb-text); }
+.nav-solo.active, .nav-solo.is-active { background: var(--sb-accent-dim); color: var(--sb-accent); }
+.nav-solo.active::before, .nav-solo.is-active::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 2.5px; height: 52%; background: var(--sb-accent); border-radius: 0 3px 3px 0;
+}
+.nav-solo__icon { width: 16px; height: 16px; stroke-width: 1.65; flex-shrink: 0; }
+.nav-solo__label { font-size: 13.5px; font-weight: 500; }
+
+/* Group */
+.nav-group { margin-top: 2px; border-radius: var(--sb-radius); overflow: hidden; }
+
+.nav-group__header {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; border-radius: var(--sb-radius);
+  cursor: pointer; user-select: none; color: var(--sb-text2);
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease);
+  position: relative;
+}
+.nav-group__header:hover { background: var(--sb-accent-hov); color: var(--sb-text); }
+.nav-group__header.is-active { background: var(--sb-accent-dim); color: var(--sb-accent); }
+.nav-group__header.is-active::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 2.5px; height: 52%; background: var(--sb-accent); border-radius: 0 3px 3px 0;
+}
+.nav-group__header.is-active .nav-group__icon,
+.nav-group__header.is-active .nav-group__label,
+.nav-group__header.is-active .nav-group__chevron { color: var(--sb-accent); }
+
+.nav-group__icon {
+  width: 14px; height: 14px; stroke-width: 1.8; flex-shrink: 0;
+  color: var(--sb-text3); transition: color var(--sb-dur) var(--sb-ease);
+}
+.nav-group__header:hover .nav-group__icon { color: var(--sb-text); }
+
+.nav-group__label {
+  flex: 1; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .075em; text-transform: uppercase;
+  color: var(--sb-text3); transition: color var(--sb-dur) var(--sb-ease);
+}
+.nav-group__header:hover .nav-group__label { color: var(--sb-text); }
+
+.nav-group__dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--sb-accent); flex-shrink: 0;
+  opacity: 0; transition: opacity var(--sb-dur) var(--sb-ease); margin-right: 1px;
+}
+
+.nav-group__chevron {
+  width: 16px; height: 16px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sb-text3);
+  transition: transform var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease), opacity var(--sb-dur) var(--sb-ease);
+}
+.nav-group__chevron svg { width: 12px; height: 12px; stroke-width: 2.4; }
+.nav-group__header:hover .nav-group__chevron { color: var(--sb-text); }
+.nav-group__chevron.is-open { transform: rotate(180deg); }
+
+.nav-group.has-active-child:not(.is-open) .nav-group__dot     { opacity: 1; }
+.nav-group.has-active-child:not(.is-open) .nav-group__chevron  { opacity: 0; }
+
+/* Children */
+.nav-group__children {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height .26s var(--sb-ease), opacity .2s ease;
+  opacity: 0;
+  padding: 0 6px 0 10px;
+  position: relative;
+  background: rgba(255,255,255,0.015);
+  border-radius: 0 0 var(--sb-radius) var(--sb-radius);
+}
+.nav-group__children.is-open {
+  opacity: 1;
+  padding-bottom: 5px;
+}
+.nav-group__children::before {
+  content: ''; position: absolute;
+  left: 18px; top: 0; bottom: 12px;
+  width: 1px; background: rgba(255,255,255,0.07); border-radius: 1px;
+}
+
+/* Child */
+.nav-child {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px 7px 16px;
+  border-radius: calc(var(--sb-radius) - 1px);
+  cursor: pointer; color: var(--sb-text2); font-size: 13px;
+  transition: background var(--sb-dur) var(--sb-ease), color var(--sb-dur) var(--sb-ease), transform .15s var(--sb-ease);
+  position: relative; margin-bottom: 1px;
+  /* Reset app.js margins */
+  margin-left: 0;
+  margin-right: 0;
+}
+.nav-child:hover { background: var(--sb-accent-hov); color: var(--sb-text); transform: translateX(1px); }
+.nav-child.active, .nav-child.is-active { background: var(--sb-accent-dim); color: var(--sb-accent); }
+.nav-child.active::before, .nav-child.is-active::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 2px; height: 52%; background: var(--sb-accent); border-radius: 0 2px 2px 0;
+}
+.nav-child__icon { width: 14px; height: 14px; stroke-width: 1.7; flex-shrink: 0; }
+

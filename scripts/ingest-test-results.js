@@ -42,9 +42,15 @@ function parseVitest(raw) {
     let totalDuration = 0;
 
     for (const file of testFiles) {
-        const fileName = file.name?.split('/').pop() || file.filepath?.split('/').pop() || 'unknown.test.js';
+        // Caminho completo do arquivo de teste (relativo ao projeto)
+        const fullFilePath = file.name || file.filepath || 'unknown.test.js';
+        const fileName = fullFilePath.split('/').pop();
         // Extrai módulo a partir do nome do arquivo (ex: "auth.test.js" -> "auth.js")
         const moduleName = fileName.replace(/\.test\.js$/, '.js');
+        // Caminho relativo para exibição na UI (a partir de js/tests ou da raiz)
+        const relPath = fullFilePath.includes('/js/') 
+            ? fullFilePath.substring(fullFilePath.indexOf('/js/')+ 1)
+            : fileName;
 
         const suites = file.assertionResults || file.tests || [];
         for (const t of suites) {
@@ -55,15 +61,22 @@ function parseVitest(raw) {
             const durationMs = t.duration || 0;
             totalDuration += durationMs;
 
+            // Captura localização exata da falha (já presente no JSON do Vitest)
+            const loc = t.location || null;
+
             cases.push({
-                suite_file:    fileName,
-                module:        moduleName,
-                test_name:     t.fullName || t.name || t.title || '(sem nome)',
-                suite_type:    'UNITÁRIO',
-                status:        skipped ? 'SKIPADO' : (passed ? 'PASSOU' : 'FALHOU'),
-                duration_ms:   Math.round(durationMs),
-                error_message: failed ? (t.failureMessages?.[0] || t.message || 'Falha desconhecida') : null,
-                error_stack:   failed ? (t.failureMessages?.join('\n') || null) : null,
+                suite_file:     fileName,
+                module:         moduleName,
+                test_name:      t.fullName || t.name || t.title || '(sem nome)',
+                suite_type:     'UNITÁRIO',
+                status:         skipped ? 'SKIPADO' : (passed ? 'PASSOU' : 'FALHOU'),
+                duration_ms:    Math.round(durationMs),
+                error_message:  failed ? (t.failureMessages?.[0] || t.message || 'Falha desconhecida') : null,
+                error_stack:    failed ? (t.failureMessages?.join('\n') || null) : null,
+                // Novos campos de localização
+                location_file:  failed && loc ? relPath : null,
+                location_line:  failed && loc ? (loc.line || null) : null,
+                location_col:   failed && loc ? (loc.column || null) : null,
             });
         }
     }
@@ -81,14 +94,20 @@ function parsePlaywright(raw) {
     function extractFromSuite(suite, parentFile) {
         const file = suite.file || parentFile || 'unknown.spec.js';
         const moduleName = file.split('/').pop().replace(/\.spec\.js$/, '.js');
+        const relFile = file.includes('/js/') ? file.substring(file.indexOf('/js/') + 1) : file.split('/').pop();
 
         for (const spec of suite.specs || []) {
             for (const test of spec.tests || []) {
                 const result = test.results?.[0] || {};
                 const passed  = result.status === 'passed';
                 const skipped = result.status === 'skipped';
+                const failed  = !passed && !skipped;
                 const durationMs = result.duration || 0;
                 totalDuration += durationMs;
+
+                // Localização via annotations ou erro
+                const errLine = result.error?.location?.line || null;
+                const errCol  = result.error?.location?.column || null;
 
                 cases.push({
                     suite_file:     file.split('/').pop(),
@@ -97,10 +116,14 @@ function parsePlaywright(raw) {
                     suite_type:     'E2E',
                     status:         skipped ? 'SKIPADO' : (passed ? 'PASSOU' : 'FALHOU'),
                     duration_ms:    Math.round(durationMs),
-                    error_message:  !passed && !skipped ? (result.error?.message || 'E2E falhou') : null,
-                    error_stack:    !passed && !skipped ? (result.error?.stack || null) : null,
+                    error_message:  failed ? (result.error?.message || 'E2E falhou') : null,
+                    error_stack:    failed ? (result.error?.stack || null) : null,
                     screenshot_url: result.attachments?.find(a => a.contentType?.startsWith('image/'))?.path || null,
                     video_url:      result.attachments?.find(a => a.contentType?.startsWith('video/'))?.path || null,
+                    // Localização
+                    location_file:  failed && errLine ? relFile : null,
+                    location_line:  failed ? errLine : null,
+                    location_col:   failed ? errCol : null,
                 });
             }
         }
@@ -159,7 +182,7 @@ async function main() {
         environment: opts.env,
         duration_ms,
         raw_output:  raw,
-        cases,
+        cases,        // já inclui location_file, location_line, location_col
     };
 
     try {

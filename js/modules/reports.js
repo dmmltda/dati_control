@@ -1070,7 +1070,7 @@ function _initReportsTooltips() {
         }
     };
 
-    function setup(id, durationFrames) {
+    function setup(id, durationFrames, addDot = true) {
         const wrap = document.getElementById(`vcw-${id}`);
         const tooltip = document.getElementById(`vct-${id}`);
         const canvas = document.getElementById(`vcc-${id}`);
@@ -1087,20 +1087,21 @@ function _initReportsTooltips() {
             if(visible) return; visible=true;
             document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
             tooltip.classList.add('vtt-visible'); frame=0; if(animId)cancelAnimationFrame(animId); animId=requestAnimationFrame(tick);
-            window._vttPulse?.seen(id);
+            if (addDot) window._vttPulse?.seen(id);
         });
         wrap.addEventListener('mouseleave', (e) => {
             if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); if(animId)cancelAnimationFrame(animId); animId=null; frame=0; draw(); }
         });
         draw();
-        window._vttPulse?.add(wrap, id);
+        if (addDot) window._vttPulse?.add(wrap, id);
     }
 
-    setup('rpt-tab-empresas', 240);
-    setup('rpt-tab-aderencia', 200);
-    setup('rpt-columns', 260);
-    setup('rpt-export-csv', 200);
-    setup('rpt-export-excel', 240);
-    setup('rpt-refresh', 200);
+    // Tabs e botões de ação: hover-only (sem pulse dot)
+    setup('rpt-tab-empresas', 240, false);
+    setup('rpt-tab-aderencia', 200, false);
+    setup('rpt-columns', 260, false);
+    setup('rpt-export-csv', 200, false);
+    setup('rpt-export-excel', 240, false);
+    setup('rpt-refresh', 200, false);
 }
 

@@ -3742,7 +3742,8 @@
   border-radius: 50%;
   background: #6366f1;
   z-index: 10000;
-  pointer-events: none;
+  pointer-events: auto; /* permite hover mesmo fora dos limites do container pai */
+  cursor: help;
   animation: vtt-pulse-core 1.8s ease-in-out infinite;
   transition: opacity 0.5s ease;
 }
@@ -3755,12 +3756,13 @@
   animation: vtt-pulse-ring 1.8s ease-out infinite;
   transition: opacity 0.4s ease;
 }
-/* Estado LIDO — estático, opaco (sem transform pois conflita com animation) */
+/* Estado LIDO — para as animations via !important (único jeito de vencer animation em pseudo-element) */
 .vtt-pulse-dot.vtt-pulse-seen {
-  opacity: 0.25 !important;
+  animation: none !important;
 }
 .vtt-pulse-dot.vtt-pulse-seen::before {
-  opacity: 0;
+  animation: none !important;
+  opacity: 0 !important;
 }
 
 /* Variantes de cor */
@@ -3800,20 +3802,23 @@ window._vttPulse = (function() {
   }
 
   function markSeen(id) {
+    console.log('[VTT] markSeen("'+id+'") → hasSeen:', hasSeen(id));
     if (hasSeen(id)) return;
     try { localStorage.setItem(PREFIX + id, '1'); } catch(_){}
-    document.querySelectorAll(`.vtt-pulse-dot[data-vtt-id="${id}"]`).forEach(el => {
-      // Parar animação via inline style ANTES de adicionar a classe
-      // (sem isso, a animation CSS sobrescreve o transition de opacity)
-      el.style.animation = 'none';
-      if (el._beforeStyleEl) el._beforeStyleEl.remove();
-      // Esperar 1 frame para o browser processar animation:none
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          el.classList.add('vtt-pulse-seen');
-        });
-      });
+    const dots = document.querySelectorAll(`.vtt-pulse-dot[data-vtt-id="${id}"]`);
+    console.log('[VTT] dots found:', dots.length);
+    dots.forEach(el => {
+      _applySeenStyle(el);
     });
+  }
+
+  function _applySeenStyle(el) {
+    console.log('[VTT] _applySeenStyle → el:', el, 'classes before:', el.className);
+    el.style.animation = 'none';
+    el.classList.add('vtt-pulse-seen');
+    void el.offsetWidth;
+    el.style.opacity = '0.2';
+    console.log('[VTT] _applySeenStyle → classes after:', el.className, 'opacity:', el.style.opacity);
   }
 
   function add(wrapEl, id, color) {
@@ -3823,12 +3828,13 @@ window._vttPulse = (function() {
     const dot = document.createElement('span');
     const seen = hasSeen(id);
     dot.className = 'vtt-pulse-dot'
-      + (color ? ' vtt-pulse-' + color : '')
-      + (seen ? ' vtt-pulse-seen' : '');
+      + (color ? ' vtt-pulse-' + color : '');
     dot.setAttribute('data-vtt-id', id);
     if (seen) {
-      // Dot já visto: sem animação desde o início
+      // Dot já lido: aplica estado mudo imediatamente (sem transição)
       dot.style.animation = 'none';
+      dot.style.opacity = '0.2';
+      dot.classList.add('vtt-pulse-seen');
     }
     // Garante que o pai possa hospedar filho absoluto
     const pos = getComputedStyle(wrapEl).position;

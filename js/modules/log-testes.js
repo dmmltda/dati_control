@@ -31,7 +31,7 @@ const LOG_COLUMNS = [
 
 // ─── Helpers -----------------------------------------------------------------
 
-function _badgeStatus(status) {
+function _badgeStatus(status, fixStatus) {
     const map = {
         'PASSOU':   { bg: 'rgba(16,185,129,0.15)',  color: '#10b981', border: 'rgba(16,185,129,0.3)',  icon: 'ph-check-circle' },
         'FALHOU':   { bg: 'rgba(239,68,68,0.1)',    color: '#ef4444', border: 'rgba(239,68,68,0.2)',   icon: 'ph-x-circle' },
@@ -39,10 +39,17 @@ function _badgeStatus(status) {
         'SKIPADO':  { bg: 'rgba(100,116,139,0.1)',  color: '#64748b', border: 'rgba(100,116,139,0.2)', icon: 'ph-minus-circle' },
     };
     const s = map[status] || map['ERRO'];
+    // Indicador extra de fix aplicado
+    const fixIndicator = fixStatus === 'applied'
+        ? ' <i class="ph ph-wrench" style="color:#4ade80; font-size:0.65rem; margin-left:2px;" title="Fix aplicado"></i>'
+        : fixStatus === 'pending'
+        ? ' <i class="ph ph-sparkle" style="color:#818cf8; font-size:0.65rem; margin-left:2px;" title="Análise IA em andamento"></i>'
+        : '';
     return `<span class="badge" style="background:${s.bg};color:${s.color};border:1px solid ${s.border};font-size:0.75rem;white-space:nowrap;">
-                <i class="${s.icon}"></i> ${status}
+                <i class="ph ${s.icon}"></i> ${status}${fixIndicator}
             </span>`;
 }
+
 
 function _badgeTipo(tipo) {
     const map = {
@@ -80,36 +87,56 @@ function _flattenRuns(runs) {
         if (cases.length === 0) {
             // Run sem casos — mostra a run inteira como uma linha
             rows.push({
-                _rowId:     run.id,
-                _runId:     run.id,
-                data:       _formatDate(run.triggered_at),
-                hora:       _formatTime(run.triggered_at),
-                tipo:       run.suite_type,
-                modulo:     '(suite completa)',
-                descricao:  `Execução: ${run.total_tests} testes | ${run.passed_tests} passou | ${run.failed_tests} falhou`,
-                status:     run.status === 'passed' ? 'PASSOU' : (run.status === 'failed' ? 'FALHOU' : 'ERRO'),
-                duracao:    run.duration_ms,
-                _errorMsg:  null,
-                _errorStack:null,
-                _screenshot:null,
-                _video:     null,
+                _rowId:      run.id,
+                _runId:      run.id,
+                data:        _formatDate(run.triggered_at),
+                hora:        _formatTime(run.triggered_at),
+                tipo:        run.suite_type,
+                modulo:      '(suite completa)',
+                descricao:   `Execução: ${run.total_tests} testes | ${run.passed_tests} passou | ${run.failed_tests} falhou`,
+                status:      run.status === 'passed' ? 'PASSOU' : (run.status === 'failed' ? 'FALHOU' : 'ERRO'),
+                duracao:     run.duration_ms,
+                _errorMsg:   null,
+                _errorStack: null,
+                _screenshot: null,
+                _video:      null,
+                // Campos de análise enriquecida
+                _locationFile: null,
+                _locationLine: null,
+                _aiAnalysis:   null,
+                _fixProposal:  null,
+                _fixStatus:    null,
+                _caseId:       null,
             });
         } else {
             for (const c of cases) {
+                // Parse dos campos JSON de análise
+                let aiAnalysis = null;
+                let fixProposal = null;
+                try { if (c.ai_analysis)  aiAnalysis  = JSON.parse(c.ai_analysis);  } catch {}
+                try { if (c.fix_proposal) fixProposal = JSON.parse(c.fix_proposal); } catch {}
+
                 rows.push({
-                    _rowId:      c.id,
-                    _runId:      run.id,
-                    data:        _formatDate(c.created_at || run.triggered_at),
-                    hora:        _formatTime(c.created_at || run.triggered_at),
-                    tipo:        c.suite_type || run.suite_type,
-                    modulo:      c.module || c.suite_file || '—',
-                    descricao:   c.test_name,
-                    status:      c.status || 'ERRO',
-                    duracao:     c.duration_ms,
-                    _errorMsg:   c.error_message,
-                    _errorStack: c.error_stack,
-                    _screenshot: c.screenshot_url,
-                    _video:      c.video_url,
+                    _rowId:        c.id,
+                    _runId:        run.id,
+                    data:          _formatDate(c.created_at || run.triggered_at),
+                    hora:          _formatTime(c.created_at || run.triggered_at),
+                    tipo:          c.suite_type || run.suite_type,
+                    modulo:        c.module || c.suite_file || '—',
+                    descricao:     c.test_name,
+                    status:        c.status || 'ERRO',
+                    duracao:       c.duration_ms,
+                    _errorMsg:     c.error_message,
+                    _errorStack:   c.error_stack,
+                    _screenshot:   c.screenshot_url,
+                    _video:        c.video_url,
+                    // Campos de análise enriquecida
+                    _locationFile: c.location_file,
+                    _locationLine: c.location_line,
+                    _aiAnalysis:   aiAnalysis,
+                    _fixProposal:  fixProposal,
+                    _fixStatus:    c.fix_status,
+                    _caseId:       c.id,
                 });
             }
         }
@@ -134,34 +161,131 @@ function _renderRows(data) {
     }
 
     tbody.innerHTML = data.map(row => {
-        const hasDetails = row._errorMsg || row._errorStack || row._screenshot || row._video;
-        const detailsId = `log-detail-${row._rowId}`;
+        const hasDetails = row._errorMsg || row._errorStack || row._screenshot || row._video || row._aiAnalysis;
+        const detailsId  = `log-detail-${row._rowId}`;
+        const isFailed   = row.status === 'FALHOU' || row.status === 'ERRO';
 
+        // ── Seção: localização do código ──
+        const locationSection = (row._locationFile && row._locationLine) ? `
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                <i class="ph ph-map-pin" style="color:#6366f1; font-size:0.9rem;"></i>
+                <span style="font-size:0.75rem; color:var(--text-muted);">Localização:</span>
+                <code style="font-size:0.75rem; color:#a5b4fc; background:rgba(99,102,241,0.1); padding:0.15rem 0.5rem; border-radius:4px;">
+                    ${_escapeHtml(row._locationFile)}:${row._locationLine}
+                </code>
+            </div>` : '';
+
+        // ── Seção: mensagem de erro ──
+        const errorSection = row._errorMsg ? `
+            <div style="margin-bottom:0.75rem;">
+                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Mensagem de Erro</span>
+                <pre style="margin:0.25rem 0 0; font-size:0.78rem; color:#fca5a5; white-space:pre-wrap; font-family:monospace; padding:0.5rem; background:rgba(239,68,68,0.08); border-radius:6px; border-left:2px solid #ef4444;">${_escapeHtml(row._errorMsg)}</pre>
+            </div>` : '';
+
+        // ── Seção: análise IA ──
+        const ai = row._aiAnalysis;
+        let analysisSection = '';
+        if (ai) {
+            const confiancaPct = Math.round((ai.confianca || 0) * 100);
+            const confiancaColor = confiancaPct >= 80 ? '#4ade80' : confiancaPct >= 50 ? '#fbbf24' : '#f87171';
+            const tipoColor = {
+                'MISMATCH_VALOR': '#fbbf24', 'MISMATCH_NOME': '#fbbf24',
+                'EXPORT_AUSENTE': '#f87171', 'MOCK_FALTANDO': '#fb923c',
+                'DEPENDENCIA_EXTERNA': '#fb923c', 'LOGICA_NEGOCIO': '#c084fc',
+                'LADO_ERRADO': '#60a5fa', 'OUTRO': '#94a3b8'
+            }[ai.tipo_falha] || '#94a3b8';
+
+            analysisSection = `
+            <div style="margin-bottom:0.75rem; background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.85rem; position:relative;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
+                    <i class="ph ph-sparkle" style="color:#818cf8; font-size:0.95rem;"></i>
+                    <span style="font-size:0.72rem; font-weight:700; color:#818cf8; text-transform:uppercase; letter-spacing:0.06em;">Análise Automática</span>
+                    <span style="margin-left:auto; font-size:0.65rem; padding:0.1rem 0.45rem; border-radius:10px; background:${tipoColor}22; color:${tipoColor}; border:1px solid ${tipoColor}44; font-family:monospace;">${ai.tipo_falha || 'OUTRO'}</span>
+                </div>
+                <p style="margin:0 0 0.5rem; font-size:0.8rem; font-weight:600; color:#e2e8f0;">${_escapeHtml(ai.causa_raiz || '')}</p>
+                <p style="margin:0; font-size:0.77rem; color:#cbd5e1; line-height:1.5;">${_escapeHtml(ai.descricao_pt || '')}</p>
+                <div style="margin-top:0.5rem; display:flex; align-items:center; gap:0.75rem;">
+                    <span style="font-size:0.67rem; color:var(--text-muted);">Confiança:</span>
+                    <div style="flex:1; max-width:100px; height:4px; background:rgba(255,255,255,0.1); border-radius:2px;">
+                        <div style="width:${confiancaPct}%; height:100%; background:${confiancaColor}; border-radius:2px;"></div>
+                    </div>
+                    <span style="font-size:0.67rem; color:${confiancaColor};">${confiancaPct}%</span>
+                    ${ai.lado_com_problema ? `<span style="font-size:0.67rem; color:var(--text-muted); margin-left:0.5rem;">Problema em: <b style="color:#cbd5e1;">${ai.lado_com_problema}</b></span>` : ''}
+                </div>
+            </div>`;
+        } else if (isFailed && row._fixStatus === 'pending') {
+            analysisSection = `
+            <div style="margin-bottom:0.75rem; background:rgba(99,102,241,0.05); border:1px dashed rgba(99,102,241,0.2); border-radius:8px; padding:0.7rem; text-align:center;">
+                <i class="ph ph-circle-notch ph-spin" style="color:#818cf8; font-size:1rem; display:block; margin-bottom:0.25rem;"></i>
+                <span style="font-size:0.72rem; color:#818cf8;">Análise IA em andamento... Atualize a página em instantes.</span>
+            </div>`;
+        }
+
+        // ── Seção: proposta de correção ──
+        const fix = row._fixProposal;
+        let fixSection = '';
+        if (fix && row._fixStatus !== 'applied' && row._fixStatus !== 'rejected') {
+            const diffLines = [];
+            if (fix.before) fix.before.split('\n').forEach(l => diffLines.push(`<span class="diff-del">- ${_escapeHtml(l)}</span>`));
+            if (fix.after)  fix.after.split('\n').forEach(l => diffLines.push(`<span class="diff-add">+ ${_escapeHtml(l)}</span>`));
+
+            fixSection = `
+            <div style="margin-bottom:0.75rem; background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:8px; padding:0.85rem;">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
+                    <i class="ph ph-wrench" style="color:#4ade80; font-size:0.95rem;"></i>
+                    <span style="font-size:0.72rem; font-weight:700; color:#4ade80; text-transform:uppercase; letter-spacing:0.06em;">Correção Proposta</span>
+                    <code style="margin-left:auto; font-size:0.67rem; color:#94a3b8; background:rgba(255,255,255,0.05); padding:0.1rem 0.4rem; border-radius:3px;">${_escapeHtml(fix.arquivo || '')}</code>
+                </div>
+                ${fix.descricao ? `<p style="margin:0 0 0.5rem; font-size:0.77rem; color:#a7f3d0;">${_escapeHtml(fix.descricao)}</p>` : ''}
+                <pre class="log-diff-block">${diffLines.join('\n')}</pre>
+                <div style="display:flex; gap:0.5rem; margin-top:0.75rem; justify-content:flex-end;">
+                    <button class="btn-fix-reject" onclick="window._logTesteFixApprove('${row._caseId}', false)" id="btn-fix-reject-${row._caseId}">
+                        <i class="ph ph-x"></i> Rejeitar
+                    </button>
+                    <button class="btn-fix-approve" onclick="window._logTesteFixApprove('${row._caseId}', true)" id="btn-fix-approve-${row._caseId}">
+                        <i class="ph ph-check"></i> Aprovar Correção
+                    </button>
+                </div>
+            </div>`;
+        } else if (row._fixStatus === 'applied') {
+            fixSection = `
+            <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem; color:#4ade80; margin-bottom:0.5rem;">
+                <i class="ph ph-check-circle"></i>
+                <span>Correção aplicada com sucesso</span>
+                ${fix?.arquivo ? `<code style="margin-left:auto; font-size:0.67rem; color:#94a3b8;">${_escapeHtml(fix.arquivo)}</code>` : ''}
+            </div>`;
+        } else if (row._fixStatus === 'rejected') {
+            fixSection = `
+            <div style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem; color:#94a3b8; margin-bottom:0.5rem;">
+                <i class="ph ph-x-circle"></i>
+                <span>Correção rejeitada manualmente</span>
+            </div>`;
+        }
+
+        // ── Seção: screenshot e vídeo (Playwright) ──
+        const mediaSection = (row._screenshot || row._video) ? `
+            <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+                ${row._screenshot ? `<a href="${row._screenshot}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-image"></i> Screenshot</a>` : ''}
+                ${row._video ? `<a href="${row._video}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-video"></i> Vídeo</a>` : ''}
+            </div>` : '';
+
+        // ── Stack trace (collapsible) ──
+        const stackSection = row._errorStack ? `
+            <details style="margin-top:0.5rem;">
+                <summary style="font-size:0.7rem; color:var(--text-muted); cursor:pointer; user-select:none;">Stack Trace</summary>
+                <pre style="margin:0.25rem 0 0; font-size:0.7rem; color:#64748b; white-space:pre-wrap; font-family:monospace; max-height:180px; overflow-y:auto; padding:0.5rem; background:rgba(0,0,0,0.2); border-radius:4px;">${_escapeHtml(row._errorStack)}</pre>
+            </details>` : '';
+
+        const borderColor = isFailed ? '#ef4444' : '#10b981';
         const detailContent = hasDetails ? `
             <tr id="${detailsId}" class="log-detail-row" style="display:none;">
-                <td colspan="7" style="padding:0.75rem 1.25rem; background:rgba(0,0,0,0.2); border-left:3px solid #ef4444;">
-                    ${row._errorMsg ? `
-                        <div style="margin-bottom:0.5rem;">
-                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">MENSAGEM DE ERRO</span>
-                            <pre style="margin:0.25rem 0 0; font-size:0.78rem; color:#ef4444; white-space:pre-wrap; font-family:monospace;">${_escapeHtml(row._errorMsg)}</pre>
-                        </div>` : ''}
-                    ${row._errorStack ? `
-                        <div style="margin-top:0.5rem;">
-                            <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">STACK TRACE</span>
-                            <pre style="margin:0.25rem 0 0; font-size:0.72rem; color:#94a3b8; white-space:pre-wrap; font-family:monospace; max-height:200px; overflow-y:auto;">${_escapeHtml(row._errorStack)}</pre>
-                        </div>` : ''}
-                    ${row._screenshot ? `
-                        <div style="margin-top:0.75rem;">
-                            <a href="${row._screenshot}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;">
-                                <i class="ph ph-image"></i> Ver Screenshot
-                            </a>
-                        </div>` : ''}
-                    ${row._video ? `
-                        <div style="margin-top:0.5rem;">
-                            <a href="${row._video}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;">
-                                <i class="ph ph-video"></i> Ver Vídeo
-                            </a>
-                        </div>` : ''}
+                <td colspan="7" style="padding:0.85rem 1.25rem 1rem; background:rgba(0,0,0,0.25); border-left:3px solid ${borderColor};">
+                    ${locationSection}
+                    ${errorSection}
+                    ${analysisSection}
+                    ${fixSection}
+                    ${mediaSection}
+                    ${stackSection}
                 </td>
             </tr>` : '';
 
@@ -173,7 +297,7 @@ function _renderRows(data) {
                 <td style="text-align:center;">${_badgeTipo(row.tipo)}</td>
                 <td style="font-size:0.82rem; color:#94a3b8;">${_escapeHtml(row.modulo)}</td>
                 <td style="font-size:0.82rem; max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${_escapeHtml(row.descricao)}">${_escapeHtml(row.descricao)}</td>
-                <td style="text-align:center;">${_badgeStatus(row.status)}</td>
+                <td style="text-align:center;">${_badgeStatus(row.status, row._fixStatus)}</td>
                 <td style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">
                     ${_formatDuration(row.duracao)}
                     ${hasDetails ? '<i class="ph ph-caret-down" style="margin-left:0.3rem; font-size:0.7rem; opacity:0.5;"></i>' : ''}
@@ -872,6 +996,56 @@ function _exposeGlobals() {
         const caret = mainRow?.querySelector('.ph-caret-down');
         if (caret) caret.style.transform = isOpen ? '' : 'rotate(180deg)';
     };
+
+    // ── Handler: Aprovar ou Rejeitar correção da IA ──────────────────────────
+    window._logTesteFixApprove = async (caseId, approved) => {
+        if (!caseId) return;
+
+        const approveBtn = document.getElementById(`btn-fix-approve-${caseId}`);
+        const rejectBtn  = document.getElementById(`btn-fix-reject-${caseId}`);
+
+        // Feedback visual imediato
+        if (approveBtn) { approveBtn.disabled = true; approveBtn.innerHTML = '<i class="ph ph-circle-notch ph-spin"></i> Aplicando...'; }
+        if (rejectBtn)  { rejectBtn.disabled = true; }
+
+        try {
+            const resp = await fetch(`/api/test-runs/${caseId}/fix/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approved }),
+            });
+            const data = await resp.json();
+
+            if (!resp.ok) throw new Error(data.error || 'Erro ao processar');
+
+            if (approved && data.fix_status === 'applied') {
+                // Substituir a seção de fix por mensagem de sucesso
+                const fixContainer = approveBtn?.closest('div[style*="rgba(16,185,129"]');
+                if (fixContainer) {
+                    fixContainer.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#4ade80;">
+                            <i class="ph ph-check-circle" style="font-size:1.1rem;"></i>
+                            <span>✅ Correção aplicada em <code style="color:#94a3b8;">${data.file || ''}</code></span>
+                        </div>`;
+                }
+            } else {
+                // Rejeição
+                const fixContainer = rejectBtn?.closest('div[style*="rgba(16,185,129"]');
+                if (fixContainer) {
+                    fixContainer.innerHTML = `
+                        <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#94a3b8;">
+                            <i class="ph ph-x-circle" style="font-size:1rem;"></i>
+                            <span>Correção rejeitada. Nenhum arquivo foi modificado.</span>
+                        </div>`;
+                }
+            }
+        } catch (err) {
+            if (approveBtn) { approveBtn.disabled = false; approveBtn.innerHTML = '<i class="ph ph-check"></i> Aprovar Correção'; }
+            if (rejectBtn)  { rejectBtn.disabled = false; }
+            alert(`Erro: ${err.message}`);
+        }
+    };
+
 
     // Fecha popovers ao clicar fora
     document.addEventListener('click', (e) => {

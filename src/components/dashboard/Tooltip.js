@@ -17,8 +17,8 @@ let _showTimer = null;   // Timer de delay antes de mostrar
 let _hideTimer = null;   // Timer de delay antes de esconder
 let _initiated = false;
 
-const SHOW_DELAY = 200;   // ms antes de mostrar
-const HIDE_DELAY = 100;   // ms ao sair antes de esconder
+const SHOW_DELAY = 150;   // ms antes de mostrar
+const HIDE_DELAY = 250;   // ms ao sair antes de esconder (aumentado para facilitar acesso)
 const OFFSET_X = 16;   // px de distância horizontal do cursor
 const OFFSET_Y = 12;   // px de distância vertical do cursor
 const MAX_ITEMS = 8;     // máximo de empresas listadas no tooltip
@@ -55,6 +55,17 @@ const CSS = `
     opacity: 1;
     transform: scale(1) translateY(0);
     pointer-events: auto; /* permite interação quando visível */
+  }
+
+  /* Bridge invisível para sanar o gap (abismo de mouse) e evitar flickering */
+  #db-rich-tooltip::after {
+    content: '';
+    position: absolute;
+    top: -24px;
+    left: -24px;
+    right: -24px;
+    bottom: -24px;
+    z-index: -1;
   }
 
   .db-tt-header {
@@ -368,7 +379,23 @@ function _buildHTML(data) {
 
 
 function _npsColor(nps) {
-  if (nps >= 8) return '#10B981';
-  if (nps >= 6) return '#F59E0B';
-  return '#EF4444';
+  // Trata caso seja string com % (ex: "75%")
+  if (typeof nps === 'string' && nps.includes('%')) {
+    const p = parseFloat(nps);
+    if (!isNaN(p)) {
+      if (p >= 75) return '#10B981';
+      if (p >= 40) return '#F59E0B';
+      return '#EF4444';
+    }
+  }
+
+  // Trata caso normal (nota 0 a 10)
+  const val = parseFloat(nps);
+  if (!isNaN(val)) {
+    if (val >= 8) return '#10B981';
+    if (val >= 6) return '#F59E0B';
+    return '#EF4444';
+  }
+
+  return '#94A3B8';
 }

@@ -58,9 +58,19 @@ router.get('/', async (req, res) => {
                         status: true,
                         duration_ms: true,
                         error_message: true,
+                        error_stack: true,
                         screenshot_url: true,
                         video_url: true,
                         created_at: true,
+                        // Campos de análise enriquecida
+                        location_file: true,
+                        location_line: true,
+                        location_col: true,
+                        ai_analysis: true,
+                        fix_proposal: true,
+                        fix_status: true,
+                        fix_applied_at: true,
+                        fix_applied_by: true,
                     }
                 }
             }
@@ -183,6 +193,10 @@ router.post('/', ingestAuth, async (req, res) => {
                         error_stack:    c.error_stack    || null,
                         screenshot_url: c.screenshot_url || null,
                         video_url:      c.video_url      || null,
+                        // Campos de localização (Fase 1)
+                        location_file:  c.location_file  || null,
+                        location_line:  c.location_line  ? parseInt(c.location_line) : null,
+                        location_col:   c.location_col   ? parseInt(c.location_col)  : null,
                     }))
                 }
             },
@@ -190,9 +204,57 @@ router.post('/', ingestAuth, async (req, res) => {
         });
 
         console.log(`[test-runs] ✅ ${run.id} — ${passed_tests}/${total_tests} passou`);
+
+        // ── Análise IA em Background (não bloqueia a response) ───────────────
+        const failedCases = run.test_cases.filter(c => c.status === 'FALHOU' || c.status === 'ERRO');
+        if (failedCases.length > 0) {
+            import('../services/test-analyzer.js')
+                .then(({ analyzeFailures }) => analyzeFailures(failedCases, prisma))
+                .catch(err => console.warn('[test-analyzer] Análise IA skipped:', err.message));
+        }
+
         res.status(201).json(run);
     } catch (err) {
         console.error('[POST /api/test-runs]', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ---------------------------------------------------------------------------
+// POST /:id/fix/approve — aprova ou rejeita a correção proposta pela IA
+// ---------------------------------------------------------------------------
+router.post('/:id/fix/approve', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { approved, user_id } = req.body;
+
+        const tc = await prisma.test_cases.findUnique({ where: { id } });
+        if (!tc) return res.status(404).json({ error: 'Caso de teste não encontrado' });
+        if (!tc.fix_proposal) return res.status(400).json({ error: 'Sem proposta de correção disponível' });
+
+        if (!approved) {
+            await prisma.test_cases.update({ where: { id }, data: { fix_status: 'rejected' } });
+            return res.json({ ok: true, fix_status: 'rejected' });
+        }
+
+        let proposal;
+        try { proposal = JSON.parse(tc.fix_proposal); }
+        catch { return res.status(400).json({ error: 'fix_proposal inválido (JSON malformado)' }); }
+
+        const { applyFix } = await import('../services/test-analyzer.js');
+        const applyResult = await applyFix(proposal);
+
+        if (!applyResult.ok) return res.status(500).json({ error: applyResult.error });
+
+        await prisma.test_cases.update({
+            where: { id },
+            data: { fix_status: 'applied', fix_applied_at: new Date(), fix_applied_by: user_id || null }
+        });
+
+        console.log(`[test-runs] ✅ Fix aplicado em ${proposal.arquivo} (L${proposal.linha_ini})`);
+        res.json({ ok: true, fix_status: 'applied', file: proposal.arquivo });
+    } catch (err) {
+        console.error('[POST fix/approve]', err.message);
         res.status(500).json({ error: err.message });
     }
 });

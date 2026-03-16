@@ -2447,7 +2447,7 @@ function _initKanbanColumnTooltips() {
         function show(wt,tt,ca,fi){
             return function(){ if(visible) return; visible=true;
                 document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
-                tt.classList.add('vtt-visible'); startAnim(fi)()();
+                tt.classList.add('vtt-visible'); startAnim(fi)();
                 window._vttPulse?.seen(`kb-${fi}`); };
         }
         function hide(tt){ return function(e){ if(!document.getElementById(`vcw-kb-${tt._idx}`).contains(e.relatedTarget)){ visible=false; tt.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); } }; }

@@ -1747,3 +1747,64 @@ export function updateNPSFormLink(tipoForm) {
         linkEl.style.display = 'none';
     }
 }
+
+// ── Sidebar Premium Logic ──
+
+export function toggleNavGroup(id) {
+    const grp = document.getElementById('grp-' + id);
+    const grph = document.getElementById('grph-' + id);
+    const chev = document.getElementById('chev-' + id);
+    const kids = document.getElementById('kids-' + id);
+    if (!grp || !kids) return;
+
+    const isOpen = grp.classList.contains('is-open');
+
+    // Close all other groups (accordion behavior) - optional, but nice
+    document.querySelectorAll('.nav-group').forEach(otherGrp => {
+        if (otherGrp !== grp && otherGrp.classList.contains('is-open')) {
+            otherGrp.classList.remove('is-open');
+            otherGrp.querySelector('.nav-group__header')?.classList.remove('is-active');
+            otherGrp.querySelector('.nav-group__chevron')?.classList.remove('is-open');
+            const otherKids = otherGrp.querySelector('.nav-group__children');
+            if (otherKids) {
+                otherKids.style.maxHeight = '0px';
+                otherKids.classList.remove('is-open');
+            }
+        }
+    });
+
+    if (isOpen) {
+        kids.style.maxHeight = '0px';
+        kids.classList.remove('is-open');
+        chev.classList.remove('is-open');
+        grp.classList.remove('is-open');
+        grph.classList.remove('is-active');
+    } else {
+        kids.style.maxHeight = 'none';
+        const h = kids.scrollHeight;
+        kids.style.maxHeight = '0px';
+        kids.getBoundingClientRect(); // force reflow
+        kids.style.maxHeight = h + 'px';
+        kids.classList.add('is-open');
+        chev.classList.add('is-open');
+        grp.classList.add('is-open');
+        grph.classList.add('is-active');
+    }
+
+    refreshNavDots();
+}
+
+export function selectNavChild(el) {
+    // The active state is managed globally by switchView from navigation.js using .nav-item .active
+    // We just need to make sure the dots are updated when a child becomes active.
+    setTimeout(refreshNavDots, 50);
+}
+
+export function refreshNavDots() {
+    // Automatically identify all groups
+    document.querySelectorAll('.nav-group').forEach(grp => {
+        const hasActive = !!grp.querySelector('.nav-item.active, .nav-item.is-active');
+        grp.classList.toggle('has-active-child', hasActive);
+    });
+}
+

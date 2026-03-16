@@ -245,6 +245,17 @@ model test_cases {
   screenshot_url  String?                         // screenshot (Playwright)
   video_url       String?                         // vídeo (Playwright)
   created_at      DateTime   @default(now())
+
+  // ── ANÁLISE ENRIQUECIDA ────────────────────────────────────────────────────
+  location_file   String?                         // caminho relativo do arquivo de teste
+  location_line   Int?                            // linha onde o expect falhou
+  location_col    Int?                            // coluna
+  ai_analysis     String?                         // JSON: { causa_raiz, tipo_falha, descricao_pt, confianca }
+  fix_proposal    String?                         // JSON: { arquivo, linha_ini, linha_fim, before, after, descricao }
+  fix_status      String?                         // null | "pending" | "approved" | "applied" | "rejected"
+  fix_applied_at  DateTime?                       // quando a correção foi aplicada
+  fix_applied_by  String?                         // user_id do master que aprovou
+
   test_run        test_runs  @relation(fields: [run_id], references: [id], onDelete: Cascade)
 }
 
