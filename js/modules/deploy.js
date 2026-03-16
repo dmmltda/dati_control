@@ -8,12 +8,13 @@ import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
 
 const DEPLOY_COLUMNS = [
-    { key: 'date',    label: 'Quando',         type: 'string', sortable: true,  filterable: false, searchable: true  },
-    { key: 'author',  label: 'Quem',           type: 'string', sortable: true,  filterable: true,  searchable: true  },
-    { key: 'area',    label: 'Área',           type: 'string', sortable: true,  filterable: true,  searchable: true  },
-    { key: 'impact',  label: 'O que mudou',    type: 'string', sortable: false, filterable: false, searchable: true  },
-    { key: 'hash',    label: 'Versão',         type: 'string', sortable: false, filterable: false, searchable: true  },
-    { key: 'status',  label: 'Status',         type: 'string', sortable: true,  filterable: true,  searchable: false },
+    { key: 'date',   label: 'Quando',  type: 'string', sortable: true,  filterable: false, searchable: true  },
+    { key: 'author', label: 'Quem',    type: 'string', sortable: true,  filterable: true,  searchable: true  },
+    { key: 'area',   label: 'Área',    type: 'string', sortable: true,  filterable: true,  searchable: true  },
+    { key: 'de',     label: 'De',      type: 'string', sortable: false, filterable: false, searchable: false },
+    { key: 'para',   label: 'Para',    type: 'string', sortable: false, filterable: false, searchable: true  },
+    { key: 'hash',   label: 'Versão',  type: 'string', sortable: false, filterable: false, searchable: true  },
+    { key: 'status', label: 'Status',  type: 'string', sortable: true,  filterable: true,  searchable: false },
 ];
 
 let _manager = null;
@@ -58,17 +59,17 @@ const TYPE_MAP = {
  * Parseia a mensagem de commit e retorna { area, impact }
  */
 function _parseCommit(message) {
-    if (!message) return { area: 'Geral', impact: '—' };
+    if (!message) return { area: 'Geral', de: '—', para: '—' };
 
     const lower = message.toLowerCase();
 
     // 1. Extrai tipo e escopo do formato convencional: feat(modulo): descricao
     const conventionalMatch = message.match(/^([a-z]+)(?:\(([^)]+)\))?:\s*(.+)/i);
-    const typeRaw   = conventionalMatch?.[1]?.toLowerCase() || '';
-    const scopeRaw  = conventionalMatch?.[2]?.toLowerCase() || '';
-    const bodyRaw   = conventionalMatch?.[3] || message;
+    const typeRaw  = conventionalMatch?.[1]?.toLowerCase() || '';
+    const scopeRaw = conventionalMatch?.[2]?.toLowerCase() || '';
+    const bodyRaw  = conventionalMatch?.[3] || message;
 
-    // 2. Determina rea a partir do escopo ou palavras-chave no corpo
+    // 2. Determina Área a partir do escopo ou palavras-chave no corpo
     let area = 'Geral';
     const searchText = `${scopeRaw} ${lower}`;
     for (const { keywords, area: a } of AREA_MAP) {
@@ -78,11 +79,24 @@ function _parseCommit(message) {
         }
     }
 
-    // 3. Monta o impacto legível: Tipo + corpo simplificado
-    const typeLabel = TYPE_MAP[typeRaw] || (typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : '');
-    const impact = typeLabel ? `${typeLabel}: ${bodyRaw}` : bodyRaw;
+    // 3. Monta DE (estado anterior) e PARA (estado resultante)
+    const DE_MAP = {
+        'feat'    : '—',                        // recurso não existia
+        'fix'     : 'Com falha',
+        'chore'   : 'Pendente / acumulado',
+        'refactor': 'Código legado',
+        'perf'    : 'Performance degradada',
+        'docs'    : 'Sem documentação',
+        'style'   : 'Visual anterior',
+        'test'    : 'Sem cobertura',
+        'build'   : 'Build anterior',
+        'revert'  : 'Versão anterior',
+    };
 
-    return { area, impact };
+    const de   = DE_MAP[typeRaw] ?? '—';
+    const para  = bodyRaw;
+
+    return { area, de, para };
 }
 
 function _formatDate(iso) {
@@ -110,7 +124,7 @@ function _renderRows(data) {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <td colspan="7" style="text-align:center; padding:3rem; color:var(--text-muted);">
                     <i class="ph ph-rocket" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity: 0.5;"></i>
                     Nenhum deploy encontrado.
                 </td>
@@ -121,7 +135,7 @@ function _renderRows(data) {
     tbody.innerHTML = data.map(row => {
         const isRailway = row.author === 'Railway';
         const color = isRailway ? '#6366f1' : 'var(--text-main)';
-        const { area, impact } = _parseCommit(row.message);
+        const { area, de, para } = _parseCommit(row.message);
 
         // Badge de Área com cor semântica
         const AREA_COLORS = {
@@ -136,6 +150,15 @@ function _renderRows(data) {
         const ac = AREA_COLORS[area] || { bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.3)', color: '#94a3b8' };
         const areaBadge = `<span style="font-size:0.72rem; background:${ac.bg}; color:${ac.color}; border:1px solid ${ac.border}; border-radius:5px; padding:0.15rem 0.5rem; white-space:nowrap; font-weight:600;">${_escapeHtml(area)}</span>`;
 
+        // Coluna DE: estado anterior (cinza/muted)
+        const isVazio = de === '—';
+        const deHtml = isVazio
+            ? `<span style="font-size:0.75rem; color:var(--text-disabled, #4a5568); font-style:italic;">—&nbsp;não existia</span>`
+            : `<span style="font-size:0.75rem; color:#94a3b8; background:rgba(148,163,184,0.08); border:1px solid rgba(148,163,184,0.15); border-radius:4px; padding:0.15rem 0.5rem;">${_escapeHtml(de)}</span>`;
+
+        // Coluna PARA: estado resultante (destaque)
+        const paraHtml = `<span style="font-size:0.82rem; color:var(--text-main); line-height:1.4; word-break:break-word;">${_escapeHtml(para)}</span>`;
+
         const statusHtml = `<span style="font-size:0.75rem; background:rgba(16,185,129,0.12); color:#10b981; padding:0.15rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.25);">
             <i class="ph ph-check-circle"></i> Concluído
         </span>`;
@@ -149,9 +172,8 @@ function _renderRows(data) {
                     </span>
                 </td>
                 <td>${areaBadge}</td>
-                <td style="font-size:0.82rem; max-width:360px; word-break:break-word; line-height:1.4;">
-                    ${_escapeHtml(impact)}
-                </td>
+                <td style="min-width:120px;">${deHtml}</td>
+                <td style="max-width:340px;">${paraHtml}</td>
                 <td style="font-size:0.85rem; font-family:monospace; color:#a78bfa; white-space:nowrap;">
                     <i class="ph ph-git-commit" style="margin-right:0.2rem; color:var(--text-muted);"></i>${_escapeHtml(row.hash)}
                 </td>
@@ -417,7 +439,7 @@ export const deployMonitor = {
                             <table class="company-table" id="deploy-tracker-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable-header" data-key="date" style="width:145px; position:relative;">
+                                        <th class="sortable-header" data-key="date" style="width:135px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('date')">Quando</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('date', event)">
@@ -426,7 +448,7 @@ export const deployMonitor = {
                                             </div>
                                             <div id="filter-popover-deploy_date" class="filter-popover" style="min-width:260px;"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="author" style="width:160px; position:relative;">
+                                        <th class="sortable-header" data-key="author" style="width:145px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('author')">Quem</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('author', event)">
@@ -435,7 +457,7 @@ export const deployMonitor = {
                                             </div>
                                             <div id="filter-popover-deploy_author" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="area" style="width:150px; position:relative;">
+                                        <th class="sortable-header" data-key="area" style="width:140px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('area')">Área</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('area', event)">
@@ -444,17 +466,18 @@ export const deployMonitor = {
                                             </div>
                                             <div id="filter-popover-deploy_area" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="impact">
-                                            <div class="header-content">
-                                                <span onclick="window._deploySort('impact')">O que mudou</span>
-                                            </div>
+                                        <th data-key="de" style="width:130px;">
+                                            <div class="header-content"><span>De</span></div>
                                         </th>
-                                        <th class="sortable-header" data-key="hash" style="width:90px;">
+                                        <th data-key="para">
+                                            <div class="header-content"><span>Para</span></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="hash" style="width:85px;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('hash')">Versão</span>
                                             </div>
                                         </th>
-                                        <th class="sortable-header" data-key="status" style="width:115px; position:relative;">
+                                        <th class="sortable-header" data-key="status" style="width:110px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('status')">Status</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('status', event)">
