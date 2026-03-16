@@ -666,24 +666,22 @@ function renderNPSHistoryTableRows(data) {
         body.appendChild(tr);
     });
 
-    // Salva os dados no _npsStore global para o handler em index.html
-    if (!window._npsStore) window._npsStore = {};
+    // Salva os dados no _npsStore global — sempre atualiza
+    window._npsStore = window._npsStore || {};
     data.forEach((nps) => {
         const key = nps.id || String(data.indexOf(nps));
         window._npsStore[key] = nps;
     });
-    // Mantém backward compat com _npsDataMap
-    window._npsDataMap = window._npsStore;
-    if (!window._npsOpenDetails) {
-        window._npsOpenDetails = function(key) {
-            const npsItem = window._npsStore[key];
-            if (npsItem) {
-                _openNpsDetailsModal(npsItem);
-            } else {
-                console.error('[NPS] Item não encontrado para key:', key);
-            }
-        };
-    }
+    // Sempre re-define para garantir closure correto com _openNpsDetailsModal
+    window._npsOpenDetails = function(key) {
+        const npsItem = window._npsStore[key];
+        if (npsItem) {
+            _openNpsDetailsModal(npsItem);
+        } else {
+            console.error('[NPS] npsItem nao encontrado. key:', key, 'keys:', Object.keys(window._npsStore));
+        }
+    };
+
 }
 
 function _openNpsDetailsModal(npsItem) {
