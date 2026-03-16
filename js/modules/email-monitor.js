@@ -330,24 +330,31 @@ const emailMonitor = (() => {
     }
 
     async function showDetails(id) {
-        // Modal base setup...
-        let modal = document.getElementById('email-details-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'email-details-modal';
-            modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); align-items:center; justify-content:center;';
-            modal.innerHTML = `
-                <div style="background:var(--bg-card); width:750px; max-width:90%; border-radius:12px; display:flex; flex-direction:column; max-height:85vh; border: 1px solid var(--border-color); box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px -12px rgba(0,0,0,0.7);">
-                    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); background:rgba(255,255,255,0.03); display:flex; justify-content:space-between; align-items:center; border-top-left-radius:12px; border-top-right-radius:12px;">
-                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-color); display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-chats-teardrop" style="color:var(--primary-color);"></i> Cadeia de E-mails (Thread)</h3>
-                        <button onclick="document.getElementById('email-details-modal').style.display='none'" style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:50%; color:var(--text-muted); cursor:pointer; font-size:1rem; width:30px; height:30px; display:flex; align-items:center; justify-content:center; transition:background-color 0.2s;"><i class="ph ph-x"></i></button>
+        // Remove modal antigo se existir para garantir que o novo design e o conteúdo sejam aplicados
+        document.getElementById('email-details-modal')?.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'email-details-modal';
+        modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(2, 6, 23, 0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; animation: fadeIn 0.3s ease;';
+        modal.innerHTML = `
+            <div style="background:#0f172a; width:850px; max-width:92%; border-radius:16px; display:flex; flex-direction:column; max-height:88vh; border: 1px solid rgba(99,102,241,0.3); box-shadow: 0 0 40px rgba(99,102,241,0.1), 0 25px 50px -12px rgba(0,0,0,0.8); overflow:hidden;">
+                <div style="padding:1.25rem 1.75rem; border-bottom:1px solid rgba(255,255,255,0.08); background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%, rgba(2,6,23,0) 100%); display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:0.25rem;">
+                        <span style="font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--primary-color); font-weight:700;">Histórico de Interação</span>
+                        <h3 style="margin:0; font-size:1.25rem; color:#f8fafc; display:flex; align-items:center; gap:0.75rem;">
+                             <i class="ph ph-envelope-open" style="color:var(--primary-color); filter: drop-shadow(0 0 8px var(--primary-color));"></i> 
+                             Cadeia de E-mails (Thread)
+                        </h3>
                     </div>
-                    <div id="email-details-body" style="padding:1.5rem 1.5rem 1.5rem 2rem; overflow-y:auto; font-size:0.9rem; line-height:1.5; color:var(--text-color); display:flex; flex-direction:column; background:var(--bg-body); border-bottom-left-radius:12px; border-bottom-right-radius:12px;">
-                    </div>
+                    <button onclick="document.getElementById('email-details-modal').remove()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#94a3b8; cursor:pointer; font-size:1.25rem; width:36px; height:36px; display:flex; align-items:center; justify-content:center; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'; this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8';">
+                        <i class="ph ph-x"></i>
+                    </button>
                 </div>
-            `;
-            document.body.appendChild(modal);
-        }
+                <div id="email-details-body" style="padding:2rem; overflow-y:auto; font-size:0.95rem; line-height:1.6; color:#cbd5e1; display:flex; flex-direction:column; background:#020617;">
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
         
         modal.style.display = 'flex';
         const bodyEl = document.getElementById('email-details-body');
