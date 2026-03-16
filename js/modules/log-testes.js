@@ -457,17 +457,23 @@ function _buildFilterPopovers() {
     const tipoValues   = _manager.getUniqueValues('tipo');
     const moduloValues = _manager.getUniqueValues('modulo');
     const statusValues = ['APROVADO', 'REPROVADO', 'ERRO DO TESTE', 'IGNORADO'];
+    const statusLabels = {
+        'APROVADO':     'Aprovado',
+        'REPROVADO':    'Reprovado',
+        'ERRO DO TESTE':'Erro do teste',
+        'IGNORADO':     'Ignorado',
+    };
 
     _buildSelectPopover('filter-popover-tipo',     tipoValues,   'tipo');
     _buildSelectPopover('filter-popover-modulo',   moduloValues, 'modulo');
-    _buildSelectPopover('filter-popover-status',   statusValues, 'status');
+    _buildSelectPopover('filter-popover-status',   statusValues, 'status', statusLabels);
     _buildTextSearchPopover('filter-popover-hora',       'hora');
     _buildTextSearchPopover('filter-popover-descricao',  'descricao');
     _buildDurationPopover('filter-popover-duracao',      'duracao');
     _buildDatePopover('filter-popover-data',             'data');
 }
 
-function _buildSelectPopover(id, values, filterKey) {
+function _buildSelectPopover(id, values, filterKey, displayMap = {}) {
     const el = document.getElementById(id);
     if (!el) return;
 
@@ -494,7 +500,7 @@ function _buildSelectPopover(id, values, filterKey) {
                 </div>
                 ${values.map(v => `
                     <div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._logTesteFilter('${filterKey}', '${v}', event)">
-                        ${v}
+                        ${displayMap[v] || v}
                     </div>`).join('')}
             </div>
         </div>
