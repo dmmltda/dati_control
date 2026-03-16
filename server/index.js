@@ -1369,25 +1369,55 @@ app.put('/api/companies/:id', extractUsuario, requireFeature(['company_edit.basi
             console.log(`[PUT] ✅ company_dashboards sincronizado.`);
         }
 
-        // company_nps
+        // company_nps — usa upsert para preservar Respostas_JSON e scores do webhook
         const npsPayload = NPS_History ?? company_nps;
         if (npsPayload !== undefined) {
-            console.log(`[PUT] Sincronizando company_nps (${(npsPayload || []).length} itens)...`);
-            await prisma.company_nps.deleteMany({ where: { companyId: id } });
-            if ((npsPayload || []).length > 0) {
-                await prisma.company_nps.createMany({
-                    data: npsPayload.map(n => ({
-                        id: randomUUID(),
+            console.log(`[PUT] Sincronizando company_nps via upsert (${(npsPayload || []).length} itens)...`);
+            
+            // Busca registros existentes para não sobrescrever Respostas_JSON
+            const existingNps = await prisma.company_nps.findMany({ where: { companyId: id } });
+            const existingMap = {};
+            for (const e of existingNps) existingMap[e.id] = e;
+
+            // IDs que vieram no payload (para deletar os que sumiram)
+            const payloadIds = new Set();
+            for (const n of (npsPayload || [])) {
+                const npsId = n.id || randomUUID();
+                payloadIds.add(npsId);
+                const existing = existingMap[npsId];
+                await prisma.company_nps.upsert({
+                    where: { id: npsId },
+                    create: {
+                        id: npsId,
                         companyId: id,
                         updatedAt: new Date(),
                         Data: n.Data || n.data ? new Date(n.Data || n.data) : null,
                         Destinatario: n.Destinatario || n.destinatario || n.destinatarios || null,
                         Formulario: n.Formulario || n.formulario || n.forms || null,
-                        Score: n.Score != null ? String(n.Score) : (n.score != null ? String(n.score) : null)
-                    }))
+                        Score: n.Score != null ? String(n.Score) : (n.score != null ? String(n.score) : null),
+                        Respostas_JSON: n.Respostas_JSON || n.respostasJSON || null,
+                    },
+                    update: {
+                        updatedAt: new Date(),
+                        Data: n.Data || n.data ? new Date(n.Data || n.data) : null,
+                        Destinatario: n.Destinatario || n.destinatario || n.destinatarios || null,
+                        Formulario: n.Formulario || n.formulario || n.forms || null,
+                        // Preserva Score do webhook se o payload manda 'Pendente' mas o DB já tem score real
+                        Score: (n.Score != null ? String(n.Score) : (n.score != null ? String(n.score) : null)) === 'Pendente' && existing?.Score && existing.Score !== 'Pendente'
+                            ? existing.Score  // mantém score do webhook
+                            : (n.Score != null ? String(n.Score) : (n.score != null ? String(n.score) : null)),
+                        // Preserva Respostas_JSON do webhook se não veio no payload
+                        Respostas_JSON: n.Respostas_JSON || n.respostasJSON || existing?.Respostas_JSON || null,
+                    }
                 });
             }
-            console.log(`[PUT] ✅ company_nps sincronizado.`);
+            // Remove NPS que foram excluídos pelo frontend
+            for (const e of existingNps) {
+                if (!payloadIds.has(e.id)) {
+                    await prisma.company_nps.delete({ where: { id: e.id } });
+                }
+            }
+            console.log(`[PUT] ✅ company_nps sincronizado com upsert (preservando Respostas_JSON e scores).`);
         }
 
         // company_tickets

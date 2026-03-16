@@ -6,53 +6,72 @@ const prisma = new PrismaClient();
 
 router.post('/google-forms', async (req, res) => {
     try {
-        console.log('[Webhook] Recebido payload do Google Forms:', req.body);
+        console.log('[Webhook Google Forms] Payload recebido:', JSON.stringify(req.body));
         
         const { email, score, formType, respostasFull } = req.body;
         
         if (!email) {
             console.warn('[Webhook] Payload inválido (sem email)');
-            return res.status(400).json({ error: 'Parâmetros ausentes' });
+            return res.status(400).json({ error: 'Parâmetros ausentes: email obrigatório' });
         }
 
-        // Buscar NPS Pendentes para esse e-mail
-        // O cliente pode ter vários pendentes para o mesmo e-mail, mas atualizamos o mais recente (se tiver mais de um)
-        // Ou atualizamos todos os "Pendente" para esse e-mail (depende da necessidade)
-        const pendingNps = await prisma.company_nps.findFirst({
-            where: {
-                Destinatario: {
-                    equals: email,
-                    mode: 'insensitive' // ignorar maiusculas/minusculas
-                },
-                Score: 'Pendente'
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
+        const emailTrimmed = String(email).trim().toLowerCase();
+
+        // Busca where: email + Score Pendente (+ formType se disponível)
+        const whereClause = {
+            Destinatario: { equals: emailTrimmed, mode: 'insensitive' },
+            Score: 'Pendente'
+        };
+        if (formType) {
+            whereClause.Formulario = { equals: formType, mode: 'insensitive' };
+        }
+
+        let pendingNps = await prisma.company_nps.findFirst({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' }
         });
 
-        if (!pendingNps) {
-            console.warn(`[Webhook] Nenhum NPS pendente encontrado para o e-mail: ${email}`);
-            return res.status(404).json({ message: 'Nenhuma pesquisa pendente encontrada.' });
+        // Fallback: busca sem filtro de formType se não encontrou com ele
+        if (!pendingNps && formType) {
+            console.warn(`[Webhook] Não encontrado com formType="${formType}", tentando sem filtro...`);
+            pendingNps = await prisma.company_nps.findFirst({
+                where: {
+                    Destinatario: { equals: emailTrimmed, mode: 'insensitive' },
+                    Score: 'Pendente'
+                },
+                orderBy: { createdAt: 'desc' }
+            });
         }
 
-        // Atualizar o registro com o novo score (se enviado) e as respostas brutas JSON
+        if (!pendingNps) {
+            // Log todos os registros com esse email para diagnóstico
+            const todosComEmail = await prisma.company_nps.findMany({
+                where: { Destinatario: { contains: emailTrimmed, mode: 'insensitive' } },
+                select: { id: true, Destinatario: true, Score: true, Formulario: true, createdAt: true }
+            });
+            console.warn(`[Webhook] Nenhum NPS Pendente para "${emailTrimmed}". Registros com esse email:`, JSON.stringify(todosComEmail));
+            return res.status(404).json({ 
+                message: 'Nenhuma pesquisa pendente encontrada.',
+                debug: { emailBuscado: emailTrimmed, formType, registrosEncontrados: todosComEmail.length }
+            });
+        }
+
+        // Atualiza score e respostas
         const updateData = {};
         if (score !== undefined) updateData.Score = String(score);
-        if (respostasFull) updateData.Respostas_JSON = respostasFull;
+        if (respostasFull && typeof respostasFull === 'object') {
+            updateData.Respostas_JSON = respostasFull;
+        }
 
         await prisma.company_nps.update({
             where: { id: pendingNps.id },
             data: updateData
         });
 
-        console.log(`[Webhook] ✅ NPS atualizado para ${email}: Score ${score} (ID: ${pendingNps.id})`);
-        
-        // Também poderíamos registrar no auditLog do servidor se quisermos,
-        // mas o básico já é suficiente.
-        res.json({ success: true, message: 'NPS atualizado com sucesso.' });
+        console.log(`[Webhook] ✅ NPS atualizado: email="${emailTrimmed}" | score=${score} | form="${pendingNps.Formulario}" | id=${pendingNps.id}`);
+        res.json({ success: true, message: 'NPS atualizado com sucesso.', id: pendingNps.id });
     } catch (err) {
-        console.error('[Webhook] Falha ao processar google-forms webhook:', err);
+        console.error('[Webhook] Erro ao processar google-forms:', err);
         res.status(500).json({ error: 'Erro interno no webhook' });
     }
 });
