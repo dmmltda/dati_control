@@ -55,11 +55,42 @@ const TYPE_MAP = {
     'build' : 'Build',
 };
 
+// ─── Mapa Área → view ID do app (data-view nos nav-items) ────────────────────
+const AREA_NAV_MAP = {
+    'Dashboard'            : { view: 'dashboard',        icon: 'ph-chart-bar'                 },
+    'Empresas'             : { view: 'company-list',     icon: 'ph-buildings'                 },
+    'Atividades'           : { view: 'minhas-tarefas',   icon: 'ph-check-square'              },
+    'Relatórios'           : { view: 'reports',          icon: 'ph-chart-line-up'             },
+    'Histórico'            : { view: 'audit-log',        icon: 'ph-clock-counter-clockwise', callback: () => auditLog?.init?.()    },
+    'Log de Testes'        : { view: 'log',              icon: 'ph-flask'                     },
+    'E-mail / Gabi AI'     : { view: 'email-monitor',    icon: 'ph-envelope',                 callback: () => emailMonitor?.init?.()  },
+    'WhatsApp HD'          : { view: 'whatsapp-inbox',   icon: 'ph-whatsapp-logo',            callback: () => whatsappInbox?.init?.() },
+    'Usuários e Permissões': { view: 'config-usuarios',  icon: 'ph-users'                     },
+    'Infraestrutura'       : { view: 'deploy',           icon: 'ph-rocket',                   callback: () => deployMonitor?.init?.() },
+    'Interface'            : { view: 'deploy',           icon: 'ph-monitor',                  callback: () => deployMonitor?.init?.() },
+    'Back-end / API'       : { view: 'deploy',           icon: 'ph-code',                     callback: () => deployMonitor?.init?.() },
+    'Banco de Dados'       : { view: 'deploy',           icon: 'ph-database',                 callback: () => deployMonitor?.init?.() },
+    'Autenticação'         : { view: 'config-usuarios',  icon: 'ph-lock'                      },
+    'Importação'           : { view: 'company-list',     icon: 'ph-upload-simple'             },
+    'NPS'                  : { view: 'company-list',     icon: 'ph-smiley'                    },
+    'Customer Success'     : { view: 'company-list',     icon: 'ph-handshake'                 },
+    'Funil de Vendas'      : { view: 'company-list',     icon: 'ph-funnel'                    },
+};
+
+function _deployNav(area) {
+    const target = AREA_NAV_MAP[area];
+    if (!target) return;
+    const navEl = document.querySelector(`[data-view="${target.view}"]`);
+    if (navEl) navEl.click();
+    try { target.callback?.(); } catch(e) { /* ignore */ }
+}
+window._deployNav = _deployNav;
+
 /**
- * Parseia a mensagem de commit e retorna { area, impact }
+ * Parseia a mensagem de commit e retorna { area, navTarget, de, para }
  */
 function _parseCommit(message) {
-    if (!message) return { area: 'Geral', de: '—', para: '—' };
+    if (!message) return { area: 'Geral', navTarget: null, de: '—', para: '—' };
 
     const lower = message.toLowerCase();
 
@@ -79,9 +110,11 @@ function _parseCommit(message) {
         }
     }
 
+    const navTarget = AREA_NAV_MAP[area] ?? null;
+
     // 3. Monta DE (estado anterior) e PARA (estado resultante)
     const DE_MAP = {
-        'feat'    : '—',                        // recurso não existia
+        'feat'    : '—',
         'fix'     : 'Com falha',
         'chore'   : 'Pendente / acumulado',
         'refactor': 'Código legado',
@@ -93,10 +126,10 @@ function _parseCommit(message) {
         'revert'  : 'Versão anterior',
     };
 
-    const de   = DE_MAP[typeRaw] ?? '—';
-    const para  = bodyRaw;
+    const de  = DE_MAP[typeRaw] ?? '—';
+    const para = bodyRaw;
 
-    return { area, de, para };
+    return { area, navTarget, de, para };
 }
 
 function _formatDate(iso) {
@@ -135,7 +168,7 @@ function _renderRows(data) {
     tbody.innerHTML = data.map(row => {
         const isRailway = row.author === 'Railway';
         const color = isRailway ? '#6366f1' : 'var(--text-main)';
-        const { area, de, para } = _parseCommit(row.message);
+        const { area, navTarget, de, para } = _parseCommit(row.message);
 
         // Badge de Área com cor semântica
         const AREA_COLORS = {
@@ -153,11 +186,34 @@ function _renderRows(data) {
         // Coluna DE: estado anterior (cinza/muted)
         const isVazio = de === '—';
         const deHtml = isVazio
-            ? `<span style="font-size:0.75rem; color:var(--text-disabled, #4a5568); font-style:italic;">—&nbsp;não existia</span>`
+            ? `<span style="font-size:0.75rem; color:#4a5568; font-style:italic;">— não existia</span>`
             : `<span style="font-size:0.75rem; color:#94a3b8; background:rgba(148,163,184,0.08); border:1px solid rgba(148,163,184,0.15); border-radius:4px; padding:0.15rem 0.5rem;">${_escapeHtml(de)}</span>`;
 
-        // Coluna PARA: estado resultante (destaque)
-        const paraHtml = `<span style="font-size:0.82rem; color:var(--text-main); line-height:1.4; word-break:break-word;">${_escapeHtml(para)}</span>`;
+        // Coluna PARA: clicável — leva para a sessão afetada
+        const escapedArea = _escapeHtml(area).replace(/'/g, "\\'");
+        const paraHtml = navTarget
+            ? `<button
+                onclick="window._deployNav('${escapedArea}')"
+                title="Ir para: ${_escapeHtml(navTarget.view)}"
+                style="
+                    background:none; border:none; cursor:pointer; text-align:left; padding:0;
+                    display:inline-flex; align-items:flex-start; gap:0.5rem; width:100%;
+                    color:var(--text-main); font-size:0.82rem; line-height:1.4; word-break:break-word;
+                ">
+                <span>${_escapeHtml(para)}</span>
+                <span style="
+                    flex-shrink:0; margin-top:1px;
+                    font-size:0.7rem; color:${ac.color};
+                    background:${ac.bg}; border:1px solid ${ac.border};
+                    border-radius:4px; padding:0.1rem 0.35rem;
+                    display:inline-flex; align-items:center; gap:0.25rem;
+                    white-space:nowrap; opacity:0.85;
+                    transition: opacity 0.15s;
+                " onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">
+                    <i class="ph ${navTarget.icon}"></i> ir
+                </span>
+              </button>`
+            : `<span style="font-size:0.82rem; color:var(--text-main); line-height:1.4; word-break:break-word;">${_escapeHtml(para)}</span>`;
 
         const statusHtml = `<span style="font-size:0.75rem; background:rgba(16,185,129,0.12); color:#10b981; padding:0.15rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.25);">
             <i class="ph ph-check-circle"></i> Concluído
