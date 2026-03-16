@@ -44,7 +44,15 @@ router.get('/', requireFeature('audit.view'), async (req, res) => {
     // ── Construção dinâmica do WHERE ────────────────────────────────────────
     const where = {};
 
-    if (action)      where.action = action;
+    // Por padrão, ocultar logs de processos automáticos do sistema (SYSTEM, RECEIVE)
+    // Eles são logs técnicos internos (health check da Gabi, webhooks) e não ações humanas.
+    // O usuário pode explicitamente filtrá-los passando action=SYSTEM ou action=RECEIVE.
+    if (action) {
+        where.action = action;
+    } else {
+        where.action = { notIn: ['SYSTEM', 'RECEIVE'] };
+    }
+
     if (entity_type) where.entity_type = entity_type;
     if (actor_id)    where.actor_id = actor_id;
     if (company_id)  where.company_id = company_id;
