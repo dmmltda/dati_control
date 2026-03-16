@@ -13,3 +13,7 @@ ALTER TABLE "activities"
 ALTER TABLE "activity_time_logs"
     ADD COLUMN IF NOT EXISTS "contact_nome"  TEXT,
     ADD COLUMN IF NOT EXISTS "activity_type" TEXT;
+
+-- Add ai_enabled to whatsapp_conversations (Gabi auto-reply toggle)
+ALTER TABLE "whatsapp_conversations"
+    ADD COLUMN IF NOT EXISTS "ai_enabled" BOOLEAN NOT NULL DEFAULT false;
