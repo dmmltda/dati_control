@@ -17,6 +17,7 @@ const DEPLOY_COLUMNS = [
 
 let _manager = null;
 let _allRows = [];
+let _filters = { author: '', status: '', dateFrom: '', dateTo: '' };
 
 function _formatDate(iso) {
     if (!iso) return '—';
@@ -173,9 +174,121 @@ function _exposeGlobals() {
     };
     
     window._deployToggleFilter = (key, event) => {
-        // Simple popover implementation or just skip for now to keep it lean.
-        showToast('Filtro detalhado será habilitado na próxima versão.', 'info');
+        event.stopPropagation();
+        const popover = document.getElementById(`filter-popover-deploy_${key}`);
+        if (!popover) return;
+
+        // Fecha todos os outros
+        document.querySelectorAll('.filter-popover').forEach(p => {
+            if (p !== popover) p.classList.remove('show');
+        });
+
+        const isOpen = popover.classList.contains('show');
+        if (isOpen) { popover.classList.remove('show'); return; }
+
+        // Constrói o conteúdo
+        if (key === 'date') {
+            popover.innerHTML = `
+                <div style="padding:0.75rem; min-width:240px;">
+                    <div class="filter-group">
+                        <span class="filter-label">Período</span>
+                        <div style="display:flex;flex-direction:column;gap:0.5rem;">
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="font-size:0.72rem;color:var(--text-muted);min-width:28px;">De</span>
+                                <input type="date" id="deploy-filter-from"
+                                    style="flex:1;background:rgba(15,23,42,0.6);border:1px solid var(--dark-border);border-radius:6px;padding:0.35rem 0.5rem;color:var(--text-main);font-size:0.82rem;outline:none;color-scheme:dark;"
+                                    onchange="window._deployDateFilter()">
+                            </div>
+                            <div style="display:flex;align-items:center;gap:0.5rem;">
+                                <span style="font-size:0.72rem;color:var(--text-muted);min-width:28px;">Até</span>
+                                <input type="date" id="deploy-filter-to"
+                                    style="flex:1;background:rgba(15,23,42,0.6);border:1px solid var(--dark-border);border-radius:6px;padding:0.35rem 0.5rem;color:var(--text-main);font-size:0.82rem;outline:none;color-scheme:dark;"
+                                    onchange="window._deployDateFilter()">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn-clear-filter" onclick="window._deployClearDateFilter()">
+                            <i class="ph ph-x-circle"></i> Limpar
+                        </button>
+                    </div>
+                </div>`;
+        } else {
+            const values = [...new Set((_manager?.getData ? _manager.getData() : _allRows).map(r => r[key]).filter(Boolean))].sort();
+            const current = _filters[key] || '';
+            popover.innerHTML = `
+                <div class="filter-group">
+                    <span class="filter-label">Filtrar por ${key === 'author' ? 'Autor' : 'Status'}</span>
+                    <div class="filter-list">
+                        <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._deployFilter('${key}', '')">(Tudo)</div>
+                        ${values.map(v => `<div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._deployFilter('${key}', '${v.replace(/'/g, "\\'")}')">${v}</div>`).join('')}
+                    </div>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-clear-filter" onclick="window._deployFilter('${key}', '')">
+                        <i class="ph ph-x-circle"></i> Limpar Filtro
+                    </button>
+                </div>`;
+        }
+
+        popover.classList.add('show');
+
+        // Posicionamento inteligente
+        popover.classList.remove('align-right');
+        popover.style.bottom = 'auto';
+        popover.style.top = '100%';
+        requestAnimationFrame(() => {
+            const rect = popover.getBoundingClientRect();
+            if (rect.right > window.innerWidth - 20) popover.classList.add('align-right');
+            if (rect.bottom > window.innerHeight - 20) {
+                popover.style.top = 'auto';
+                popover.style.bottom = '100%';
+            }
+        });
     };
+
+    window._deployFilter = (key, value) => {
+        _filters[key] = value || '';
+        _applyFilters();
+        document.querySelectorAll('.filter-popover').forEach(p => p.classList.remove('show'));
+    };
+
+    window._deployDateFilter = () => {
+        const from = document.getElementById('deploy-filter-from')?.value || '';
+        const to   = document.getElementById('deploy-filter-to')?.value   || '';
+        _filters.dateFrom = from;
+        _filters.dateTo   = to;
+        _applyFilters();
+    };
+
+    window._deployClearDateFilter = () => {
+        _filters.dateFrom = '';
+        _filters.dateTo   = '';
+        const f = document.getElementById('deploy-filter-from');
+        const t = document.getElementById('deploy-filter-to');
+        if (f) f.value = '';
+        if (t) t.value = '';
+        _applyFilters();
+    };
+}
+
+// ─── Aplica filtros locais ─────────────────────────────────────────────────────
+function _applyFilters() {
+    if (!_manager) return;
+    let data = [..._allRows];
+
+    if (_filters.author) data = data.filter(r => r.author === _filters.author);
+    if (_filters.status) data = data.filter(r => r.status === _filters.status);
+    if (_filters.dateFrom || _filters.dateTo) {
+        data = data.filter(r => {
+            if (!r.date) return true;
+            const d = new Date(r.date);
+            if (_filters.dateFrom && d < new Date(_filters.dateFrom + 'T00:00:00')) return false;
+            if (_filters.dateTo   && d > new Date(_filters.dateTo   + 'T23:59:59')) return false;
+            return true;
+        });
+    }
+    _manager.setData(data);
 }
 
 export const deployMonitor = {
@@ -224,20 +337,42 @@ export const deployMonitor = {
                             <table class="company-table" id="deploy-tracker-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable-header" data-key="date" style="width:140px;">
-                                            <div class="header-content"><span onclick="window._deploySort('date')">Quando</span></div>
+                                        <th class="sortable-header" data-key="date" style="width:150px; position:relative;">
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('date')">Quando</span>
+                                                <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('date', event)">
+                                                    <i class="ph ph-funnel"></i>
+                                                </button>
+                                            </div>
+                                            <div id="filter-popover-deploy_date" class="filter-popover" style="min-width:260px;"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="author" style="width:180px;">
-                                            <div class="header-content"><span onclick="window._deploySort('author')">Quem</span></div>
+                                        <th class="sortable-header" data-key="author" style="width:180px; position:relative;">
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('author')">Quem</span>
+                                                <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('author', event)">
+                                                    <i class="ph ph-funnel"></i>
+                                                </button>
+                                            </div>
+                                            <div id="filter-popover-deploy_author" class="filter-popover"></div>
                                         </th>
                                         <th class="sortable-header" data-key="hash" style="width:100px;">
-                                            <div class="header-content"><span onclick="window._deploySort('hash')">Versão</span></div>
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('hash')">Versão</span>
+                                            </div>
                                         </th>
                                         <th class="sortable-header" data-key="message">
-                                            <div class="header-content"><span onclick="window._deploySort('message')">O que foi feito</span></div>
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('message')">O que foi feito</span>
+                                            </div>
                                         </th>
-                                        <th class="sortable-header" data-key="status" style="width:120px;">
-                                            <div class="header-content"><span onclick="window._deploySort('status')">Status</span></div>
+                                        <th class="sortable-header" data-key="status" style="width:120px; position:relative;">
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('status')">Status</span>
+                                                <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('status', event)">
+                                                    <i class="ph ph-funnel"></i>
+                                                </button>
+                                            </div>
+                                            <div id="filter-popover-deploy_status" class="filter-popover"></div>
                                         </th>
                                     </tr>
                                 </thead>
