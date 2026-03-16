@@ -696,56 +696,67 @@ function renderNPSHistoryTableRows(data) {
 }
 
 function _openNpsDetailsModal(npsItem) {
+    console.log('[NPS Modal] Chamado com npsItem:', npsItem);
+
     const modal = document.getElementById('nps-details-modal-overlay');
-    if (!modal) return;
-
-    // Cabeçalho
-    document.getElementById('nps-details-destinatario').textContent = npsItem.destinatarios || npsItem.destinatario || '-';
-    document.getElementById('nps-details-data').textContent = npsItem.data || '-';
-    document.getElementById('nps-details-formulariotype').textContent = npsItem.formType || npsItem.forms || 'Formulário';
-    
-    const scoreVal = parseFloat(npsItem.score);
-    const scoreBadge = document.getElementById('nps-details-score-badge');
-    scoreBadge.textContent = isNaN(scoreVal) ? 'Pendente' : scoreVal.toFixed(1);
-    if (isNaN(scoreVal)) {
-        scoreBadge.style.color = '#94a3b8';
-        scoreBadge.style.background = 'rgba(148,163,184,0.1)';
-        scoreBadge.style.borderColor = 'rgba(148,163,184,0.2)';
-    } else if (scoreVal >= 9) {
-        scoreBadge.style.color = '#10b981';
-        scoreBadge.style.background = 'rgba(16,185,129,0.1)';
-        scoreBadge.style.borderColor = 'rgba(16,185,129,0.2)';
-    } else if (scoreVal >= 7) {
-        scoreBadge.style.color = '#f59e0b';
-        scoreBadge.style.background = 'rgba(245,158,11,0.1)';
-        scoreBadge.style.borderColor = 'rgba(245,158,11,0.2)';
-    } else {
-        scoreBadge.style.color = '#ef4444';
-        scoreBadge.style.background = 'rgba(239,68,68,0.1)';
-        scoreBadge.style.borderColor = 'rgba(239,68,68,0.2)';
+    console.log('[NPS Modal] Modal encontrado:', !!modal);
+    if (!modal) {
+        console.error('[NPS Modal] ERRO: elemento nps-details-modal-overlay não encontrado no DOM!');
+        return;
     }
 
-    // Lista de perguntas
-    const listEl = document.getElementById('nps-details-questions-list');
-    listEl.innerHTML = '';
+    try {
+        // Cabeçalho
+        const destEl = document.getElementById('nps-details-destinatario');
+        if (destEl) destEl.textContent = npsItem.destinatarios || npsItem.destinatario || '-';
+        
+        const dataEl = document.getElementById('nps-details-data');
+        if (dataEl) dataEl.textContent = npsItem.data || '-';
+        
+        const tipoEl = document.getElementById('nps-details-formulariotype');
+        if (tipoEl) tipoEl.textContent = npsItem.formType || npsItem.formulario || npsItem.forms || 'Formulário';
 
-    const respostas = typeof npsItem.respostasJSON === 'string' ? JSON.parse(npsItem.respostasJSON) : npsItem.respostasJSON;
-    
-    for (const [pergunta, resposta] of Object.entries(respostas)) {
-        const itemHtml = `
-            <div style="background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:1rem;">
-                <div style="font-size:0.85rem; color:var(--text-muted); font-weight:600; margin-bottom:0.5rem; line-height:1.4;">
-                    ${pergunta}
-                </div>
-                <div style="font-size:0.95rem; color:var(--text-main); font-weight:500;">
-                    ${resposta || '<span style="color:var(--text-muted); font-style:italic;">Não respondeu</span>'}
-                </div>
-            </div>
-        `;
-        listEl.insertAdjacentHTML('beforeend', itemHtml);
+        const scoreVal = parseFloat(npsItem.score);
+        const scoreBadge = document.getElementById('nps-details-score-badge');
+        if (scoreBadge) {
+            scoreBadge.textContent = isNaN(scoreVal) ? 'Pendente' : scoreVal.toFixed(1);
+            const c = isNaN(scoreVal) ? '#94a3b8' : scoreVal >= 9 ? '#10b981' : scoreVal >= 7 ? '#f59e0b' : '#ef4444';
+            const bg = isNaN(scoreVal) ? 'rgba(148,163,184,0.1)' : scoreVal >= 9 ? 'rgba(16,185,129,0.1)' : scoreVal >= 7 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
+            scoreBadge.style.color = c; scoreBadge.style.background = bg; scoreBadge.style.borderColor = c;
+        }
+
+        // Lista de perguntas
+        const listEl = document.getElementById('nps-details-questions-list');
+        if (listEl) {
+            listEl.innerHTML = '';
+            console.log('[NPS Modal] respostasJSON tipo:', typeof npsItem.respostasJSON, 'valor:', npsItem.respostasJSON);
+
+            let respostas = npsItem.respostasJSON;
+            if (typeof respostas === 'string') {
+                try { respostas = JSON.parse(respostas); } catch(e) { respostas = null; }
+            }
+
+            if (respostas && typeof respostas === 'object' && Object.keys(respostas).length > 0) {
+                Object.entries(respostas).forEach(([pergunta, resposta]) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'background:var(--bg-secondary,#1e2436);border:1px solid var(--border-color,#2a3148);border-radius:8px;padding:1rem;margin-bottom:0.75rem;';
+                    div.innerHTML = `<div style="font-size:0.82rem;color:var(--text-muted,#8892a4);font-weight:600;margin-bottom:0.4rem;">${pergunta}</div><div style="font-size:0.95rem;color:var(--text-main,#e2e8f0);">${resposta || '<em style="opacity:.5">Não respondido</em>'}</div>`;
+                    listEl.appendChild(div);
+                });
+            } else {
+                listEl.innerHTML = '<p style="color:var(--text-muted,#8892a4);text-align:center;padding:1rem;">Sem respostas detalhadas registradas.</p>';
+                console.warn('[NPS Modal] respostasJSON vazio ou inválido:', respostas);
+            }
+        }
+
+        // Abre o modal
+        modal.style.display = 'flex';
+        console.log('[NPS Modal] Modal aberto! display:', modal.style.display);
+    } catch(err) {
+        console.error('[NPS Modal] ERRO ao preencher modal:', err);
+        // Ainda tenta abrir
+        modal.style.display = 'flex';
     }
-
-    modal.style.display = 'flex';
 }
 
 export function renderCSMeetingsTable() {
