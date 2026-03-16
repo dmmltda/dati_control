@@ -679,6 +679,9 @@ model whatsapp_conversations {
   gabi_resumo            String?   // resumo gerado pela Gabi
   gabi_acoes_sugeridas   String?   // JSON array de ações sugeridas
 
+  contact_nome    String?                         // nome desnormalizado — preservado mesmo se contato deletado
+  company_nome    String?                         // nome desnormalizado — preservado mesmo se empresa deletada
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
