@@ -1194,12 +1194,65 @@ function _initTestLogsTooltips() {
         }
     };
 
+    const metaData = {
+        'tl-data': ['Data da Execução', 'Dia em que os testes de saúde e performance foram executados.', '0:10'],
+        'tl-hora': ['Horário Exato', 'Horário de Brasília no momento em que a automação disparou a suíte de testes.', '0:10'],
+        'tl-tipo': ['Tipo de Teste (E2E)', 'Identifica o tipo da automação (ex: E2E). Testes E2E simulam interações de um usuário real navegando.', '0:12'],
+        'tl-modulo': ['Área do Sistema', 'O módulo alvo do teste (ex: Gabi AI, Faturamento). Indica qual inteligência foi validada.', '0:15'],
+        'tl-descricao': ['Descrição do Escopo', 'Detalha o cenário testado. Garante que as integrações externas respondam corretamente.', '0:18'],
+        'tl-status': ['Status da Execução', 'Indica se a execução "Passou", ou se encontrou falhas. Relaxe! Falhas disparam alertas imediatos.', '0:13'],
+        'tl-duracao': ['Performance (ms)', 'Tempo total levado pela automação. Monitoramos isso para detectar degradação na velocidade.', '0:12'],
+        'tl-agendamento': ['Agendar Execuções', 'Programe a suíte para rodar periodicamente e monitore o ecossistema minimizando surpresas.', '0:13'],
+        'tl-rodar': ['Execução Manual', 'Força a inicialização imediata do robô dos testes. Excelente para validar correções em tempo real.', '0:15']
+    };
+
+    function ensureDOM(id) {
+        let wrap = document.getElementById(`vcw-${id}`);
+        if (wrap) return wrap;
+
+        // Tolerance for index.html strict cache
+        let targetNode;
+        if (id === 'tl-agendamento') targetNode = document.getElementById('btn-log-agendamento');
+        else if (id === 'tl-rodar') targetNode = document.getElementById('btn-log-run-now');
+        else {
+            const th = document.querySelector(`th.sortable-header[data-key="${id.replace('tl-', '')}"]`);
+            if (th) targetNode = th.querySelector('.header-content span');
+        }
+
+        if (!targetNode) return null;
+
+        wrap = document.createElement('div');
+        wrap.className = 'vcw';
+        wrap.id = `vcw-${id}`;
+        wrap.style.position = 'relative';
+        wrap.style.display = 'inline-flex';
+        targetNode.parentNode.insertBefore(wrap, targetNode);
+        wrap.appendChild(targetNode);
+
+        const rightAnchored = id.includes('agendamento') || id.includes('rodar') || id.includes('status') || id.includes('duracao');
+        const tooltipHTML = `
+            <div class="vtt-tooltip" id="vct-${id}" style="display:none;position:absolute;z-index:999999;">
+                <div class="vtt-video-container" id="vcvc-${id}"><canvas class="vtt-canvas" id="vcc-${id}" width="300" height="169"></canvas></div>
+                <div class="vtt-body">
+                    <div class="vtt-label">Tutorial · ${metaData[id][2]}</div>
+                    <div class="vtt-title">${metaData[id][0]}</div>
+                    <div class="vtt-desc">${metaData[id][1]}</div>
+                    <div class="vtt-cta"><span class="vtt-link">Entenda mais →</span><span class="vtt-time" id="vctm-${id}">0:00</span></div>
+                </div>
+                <div class="vtt-arrow" style="${rightAnchored?'right:20px;left:auto;':'left:20px;right:auto;'}top:-5px;transform:rotate(45deg);"></div>
+            </div>`;
+        wrap.insertAdjacentHTML('beforeend', tooltipHTML);
+        return wrap;
+    }
+
     function setup(id, durationFrames) {
-        const wrap = document.getElementById(`vcw-${id}`);
+        const wrap = ensureDOM(id);
+        if(!wrap) return;
+
         const tooltip = document.getElementById(`vct-${id}`);
         const canvas = document.getElementById(`vcc-${id}`);
         const ctaTime = document.getElementById(`vctm-${id}`);
-        if(!wrap || !tooltip || !canvas) return;
+        if(!tooltip || !canvas) return;
 
         const ctx = init(canvas);
         let animId=null, frame=0, visible=false;
@@ -1207,14 +1260,50 @@ function _initTestLogsTooltips() {
         function draw(){ if(anims[id]) anims[id](ctx,frame); }
         function tick(){ draw(); frame=(frame+1)%durationFrames; if (ctaTime) ctaTime.innerHTML=`0:${String(Math.floor(frame/60)).padStart(2,'0')}`; animId=requestAnimationFrame(tick); }
         
-        wrap.addEventListener('mouseenter', () => {
+        const showTooltip = () => {
             if(visible) return; visible=true;
-            document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
-            tooltip.classList.add('vtt-visible'); frame=0; if(animId)cancelAnimationFrame(animId); animId=requestAnimationFrame(tick);
-        });
-        wrap.addEventListener('mouseleave', (e) => {
-            if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); if(animId)cancelAnimationFrame(animId); animId=null; frame=0; draw(); }
-        });
+            document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=> { t.classList.remove('vtt-visible'); t.style.display='none'; });
+            
+            // Appending to body solves <th> overflow hidden / position sticky z-index clipping
+            document.body.appendChild(tooltip);
+            tooltip.style.display = 'block';
+            tooltip.style.position = 'fixed';
+            const rect = wrap.getBoundingClientRect();
+            
+            if (id.includes('agendamento') || id.includes('rodar') || id.includes('status') || id.includes('duracao')) {
+                tooltip.style.left = 'auto';
+                tooltip.style.right = (window.innerWidth - rect.right) + 'px';
+            } else if (id.includes('descricao')) {
+                tooltip.style.left = (rect.left - 50) + 'px';
+                tooltip.style.right = 'auto';
+            } else {
+                tooltip.style.left = rect.left + 'px';
+                tooltip.style.right = 'auto';
+            }
+            tooltip.style.top = (rect.bottom + 8) + 'px';
+            tooltip.style.zIndex = '999999';
+            
+            void tooltip.offsetWidth; // Reflow
+            tooltip.classList.add('vtt-visible'); 
+            frame=0; 
+            if(animId)cancelAnimationFrame(animId); 
+            animId=requestAnimationFrame(tick);
+        };
+
+        const hideTooltip = (e) => {
+            if(!wrap.contains(e.relatedTarget) && !tooltip.contains(e.relatedTarget)){ 
+                visible=false; 
+                tooltip.classList.remove('vtt-visible'); 
+                if(animId)cancelAnimationFrame(animId); 
+                animId=null; frame=0; draw(); 
+                setTimeout(() => { if(!visible) tooltip.style.display='none'; }, 200);
+            }
+        };
+
+        wrap.addEventListener('mouseenter', showTooltip);
+        wrap.addEventListener('mouseleave', hideTooltip);
+        tooltip.addEventListener('mouseenter', () => { if(visible) return; showTooltip(); });
+        tooltip.addEventListener('mouseleave', hideTooltip);
         draw();
     }
 
