@@ -275,9 +275,23 @@ function _renderRows(data) {
         if (row._screenshot || row._video) {
             // Mostra evidências para qualquer status (aprovado, reprovado, erro)
             mediaSection = `
-            <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
-                ${row._screenshot ? `<a href="${row._screenshot}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-image"></i> Screenshot</a>` : ''}
-                ${row._video ? `<a href="${row._video}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-video"></i> Vídeo</a>` : ''}
+            <div style="margin-top:0.75rem;">
+                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em; text-transform:uppercase; display:block; margin-bottom:0.5rem;">
+                    <i class="ph ph-camera" style="margin-right:0.3rem;"></i>Evidências
+                </span>
+                ${row._screenshot ? `
+                <a href="${row._screenshot}" target="_blank" title="Clique para abrir em tamanho original">
+                    <img src="${row._screenshot}" alt="Screenshot do teste"
+                        style="max-width:100%; max-height:400px; object-fit:contain; border-radius:8px; border:1px solid rgba(99,102,241,0.25); display:block; cursor:zoom-in; transition:opacity 0.2s;"
+                        onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'"
+                    />
+                </a>` : ''}
+                ${row._video ? `
+                <div style="margin-top:0.5rem;">
+                    <a href="${row._video}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;">
+                        <i class="ph ph-video"></i> Assistir Vídeo
+                    </a>
+                </div>` : ''}
             </div>`;
         } else if (ai && ai.code_snippet) {
             mediaSection = `

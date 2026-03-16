@@ -2,6 +2,7 @@ import express from 'express';
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import * as audit from '../services/audit.js';
+import { sendEmail } from '../services/email.js';
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -147,24 +148,57 @@ E-mail:
                 : 'O cliente respondeu de forma objetiva / confirmando.';
         }
             
-        let generatedReply = null;
+        let gabiOutboundLogId = null;
         if (action === 'auto_replied') {
             generatedReply = "Olá! Agradecemos o seu contato. Entendi sua mensagem e já registrei no sistema. Em breve nosso time analisará caso haja mais alguma pendência. Um abraço da Gabi!";
             
-            // Simular o envio da autopesposta no log do banco (opcional para trackear envio duplo)
-            await prisma.email_send_log.create({
-                data: {
-                    dedup_key: randomUUID(),
-                    recipient: from,
-                    subject: `Re: ${subject || 'Sem assunto'}`,
-                    template: 'inbound_reply',
-                    tag: 'gabi-auto-reply',
-                    direction: 'outbound',
-                    parent_email_id: inboundLog.id,
-                    status: 'sent',
-                    content: generatedReply
-                }
+            const replySubject = `Re: ${subject || 'Sem assunto'}`;
+            const replyHtml = `<div style="font-family:sans-serif; color:#1e293b; line-height:1.7">
+<p>${generatedReply}</p>
+<hr style="border:none; border-top:1px solid #e2e8f0; margin:1.5rem 0;">
+<p style="color:#94a3b8; font-size:0.85rem;">💬 Respondido automaticamente pela Gabi — Assistente de Customer Success da Journey CRM.<br>
+Este é um e-mail automático. Para falar com nossa equipe, responda esta mensagem.</p>
+</div>`;
+
+            // ── Envio REAL via Resend (passa pelo email.js) ──
+            const sendResult = await sendEmail({
+                to: cleanEmail,
+                subject: replySubject,
+                html: replyHtml,
+                tag: 'gabi-auto-reply',
+                dedupKey: randomUUID(),
             });
+
+            // ── Atualiza o registro criado pelo sendEmail com metadata da thread ──
+            // sendEmail já cria o log no banco; vamos buscar pelo tag mais recente
+            // e completar com os campos da thread
+            try {
+                const outbound = await prisma.email_send_log.findFirst({
+                    where: { tag: 'gabi-auto-reply', direction: null },
+                    orderBy: { sent_at: 'desc' }
+                });
+                if (outbound) {
+                    await prisma.email_send_log.update({
+                        where: { id: outbound.id },
+                        data: {
+                            direction: 'outbound',
+                            status: sendResult.sent ? 'sent' : 'failed',
+                            parent_email_id: inboundLog.id,
+                            gabi_analysis: {
+                                processed_by_ai: true,
+                                action_taken: 'auto_replied',
+                                intent,
+                                summary: `Resposta automática enviada para: ${cleanEmail}`
+                            }
+                        }
+                    });
+                    gabiOutboundLogId = outbound.id;
+                }
+            } catch (updateErr) {
+                console.warn('[Webhook Email] Não foi possível atualizar o log de saída da Gabi:', updateErr.message);
+            }
+
+            console.log(`[Webhook Email] 📤 Resposta Gabi ${sendResult.sent ? 'ENVIADA' : 'FALHOU'} para ${cleanEmail}`);
         }
 
         // Atualizar log com análise
