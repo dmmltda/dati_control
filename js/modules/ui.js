@@ -658,7 +658,7 @@ function renderNPSHistoryTableRows(data) {
             </td>
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end; width:100%;">
-                    ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon" data-nps-key="${nps.id || index}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
+                    ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon" title="Ver Respostas Detalhadas" onclick="window._npsOpenDetails('${nps.id || String(index)}')" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
                     <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
@@ -676,8 +676,12 @@ function renderNPSHistoryTableRows(data) {
     window._npsDataMap = window._npsStore;
     if (!window._npsOpenDetails) {
         window._npsOpenDetails = function(key) {
-            const btn = document.querySelector(`[data-nps-key="${key}"]`);
-            if (btn) btn.click();
+            const npsItem = window._npsStore[key];
+            if (npsItem) {
+                _openNpsDetailsModal(npsItem);
+            } else {
+                console.error('[NPS] Item não encontrado para key:', key);
+            }
         };
     }
 }
