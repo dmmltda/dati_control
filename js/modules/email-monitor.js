@@ -390,25 +390,34 @@ const emailMonitor = (() => {
                 
                 if (gabi && gabi.processed_by_ai) {
                     analysisHtml = `
-                        <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); padding:1rem; border-radius:10px; margin-top:1.5rem; position:relative; overflow:hidden;">
-                            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:var(--primary-color);"></div>
-                            <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.5px;">
-                                <i class="ph ph-sparkle" style="font-size:1.1rem;"></i> Inteligência Gabi
-                            </strong>
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:0.75rem;">
-                                <div style="font-size:0.85rem;"><span style="color:#94a3b8;">Intenção:</span> <br><strong style="color:#f1f5f9;">${gabi.intent}</strong></div>
-                                <div style="font-size:0.85rem;"><span style="color:#94a3b8;">Ação:</span> <br><strong style="color:#f1f5f9; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${gabi.action_taken}</strong></div>
+                        <div style="background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.15); padding:1rem; border-radius:12px; margin-top:2rem; border-left:4px solid var(--primary-color);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                                <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;">
+                                    <i class="ph ph-brain" style="font-size:1.2rem;"></i> Gabi: Triagem & Raciocínio (Interno)
+                                </strong>
+                                <span style="font-size:0.7rem; color:#64748b; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:20px;">IA Model: Gemini v1</span>
                             </div>
-                            <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.5; padding:0.75rem; background:rgba(0,0,0,0.2); border-radius:8px;">
-                                <span style="color:#94a3b8; font-size:0.75rem; display:block; margin-bottom:0.4rem;">RESUMO DA ANÁLISE:</span>
+                            
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <div>
+                                    <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.25rem;">INTENÇÃO DETECTADA:</span>
+                                    <strong style="color:#f1f5f9; font-size:0.9rem;">${gabi.intent}</strong>
+                                </div>
+                                <div>
+                                    <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.25rem;">AÇÃO EXECUTADA:</span>
+                                    <strong style="color:#10b981; font-size:0.9rem;">${gabi.action_taken === 'auto_replied' ? '✅ Resposta Automática' : '👤 Transbordo Humano'}</strong>
+                                </div>
+                            </div>
+
+                            <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.6;">
+                                <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.4rem; font-weight:700;">PROCESSO DE PENSAMENTO DA IA:</span>
                                 ${gabi.summary}
                             </div>
+
                             ${gabi.generated_reply ? `
-                                <div style="margin-top:1rem; border-top:1px dashed rgba(99,102,241,0.2); padding-top:1rem;">
-                                    <span style="color:var(--primary-color); font-size:0.75rem; font-weight:700; display:block; margin-bottom:0.5rem;">RESPOSTA AUTOMÁTICA ENVIADA:</span>
-                                    <div style="padding:0.75rem; background:rgba(99,102,241,0.05); border-radius:8px; font-style:italic; border-left:2px solid var(--primary-color); color:#e2e8f0; font-size:0.85rem;">
-                                        "${_esc(gabi.generated_reply)}"
-                                    </div>
+                                <div style="margin-top:1.25rem; background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:8px; border:1px dashed rgba(99,102,241,0.2);">
+                                    <span style="font-size:0.7rem; color:var(--primary-color); display:block; margin-bottom:0.4rem; font-weight:700;">PROPOSTA DE RESPOSTA (ENVIADA EM SEGUIDA):</span>
+                                    <div style="font-size:0.8rem; color:#94a3b8; font-style:italic; line-height:1.4;">"${_esc(gabi.generated_reply.substring(0, 100))}..."</div>
                                 </div>
                             ` : ''}
                         </div>
@@ -474,6 +483,10 @@ const emailMonitor = (() => {
 
                         <!-- Card Content -->
                         <div style="background:#0f172a; border-radius:16px; border:1px solid rgba(255,255,255,0.06); padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                                <span style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Mensagem Original:</span>
+                                <div style="flex:1; height:1px; background:rgba(255,255,255,0.05);"></div>
+                            </div>
                             <h4 style="margin:0 0 0.5rem 0; font-size:1.05rem; color:#f8fafc; font-weight:700;">${_esc(row.subject)}</h4>
                             ${contentHtml}
                             ${analysisHtml}
