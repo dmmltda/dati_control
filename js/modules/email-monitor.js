@@ -374,27 +374,43 @@ const emailMonitor = (() => {
             data.forEach((row, idx) => {
                 const isLast = idx === data.length - 1;
                 const isInbound = row.direction === 'inbound';
+                const count = idx + 1;
                 
-                // Formata nomes corretamente e explicita DE e PARA
+                // Padrão de Cores e Ícones
+                const color = isInbound ? '#3b82f6' : '#10b981'; // Azul Royal vs Verde Esmeralda
+                const badgeLabel = isInbound ? 'Recebido' : 'Enviado';
+                const badgeIcon = isInbound ? 'ph-arrow-arc-left' : 'ph-paper-plane-tilt';
+                
+                // Formata nomes
                 const fromStr = isInbound ? row.recipient : 'Gabi (Journey)';
                 const toStr = isInbound ? 'Gabi (Journey)' : row.recipient;
-                
-                // Tema visual separando In e Outbound
-                const icon = isInbound ? '<i class="ph ph-arrow-down-left" style="color:var(--primary-color);"></i>' : '<i class="ph ph-arrow-up-right" style="color:#10b981;"></i>';
-                const borderLeft = isInbound ? 'var(--primary-color)' : '#10b981';
 
                 const gabi = row.gabi_analysis || {};
                 let analysisHtml = '';
                 
                 if (gabi && gabi.processed_by_ai) {
                     analysisHtml = `
-                        <div style="background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.2); padding:0.75rem 1rem; border-radius:6px; margin-top:1rem;">
-                            <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem; font-size:0.85rem;">
-                                <i class="ph ph-sparkle"></i> IA: Triagem e Ação
+                        <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); padding:1rem; border-radius:10px; margin-top:1.5rem; position:relative; overflow:hidden;">
+                            <div style="position:absolute; top:0; left:0; width:4px; height:100%; background:var(--primary-color);"></div>
+                            <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.6rem; margin-bottom:0.75rem; font-size:0.9rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                <i class="ph ph-sparkle" style="font-size:1.1rem;"></i> Inteligência Gabi
                             </strong>
-                            <div style="font-size:0.8rem; margin-bottom:0.25rem;"><strong>Intenção:</strong> ${gabi.intent} &nbsp; | &nbsp; <strong>Ação Tomada:</strong> <span style="background:var(--bg-body); padding:2px 6px; border-radius:4px; border:1px solid var(--border-color);">${gabi.action_taken}</span></div>
-                            <div style="font-size:0.8rem;"><strong>Resumo / Razão:</strong> ${gabi.summary}</div>
-                            ${gabi.generated_reply ? `<div style="font-size:0.8rem; margin-top:0.6rem; border-top:1px dashed rgba(99,102,241,0.2); padding-top:0.6rem;"><strong>Resposta Exata gerada pela Gabi:</strong> <div style="margin-top:0.4rem; padding:0.5rem; background:rgba(0,0,0,0.15); border-radius:4px; font-style:italic;">"${_esc(gabi.generated_reply)}"</div></div>` : ''}
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:0.75rem;">
+                                <div style="font-size:0.85rem;"><span style="color:#94a3b8;">Intenção:</span> <br><strong style="color:#f1f5f9;">${gabi.intent}</strong></div>
+                                <div style="font-size:0.85rem;"><span style="color:#94a3b8;">Ação:</span> <br><strong style="color:#f1f5f9; background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${gabi.action_taken}</strong></div>
+                            </div>
+                            <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.5; padding:0.75rem; background:rgba(0,0,0,0.2); border-radius:8px;">
+                                <span style="color:#94a3b8; font-size:0.75rem; display:block; margin-bottom:0.4rem;">RESUMO DA ANÁLISE:</span>
+                                ${gabi.summary}
+                            </div>
+                            ${gabi.generated_reply ? `
+                                <div style="margin-top:1rem; border-top:1px dashed rgba(99,102,241,0.2); padding-top:1rem;">
+                                    <span style="color:var(--primary-color); font-size:0.75rem; font-weight:700; display:block; margin-bottom:0.5rem;">RESPOSTA AUTOMÁTICA ENVIADA:</span>
+                                    <div style="padding:0.75rem; background:rgba(99,102,241,0.05); border-radius:8px; font-style:italic; border-left:2px solid var(--primary-color); color:#e2e8f0; font-size:0.85rem;">
+                                        "${_esc(gabi.generated_reply)}"
+                                    </div>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }
@@ -409,31 +425,56 @@ const emailMonitor = (() => {
                             .replace(/'/g, '&#39;')
                             .replace(/</g, '&lt;')
                             .replace(/>/g, '&gt;');
-                        contentHtml = `<iframe srcdoc="${safeSrcDoc}" style="width:100%; height:320px; border:1px solid var(--border-color); background:#fff; border-radius:6px; margin-top:0.5rem;"></iframe>`;
+                        contentHtml = `
+                            <div style="margin-top:1rem; border:1px solid rgba(255,255,255,0.1); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+                                <div style="background:#f8fafc; padding:0.5rem 1rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">Visualização do E-mail Enviado</span>
+                                    <i class="ph ph-monitor" style="color:#94a3b8;"></i>
+                                </div>
+                                <iframe srcdoc="${safeSrcDoc}" style="width:100%; height:420px; border:none; display:block;"></iframe>
+                            </div>
+                        `;
                     } else {
-                        contentHtml = `<div style="white-space:pre-wrap; background:rgba(0,0,0,0.15); padding:1rem; border-radius:6px; font-size:0.85rem; max-height:220px; overflow-y:auto; line-height:1.45; color:var(--text-color); margin-top:0.5rem;">${_esc(row.content)}</div>`;
+                        contentHtml = `
+                            <div style="white-space:pre-wrap; background:rgba(255,255,255,0.03); padding:1.25rem; border-radius:10px; font-size:0.9rem; max-height:350px; overflow-y:auto; line-height:1.6; color:#e2e8f0; margin-top:1rem; border:1px solid rgba(255,255,255,0.08);">
+                                ${_esc(row.content)}
+                            </div>
+                        `;
                     }
                 } else {
-                    contentHtml = `<em style="color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem; display:block;">(Corpo do e-mail não disponível no histórico)</em>`;
+                    contentHtml = `<div style="padding:2rem; text-align:center; background:rgba(255,255,255,0.02); border-radius:10px; margin-top:1rem; border:1px dashed rgba(255,255,255,0.1); color:#64748b; font-style:italic;">Conteúdo da mensagem não capturado no log histórico.</div>`;
                 }
 
                 html += `
-                    <div style="position:relative; padding-left:1.5rem; border-left:3px solid ${borderLeft}; padding-bottom:${isLast ? '0' : '2rem'}; opacity:${isLast ? '1' : '0.8'};">
-                        <div style="position:absolute; left:-9px; top:0; width:15px; height:15px; border-radius:50%; background:var(--bg-card); border:3px solid ${borderLeft};"></div>
+                    <div style="position:relative; padding-left:3.5rem; padding-bottom:${isLast ? '0' : '3.5rem'};">
+                        <!-- Timeline Lane -->
+                        <div style="position:absolute; left:0.9rem; top:2.5rem; bottom:0; width:2px; background:linear-gradient(to bottom, ${color} 0%, rgba(255,255,255,0.05) 100%); display:${isLast ? 'none' : 'block'}; opacity:0.3;"></div>
                         
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
-                            <div style="font-size:0.85rem; background:var(--bg-card); border:1px solid var(--border-color); padding:0.5rem 1rem; border-radius:6px;">
-                                <div><strong style="color:var(--text-muted); width:40px; display:inline-block;">De:</strong> <span style="color:var(--text-color);">${_esc(fromStr)}</span></div>
-                                <div style="margin-top:0.2rem;"><strong style="color:var(--text-muted); width:40px; display:inline-block;">Para:</strong> <span style="color:var(--text-color);">${_esc(toStr)}</span></div>
+                        <!-- Timeline Node (#) -->
+                        <div style="position:absolute; left:0; top:0; width:2rem; height:2rem; border-radius:8px; background:${color}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem; box-shadow:0 0 15px ${color}44; z-index:2;">
+                            #${count}
+                        </div>
+
+                        <!-- Badge Status -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                                <div style="display:flex; flex-direction:column;">
+                                    <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">De: <span style="color:#cbd5e1; text-transform:none; font-weight:400;">${_esc(fromStr)}</span></span>
+                                    <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">Para: <span style="color:#cbd5e1; text-transform:none; font-weight:400;">${_esc(toStr)}</span></span>
+                                </div>
                             </div>
-                            <div style="text-align:right;">
-                                <div style="margin-bottom:0.25rem;">${_statusBadge(row.status)}</div>
-                                <div style="color:var(--text-muted); font-size:0.8rem; display:flex; align-items:center; justify-content:flex-end; gap:0.25rem;">${icon} ${_fmt(row.sent_at)}</div>
+                            
+                            <div style="display:flex; align-items:center; gap:1rem;">
+                                <div style="font-size:0.75rem; color:#64748b; display:flex; align-items:center; gap:0.3rem;"><i class="ph ph-calendar"></i> ${_fmt(row.sent_at)}</div>
+                                <div style="background:${color}15; color:${color}; border:1px solid ${color}33; display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.8rem; border-radius:8px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
+                                    <i class="ph ${badgeIcon}"></i> ${badgeLabel}
+                                </div>
                             </div>
                         </div>
 
-                        <div style="background:var(--bg-card); padding:1.25rem; border-radius:8px; border:1px solid var(--border-color); box-shadow:0 3px 6px rgba(0,0,0,0.15);">
-                            <div style="font-weight:600; font-size:0.95rem; margin-bottom:1rem; color:var(--text-color);">Assunto: ${_esc(row.subject)}</div>
+                        <!-- Card Content -->
+                        <div style="background:#0f172a; border-radius:16px; border:1px solid rgba(255,255,255,0.06); padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
+                            <h4 style="margin:0 0 0.5rem 0; font-size:1.05rem; color:#f8fafc; font-weight:700;">${_esc(row.subject)}</h4>
                             ${contentHtml}
                             ${analysisHtml}
                         </div>
