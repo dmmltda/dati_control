@@ -541,7 +541,6 @@ function _renderKanban(tasks) {
                             <!-- VTT canvas tooltip trigger -->
                             <span class="vcw" id="vcw-kb-${col.ttColIdx}" style="position:relative;display:inline-flex;">
                               <span class="th-info-btn" id="vcb-kb-${col.ttColIdx}" style="cursor:help;">
-                                <i class="ph ph-info"></i><span class="th-pulse"></span>
                               </span>
                               <div class="vtt-tooltip" id="vct-kb-${col.ttColIdx}" style="top:calc(100% + 8px);bottom:auto;${col.ttColIdx < 2 ? 'left:0;right:auto;transform-origin:top left;' : 'right:0;left:auto;transform-origin:top right;'}z-index:9999;">
                                 <div class="vtt-video-container" id="vcvc-kb-${col.ttColIdx}"><canvas class="vtt-canvas" id="vcc-kb-${col.ttColIdx}" width="300" height="169"></canvas></div>
