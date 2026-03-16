@@ -660,7 +660,7 @@ function renderNPSHistoryTableRows(data) {
             </td>
             <td style="text-align: right;">
                 <div style="display:flex; gap:0.5rem; justify-content:flex-end; width:100%;">
-                    ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon btn-view-nps-details" data-index="${index}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
+                    ${nps.respostasJSON ? `<button type="button" class="btn btn-primary btn-icon btn-view-nps-details" data-nps="${encodeURIComponent(JSON.stringify(nps))}" title="Ver Respostas Detalhadas" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-eye"></i></button>` : ''}
                     <button type="button" class="btn btn-danger btn-icon btn-remove-temp-nps" data-index="${index}" title="Remover este registro" style="padding:0.4rem; height:auto; width:auto;"><i class="ph ph-trash"></i></button>
                 </div>
             </td>
@@ -668,15 +668,20 @@ function renderNPSHistoryTableRows(data) {
         body.appendChild(tr);
     });
 
-    // Eventos para o botão "Ver Detalhes"
-    body.querySelectorAll('.btn-view-nps-details').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const idx = e.currentTarget.getAttribute('data-index');
-            const npsItem = data[idx];
-            if (!npsItem || !npsItem.respostasJSON) return;
-            _openNpsDetailsModal(npsItem);
+    // Eventos: delegação no tbody para evitar perda de listeners após re-render
+    if (!body._npsViewListenerAdded) {
+        body._npsViewListenerAdded = true;
+        body.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-view-nps-details');
+            if (!btn) return;
+            try {
+                const npsItem = JSON.parse(decodeURIComponent(btn.getAttribute('data-nps')));
+                _openNpsDetailsModal(npsItem);
+            } catch(err) {
+                console.error('Erro ao abrir modal NPS:', err);
+            }
         });
-    });
+    }
 }
 
 function _openNpsDetailsModal(npsItem) {
@@ -684,7 +689,7 @@ function _openNpsDetailsModal(npsItem) {
     if (!modal) return;
 
     // Cabeçalho
-    document.getElementById('nps-details-destinatario').textContent = npsItem.destinatarios || '-';
+    document.getElementById('nps-details-destinatario').textContent = npsItem.destinatarios || npsItem.destinatario || '-';
     document.getElementById('nps-details-data').textContent = npsItem.data || '-';
     document.getElementById('nps-details-formulariotype').textContent = npsItem.formType || npsItem.forms || 'Formulário';
     
