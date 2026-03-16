@@ -160,11 +160,11 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
         };
         
         // Se definirmos um domínio de inbound geral (ex: respostas@dati.com.br), ou deixamos dinâmico
-        if (replyTo) sendOpts.reply_to = replyTo;
+        if (replyTo) sendOpts.replyTo = replyTo;
         else if (process.env.EMAIL_INBOUND_ADDRESS) {
             // Se configurado no env, usa UUID do e-mail tracker "reply+uuid@dominio.com" pra parse nativo
             const [local, domain] = process.env.EMAIL_INBOUND_ADDRESS.split('@');
-            sendOpts.reply_to = `${local}+${dedupKey}@${domain}`;
+            sendOpts.replyTo = `${local}+${dedupKey}@${domain}`;
         }
 
         if (headers) sendOpts.headers = headers;

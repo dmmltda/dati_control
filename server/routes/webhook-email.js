@@ -191,11 +191,20 @@ E-mail:
                 select: { id: true }
             });
 
+            // Melhor extração do assunto e do corpo do e-mail
+            const finalSubject = subject || 'Sem assunto';
+            // Usa o texto limpo, fallback pra HTML sem tags, fallback pra (Vazio)
+            let emailBody = text || '';
+            if (!emailBody && html) {
+                emailBody = html.replace(/<[^>]*>?/gm, ''); // Strip basic HTML if text is empty
+            }
+            if (!emailBody) emailBody = 'Corpo do e-mail não disponível.';
+
             const newActivity = await prisma.activities.create({
                 data: {
                     activity_type: 'Ação necessária',
-                    title: '[Intervenção IA] Analisar resposta de e-mail',
-                    description: `**Resumo da Gabi:** ${summary}\n\n**Intenção Detectada:** ${intent}\n\n**Remetente:** ${from}\n\n**E-mail Original:**\n${text || 'Texto não disponível'}\n\n[EMAIL_LOG:${inboundLog.id}]`,
+                    title: '[Intervenção Cód IA] Analisar resposta de e-mail',
+                    description: `**Resumo da Gabi:** ${summary}\n\n**Intenção Detectada:** ${intent}\n**Ação Tomada:** Transbordo para Humano\n\n**Assunto recebido:** ${finalSubject}\n**Remetente originado:** ${from}\n\n**E-mail Original (Mensagem Full):**\n\`\`\`text\n${emailBody.trim()}\n\`\`\`\n\n[EMAIL_LOG:${inboundLog.id}]`,
                     priority: 'alta',
                     status: 'A Fazer',
                     company_id: companyId,
