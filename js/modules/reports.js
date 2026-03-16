@@ -71,6 +71,7 @@ export async function initReports() {
   state.initialized = true;
   bindFilterEvents();
   bindColumnPickerToggle();
+  _initReportsTooltips();
   await loadData();
 }
 
@@ -910,4 +911,194 @@ window._rptSwitchTab = function(tab) {
   `;
   document.head.appendChild(style);
 })();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VTT ANIMATED TOOLTIPS
+// ══════════════════════════════════════════════════════════════════════════════
+
+function _initReportsTooltips() {
+    const W=300, H=169;
+    function init(el){ const DPR=window.devicePixelRatio||1; el.width=W*DPR; el.height=H*DPR; el.style.width=W+'px'; el.style.height=H+'px'; const ctx=el.getContext('2d'); ctx.scale(DPR,DPR); return ctx; }
+    function prog(f,s,e){ return Math.max(0,Math.min(1,(f-s)/(e-s)||0)); }
+    function ease(t){ return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+    function lerp(a,b,t){ return a+(b-a)*t; }
+
+    function drawCursor(ctx,x,y,pressing=false){
+        ctx.save(); ctx.translate(x,y); ctx.scale(0.8,0.8);
+        ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=2; ctx.shadowOffsetX=1; ctx.shadowOffsetY=1;
+        ctx.fillStyle=pressing?'#e2e8f0':'#ffffff'; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6); ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+
+    const anims = {
+        'rpt-tab-empresas': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            // Draw table
+            const y0=40;
+            ctx.fillStyle='#141824'; ctx.beginPath(); ctx.roundRect(20,y0,W-40,14,3); ctx.fill();
+            for(let i=0; i<4; i++){
+                ctx.fillStyle=(f>60 && f<160 && i===1) ? 'rgba(99,102,241,0.1)' : 'transparent';
+                ctx.beginPath(); ctx.roundRect(20,y0+18+i*16,W-40,14,3); ctx.fill();
+                ctx.fillStyle=(f>60 && f<160 && i===1) ? '#818cf8':'rgba(255,255,255,0.4)';
+                ctx.fillRect(25,y0+18+i*16+5,40,4);
+                ctx.fillRect(75,y0+18+i*16+5,120,3);
+            }
+            // Draw cursor hover over the table line
+            if(f>=20){
+                let cx=W/2+40, cy=y0+18*3;
+                if(f<60) { cx=lerp(W+10,W/2+40,prog(f,20,60)); cy=lerp(H,y0+18+16+7,prog(f,20,60)); }
+                else if(f<160) { cy=y0+18+16+7; }
+                else if(f<200) { cx=lerp(W/2+40,W+10,prog(f,160,200)); cy=lerp(y0+18+16+7,H,prog(f,160,200)); }
+                if(f<200) drawCursor(ctx,cx,cy,f>60&&f<160);
+            }
+        },
+        'rpt-tab-aderencia': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            const cx=W/2, cy=H/2+10;
+            // Bars
+            const bars = [40, 70, 50, 90, 60, 110];
+            const maxF = 180;
+            bars.forEach((h, i) => {
+                const bx = 40 + i*38;
+                const active = Math.floor(f/(maxF/bars.length)) === i;
+                const hh = Math.min(h, Math.max(0, prog(f, i*(maxF/bars.length), Math.min(maxF, (i+1)*(maxF/bars.length)))) * h);
+                ctx.fillStyle = active ? '#10b981' : (h<60?'#ef4444':'#6366f1');
+                if(f>(i*maxF/bars.length)) {
+                    ctx.beginPath(); ctx.roundRect(bx, 130-hh, 24, hh, 4); ctx.fill();
+                }
+            });
+        },
+        'rpt-columns': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            ctx.fillStyle='#141824'; ctx.beginPath(); ctx.roundRect(W/2-60,20,120,H-40,6); ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.stroke();
+            const cols = ['Nome', 'CNPJ', 'Health Score', 'NPS', 'CS Responsável'];
+            cols.forEach((c,i)=>{
+                const y = 30+i*20;
+                let cy = y;
+                // Drag animation logic
+                if(f>60 && f<200 && i===2) cy = y + Math.sin((f-60)*Math.PI/140)*20; // Drag down 1 slot
+                if(f>60 && f<200 && i===3) cy = y - Math.sin((f-60)*Math.PI/140)*20; // Move up 1 slot
+                if(f>=200 && i===2) cy = y + 20;
+                if(f>=200 && i===3) cy = y - 20;
+
+                ctx.save();
+                if(f>60 && f<200 && i===2) { ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=8; ctx.shadowOffsetY=4; ctx.globalAlpha=0.9; }
+                ctx.fillStyle=(f>60 && f<200 && i===2) ? '#1e2436' : 'rgba(255,255,255,0.03)';
+                ctx.beginPath(); ctx.roundRect(W/2-50, cy, 100, 14, 3); ctx.fill();
+                ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='10px sans-serif'; ctx.fillText(c, W/2-25, cy+10);
+                // Checkbox
+                ctx.fillStyle='#6366f1'; ctx.beginPath(); ctx.roundRect(W/2-42, cy+4, 6,6, 1); ctx.fill();
+                ctx.restore();
+            });
+            let cx=W/2-50, cy=30+2*20+7;
+            if(f<40) cx = W/2+100;
+            else if(f<60) cx = lerp(W/2+100, W/2-10, prog(f,40,60));
+            else if(f<200) cy += Math.sin((f-60)*Math.PI/140)*20;
+            else if(f<240) { cx = lerp(W/2-10, W/2+100, prog(f,200,240)); cy+=20; }
+            drawCursor(ctx, cx, cy, f>60&&f<200);
+        },
+        'rpt-export-csv': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            const scale = 1 + Math.sin(prog(f,0,60)*Math.PI)*0.1;
+            ctx.save(); ctx.translate(W/2, H/2); ctx.scale(scale,scale);
+            ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.roundRect(-40,-50,80,100,6); ctx.fill();
+            ctx.strokeStyle='#334155'; ctx.lineWidth=2; ctx.stroke();
+            ctx.fillStyle='#cbd5e1'; ctx.font='bold 20px monospace'; ctx.textAlign='center'; ctx.fillText('CSV', 0,-20);
+            
+            // Draw lines 
+            ctx.fillStyle='rgba(255,255,255,0.2)';
+            for(let i=0;i<4;i++){
+                if(f > 60 + i*10) {
+                    ctx.fillRect(-20, 5+i*8, 10, 3);
+                    ctx.fillRect(-5, 5+i*8, 20, 3);
+                    ctx.fillRect(20, 5+i*8, 5, 3);
+                }
+            }
+            ctx.restore();
+            if(f>140){ // Arrow down
+                const a = prog(f,140,180);
+                const y = Math.sin(a*Math.PI)*10;
+                ctx.fillStyle='#6366f1';
+                ctx.beginPath(); ctx.moveTo(W/2, H/2+20+y); ctx.lineTo(W/2-10, H/2+10+y); ctx.lineTo(W/2-4, H/2+10+y); ctx.lineTo(W/2-4, H/2-10+y); ctx.lineTo(W/2+4, H/2-10+y); ctx.lineTo(W/2+4, H/2+10+y); ctx.lineTo(W/2+10, H/2+10+y); ctx.fill();
+            }
+        },
+        'rpt-export-excel': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            ctx.save(); ctx.translate(W/2, H/2);
+            ctx.fillStyle='#166534'; ctx.beginPath(); ctx.roundRect(-50,-40,100,80,4); ctx.fill();
+            ctx.fillStyle='#15803d'; ctx.fillRect(-50,-40,30,80); // Sidebar
+            ctx.fillStyle='#fff'; ctx.font='bold 24px sans-serif'; ctx.textAlign='center'; ctx.fillText('X', -35, 8);
+            
+            // Grid appearing
+            for(let i=0;i<6;i++){
+                for(let j=0;j<4;j++){
+                    if(f > 20 + i*5 + j*5) {
+                        ctx.fillStyle=j===0?'#22c55e':'#e2e8f0';
+                        ctx.beginPath(); ctx.roundRect(-10+j*14, -30+i*10, 12, 8, 1); ctx.fill();
+                    }
+                }
+            }
+            ctx.restore();
+            if(f>140){ // Sparkle
+                const s = prog(f,140,200);
+                ctx.globalAlpha = Math.sin(s*Math.PI);
+                ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(W/2-30, H/2-30, 4+s*10, 0, Math.PI*2); ctx.fill();
+                ctx.globalAlpha=1;
+            }
+        },
+        'rpt-refresh': function(ctx,f) {
+            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+            ctx.translate(W/2, H/2);
+            const rot = ease(prog(f,20,120)) * Math.PI*2;
+            ctx.rotate(rot);
+            ctx.strokeStyle='#6366f1'; ctx.lineWidth=6; ctx.lineCap='round';
+            ctx.beginPath(); ctx.arc(0,0, 30, 0, Math.PI*1.5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(35,-5); ctx.lineTo(30,10); ctx.lineTo(20,0); ctx.fillStyle='#6366f1'; ctx.fill();
+            ctx.rotate(-rot);
+            
+            // Data streaming in
+            ctx.fillStyle='rgba(255,255,255,0.4)';
+            if(f>120){
+                for(let i=0;i<5;i++){
+                    const y = -60 + ((f-120)*2 + i*20)%120;
+                    ctx.globalAlpha = 1 - Math.abs(y)/60;
+                    ctx.fillRect(-10, y, 20, 2);
+                }
+            }
+            ctx.globalAlpha=1;
+        }
+    };
+
+    function setup(id, durationFrames) {
+        const wrap = document.getElementById(`vcw-${id}`);
+        const tooltip = document.getElementById(`vct-${id}`);
+        const canvas = document.getElementById(`vcc-${id}`);
+        const ctaTime = document.getElementById(`vctm-${id}`);
+        if(!wrap || !tooltip || !canvas) return;
+
+        const ctx = init(canvas);
+        let animId=null, frame=0, visible=false;
+        
+        function draw(){ anims[id](ctx,frame); }
+        function tick(){ draw(); frame=(frame+1)%durationFrames; if (ctaTime) ctaTime.innerHTML=`0:${String(Math.floor(frame/60)).padStart(2,'0')}`; animId=requestAnimationFrame(tick); }
+        
+        wrap.addEventListener('mouseenter', () => {
+            if(visible) return; visible=true;
+            document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
+            tooltip.classList.add('vtt-visible'); frame=0; if(animId)cancelAnimationFrame(animId); animId=requestAnimationFrame(tick);
+        });
+        wrap.addEventListener('mouseleave', (e) => {
+            if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); if(animId)cancelAnimationFrame(animId); animId=null; frame=0; draw(); }
+        });
+        draw();
+    }
+
+    setup('rpt-tab-empresas', 240);
+    setup('rpt-tab-aderencia', 200);
+    setup('rpt-columns', 260);
+    setup('rpt-export-csv', 200);
+    setup('rpt-export-excel', 240);
+    setup('rpt-refresh', 200);
+}
 

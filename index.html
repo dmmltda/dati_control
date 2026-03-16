@@ -135,8 +135,11 @@
                 </a>
 
                 <!-- ── MONITORAMENTO ───────────────────────────── -->
-                <div class="nav-section-label" id="nav-label-monitoramento" data-nav-permission-group="test_logs.view,audit.view">Monitoramento</div>
-                <div id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view">
+                <div class="nav-section-label" id="nav-label-monitoramento" data-nav-permission-group="test_logs.view,audit.view,deploy.view">Monitoramento</div>
+                <div id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view,deploy.view">
+                    <a class="nav-item" data-view="deploy" data-nav-permission="deploy.view" onclick="deployMonitor.init()">
+                        <i class="ph ph-rocket"></i> Deploy
+                    </a>
                     <a class="nav-item" data-view="audit-log" onclick="auditLog.init()" data-nav-permission="audit.view">
                         <i class="ph ph-sliders-horizontal"></i> Histórico de alterações
                     </a>
@@ -2006,31 +2009,73 @@
                         </div>
                         <div class="rpt-header-actions">
                             <div class="rpt-col-picker-wrap">
-                                <button id="btn-rpt-columns" class="btn btn-secondary btn-sm">
-                                    <i class="ph ph-columns"></i> Colunas
-                                </button>
+                                <div class="vcw" id="vcw-rpt-columns" style="position:relative;display:inline-flex;">
+                                    <button id="btn-rpt-columns" class="btn btn-secondary btn-sm">
+                                        <i class="ph ph-columns"></i> Colunas
+                                    </button>
+                                    <div class="vtt-tooltip" id="vct-rpt-columns" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                        <div class="vtt-video-container" id="vcvc-rpt-columns"><canvas class="vtt-canvas" id="vcc-rpt-columns" width="300" height="169"></canvas></div>
+                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:12</div><div class="vtt-title">Gerenciar Colunas</div><div class="vtt-desc">Personalize as colunas visíveis da tabela. Arraste para reordenar a prioridade de visualização.</div><div class="vtt-cta"><span class="vtt-link">Ver como usar →</span><span class="vtt-time" id="vctm-rpt-columns">0:00</span></div></div>
+                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                    </div>
+                                </div>
                                 <div id="rpt-col-picker" class="rpt-col-picker" style="display:none;"></div>
                             </div>
-                            <button id="btn-rpt-export-csv" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-download-simple"></i> Exportar CSV
-                            </button>
-                            <button id="btn-rpt-export-excel" class="btn btn-secondary btn-sm">
-                                <i class="ph ph-microsoft-excel-logo"></i> Exportar Excel
-                            </button>
-                            <button id="btn-rpt-refresh" class="btn btn-primary btn-sm">
-                                <i class="ph ph-arrows-clockwise"></i> Atualizar
-                            </button>
+                            <div class="vcw" id="vcw-rpt-export-csv" style="position:relative;display:inline-flex;">
+                                <button id="btn-rpt-export-csv" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-download-simple"></i> Exportar CSV
+                                </button>
+                                <div class="vtt-tooltip" id="vct-rpt-export-csv" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                    <div class="vtt-video-container" id="vcvc-rpt-export-csv"><canvas class="vtt-canvas" id="vcc-rpt-export-csv" width="300" height="169"></canvas></div>
+                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Exportar como CSV</div><div class="vtt-desc">Baixe a tabela atual (com filtros aplicados) em formato de texto para automações e integrações sistêmicas.</div><div class="vtt-cta"><span class="vtt-link">Ver como usar →</span><span class="vtt-time" id="vctm-rpt-export-csv">0:00</span></div></div>
+                                    <div class="vtt-arrow" style="right:35px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                </div>
+                            </div>
+                            <div class="vcw" id="vcw-rpt-export-excel" style="position:relative;display:inline-flex;">
+                                <button id="btn-rpt-export-excel" class="btn btn-secondary btn-sm">
+                                    <i class="ph ph-microsoft-excel-logo"></i> Exportar Excel
+                                </button>
+                                <div class="vtt-tooltip" id="vct-rpt-export-excel" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                    <div class="vtt-video-container" id="vcvc-rpt-export-excel"><canvas class="vtt-canvas" id="vcc-rpt-export-excel" width="300" height="169"></canvas></div>
+                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Relatório Excel Formatado</div><div class="vtt-desc">Gere uma planilha rica com estilização automática, cabeçalhos bloqueados e dados consistentes para apresentação.</div><div class="vtt-cta"><span class="vtt-link">Como exportar →</span><span class="vtt-time" id="vctm-rpt-export-excel">0:00</span></div></div>
+                                    <div class="vtt-arrow" style="right:40px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                </div>
+                            </div>
+                            <div class="vcw" id="vcw-rpt-refresh" style="position:relative;display:inline-flex;">
+                                <button id="btn-rpt-refresh" class="btn btn-primary btn-sm">
+                                    <i class="ph ph-arrows-clockwise"></i> Atualizar
+                                </button>
+                                <div class="vtt-tooltip" id="vct-rpt-refresh" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                    <div class="vtt-video-container" id="vcvc-rpt-refresh"><canvas class="vtt-canvas" id="vcc-rpt-refresh" width="300" height="169"></canvas></div>
+                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:08</div><div class="vtt-title">Atualizar Dados</div><div class="vtt-desc">Força a busca dos dados mais recentes na nuvem DATI. Os dados recarregados manterão a formatação da sua visualização.</div><div class="vtt-cta"><span class="vtt-link">Atualizar painel →</span><span class="vtt-time" id="vctm-rpt-refresh">0:00</span></div></div>
+                                    <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- TABS TOGGLE -->
                     <div class="rpt-tabs-toggle">
-                        <button id="rpt-tab-empresas" class="rpt-tab-btn active" onclick="window._rptSwitchTab('empresas')">
-                            <i class="ph ph-buildings"></i> Tabela de Empresas
-                        </button>
-                        <button id="rpt-tab-aderencia" class="rpt-tab-btn" onclick="window._rptSwitchTab('aderencia')">
-                            <i class="ph ph-chart-bar"></i> Aderência Mensal
-                        </button>
+                        <div class="vcw" id="vcw-rpt-tab-empresas" style="position:relative;display:flex;">
+                            <button id="rpt-tab-empresas" class="rpt-tab-btn active" onclick="window._rptSwitchTab('empresas')" style="height:100%;">
+                                <i class="ph ph-buildings"></i> Tabela de Empresas
+                            </button>
+                            <div class="vtt-tooltip" id="vct-rpt-tab-empresas" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                <div class="vtt-video-container" id="vcvc-rpt-tab-empresas"><canvas class="vtt-canvas" id="vcc-rpt-tab-empresas" width="300" height="169"></canvas></div>
+                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:13</div><div class="vtt-title">Tabela de Empresas</div><div class="vtt-desc">Visão consolidada com acesso total aos dados. Combine todos os filtros disponíveis para extrair análises aprofundadas sobre suas empresas.</div><div class="vtt-cta"><span class="vtt-link">Abrir Tabela →</span><span class="vtt-time" id="vctm-rpt-tab-empresas">0:00</span></div></div>
+                                <div class="vtt-arrow" style="left:30px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                            </div>
+                        </div>
+                        <div class="vcw" id="vcw-rpt-tab-aderencia" style="position:relative;display:flex;">
+                            <button id="rpt-tab-aderencia" class="rpt-tab-btn" onclick="window._rptSwitchTab('aderencia')" style="height:100%;">
+                                <i class="ph ph-chart-bar"></i> Aderência Mensal
+                            </button>
+                            <div class="vtt-tooltip" id="vct-rpt-tab-aderencia" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                <div class="vtt-video-container" id="vcvc-rpt-tab-aderencia"><canvas class="vtt-canvas" id="vcc-rpt-tab-aderencia" width="300" height="169"></canvas></div>
+                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:14</div><div class="vtt-title">Aderência Mensal</div><div class="vtt-desc">Métricas de saúde e resultados mês a mês. Avalie o atingimento das franquias de tempo de atendimento para garantir performance e SLA.</div><div class="vtt-cta"><span class="vtt-link">Ver Aderência →</span><span class="vtt-time" id="vctm-rpt-tab-aderencia">0:00</span></div></div>
+                                <div class="vtt-arrow" style="left:30px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- PAINEL: Tabela de Empresas -->
