@@ -335,14 +335,14 @@ const emailMonitor = (() => {
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'email-details-modal';
-            modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px); align-items:center; justify-content:center;';
+            modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); align-items:center; justify-content:center;';
             modal.innerHTML = `
-                <div style="background:var(--bg-card); width:750px; max-width:90%; border-radius:12px; display:flex; flex-direction:column; max-height:85vh; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
-                    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
-                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-color);">Cadeia de E-mails (Thread)</h3>
-                        <button onclick="document.getElementById('email-details-modal').style.display='none'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1.2rem;"><i class="ph ph-x"></i></button>
+                <div style="background:var(--bg-card); width:750px; max-width:90%; border-radius:12px; display:flex; flex-direction:column; max-height:85vh; border: 1px solid var(--border-color); box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 25px 50px -12px rgba(0,0,0,0.7);">
+                    <div style="padding:1rem 1.5rem; border-bottom:1px solid var(--border-color); background:rgba(255,255,255,0.03); display:flex; justify-content:space-between; align-items:center; border-top-left-radius:12px; border-top-right-radius:12px;">
+                        <h3 style="margin:0; font-size:1.1rem; color:var(--text-color); display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-chats-teardrop" style="color:var(--primary-color);"></i> Cadeia de E-mails (Thread)</h3>
+                        <button onclick="document.getElementById('email-details-modal').style.display='none'" style="background:var(--bg-body); border:1px solid var(--border-color); border-radius:50%; color:var(--text-muted); cursor:pointer; font-size:1rem; width:30px; height:30px; display:flex; align-items:center; justify-content:center; transition:background-color 0.2s;"><i class="ph ph-x"></i></button>
                     </div>
-                    <div id="email-details-body" style="padding:1.5rem 1.5rem 1.5rem 2rem; overflow-y:auto; font-size:0.9rem; line-height:1.5; color:var(--text-color); display:flex; flex-direction:column; background:var(--bg-body);">
+                    <div id="email-details-body" style="padding:1.5rem 1.5rem 1.5rem 2rem; overflow-y:auto; font-size:0.9rem; line-height:1.5; color:var(--text-color); display:flex; flex-direction:column; background:var(--bg-body); border-bottom-left-radius:12px; border-bottom-right-radius:12px;">
                     </div>
                 </div>
             `;
