@@ -8,16 +8,82 @@ import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
 
 const DEPLOY_COLUMNS = [
-    { key: 'date',      label: 'Quando',     type: 'string', sortable: true,  filterable: false, searchable: true },
-    { key: 'author',    label: 'Quem',       type: 'string', sortable: true,  filterable: true,  searchable: true },
-    { key: 'hash',      label: 'Versão',     type: 'string', sortable: false, filterable: false, searchable: true },
-    { key: 'message',   label: 'O que foi feito', type: 'string', sortable: false, filterable: false, searchable: true },
-    { key: 'status',    label: 'Status',     type: 'string', sortable: true,  filterable: true,  searchable: false },
+    { key: 'date',    label: 'Quando',         type: 'string', sortable: true,  filterable: false, searchable: true  },
+    { key: 'author',  label: 'Quem',           type: 'string', sortable: true,  filterable: true,  searchable: true  },
+    { key: 'area',    label: 'Área',           type: 'string', sortable: true,  filterable: true,  searchable: true  },
+    { key: 'impact',  label: 'O que mudou',    type: 'string', sortable: false, filterable: false, searchable: true  },
+    { key: 'hash',    label: 'Versão',         type: 'string', sortable: false, filterable: false, searchable: true  },
+    { key: 'status',  label: 'Status',         type: 'string', sortable: true,  filterable: true,  searchable: false },
 ];
 
 let _manager = null;
 let _allRows = [];
-let _filters = { author: '', status: '', dateFrom: '', dateTo: '' };
+let _filters = { author: '', area: '', status: '', dateFrom: '', dateTo: '' };
+
+// ─── Mapa de palavras-chave → Área de Produto ─────────────────────────────────
+const AREA_MAP = [
+    { keywords: ['whatsapp', 'wha', 'inbox'],                         area: 'WhatsApp HD'          },
+    { keywords: ['email', 'e-mail', 'gabi', 'inbound'],               area: 'E-mail / Gabi AI'     },
+    { keywords: ['nps'],                                              area: 'NPS'                  },
+    { keywords: ['deploy', 'railway', 'migration', 'migrate'],        area: 'Infraestrutura'       },
+    { keywords: ['audit', 'histórico', 'historico'],                  area: 'Histórico'            },
+    { keywords: ['log', 'testes', 'test', 'scheduler', 'agendament'], area: 'Log de Testes'        },
+    { keywords: ['relatório', 'relatorio', 'report', 'adherence'],    area: 'Relatórios'          },
+    { keywords: ['kanban', 'pipeline', 'funil', 'funnel'],            area: 'Funil de Vendas'      },
+    { keywords: ['customer', 'success', 'cs', 'sesão', 'sessao'],    area: 'Customer Success'     },
+    { keywords: ['empresa', 'company', 'companies', 'companies'],     area: 'Empresas'             },
+    { keywords: ['atividade', 'activity', 'activities', 'tarefa'],    area: 'Atividades'           },
+    { keywords: ['permiss', 'permission', 'usuário', 'usuario'],      area: 'Usuários e Permissões'},
+    { keywords: ['tooltip', 'canvas', 'ui', 'visual', 'layout'],     area: 'Interface'            },
+    { keywords: ['kpi', 'dashboard'],                                 area: 'Dashboard'            },
+    { keywords: ['import', 'csv'],                                    area: 'Importação'          },
+    { keywords: ['api', 'route', 'rota', 'middleware', 'backend'],    area: 'Back-end / API'       },
+    { keywords: ['prisma', 'banco', 'database', 'schema'],            area: 'Banco de Dados'       },
+    { keywords: ['auth', 'login', 'clerk', 'session'],                area: 'Autenticação'        },
+];
+
+const TYPE_MAP = {
+    'feat'  : 'Novo recurso',
+    'fix'   : 'Correção',
+    'chore' : 'Manutenção',
+    'refactor': 'Refatoração',
+    'perf'  : 'Performance',
+    'docs'  : 'Documentação',
+    'style' : 'Ajuste de estilo',
+    'test'  : 'Teste',
+    'build' : 'Build',
+};
+
+/**
+ * Parseia a mensagem de commit e retorna { area, impact }
+ */
+function _parseCommit(message) {
+    if (!message) return { area: 'Geral', impact: '—' };
+
+    const lower = message.toLowerCase();
+
+    // 1. Extrai tipo e escopo do formato convencional: feat(modulo): descricao
+    const conventionalMatch = message.match(/^([a-z]+)(?:\(([^)]+)\))?:\s*(.+)/i);
+    const typeRaw   = conventionalMatch?.[1]?.toLowerCase() || '';
+    const scopeRaw  = conventionalMatch?.[2]?.toLowerCase() || '';
+    const bodyRaw   = conventionalMatch?.[3] || message;
+
+    // 2. Determina rea a partir do escopo ou palavras-chave no corpo
+    let area = 'Geral';
+    const searchText = `${scopeRaw} ${lower}`;
+    for (const { keywords, area: a } of AREA_MAP) {
+        if (keywords.some(k => searchText.includes(k))) {
+            area = a;
+            break;
+        }
+    }
+
+    // 3. Monta o impacto legível: Tipo + corpo simplificado
+    const typeLabel = TYPE_MAP[typeRaw] || (typeRaw ? typeRaw.charAt(0).toUpperCase() + typeRaw.slice(1) : '');
+    const impact = typeLabel ? `${typeLabel}: ${bodyRaw}` : bodyRaw;
+
+    return { area, impact };
+}
 
 function _formatDate(iso) {
     if (!iso) return '—';
@@ -44,7 +110,7 @@ function _renderRows(data) {
     if (data.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align:center; padding:3rem; color:var(--text-muted);">
+                <td colspan="6" style="text-align:center; padding:3rem; color:var(--text-muted);">
                     <i class="ph ph-rocket" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity: 0.5;"></i>
                     Nenhum deploy encontrado.
                 </td>
@@ -55,11 +121,23 @@ function _renderRows(data) {
     tbody.innerHTML = data.map(row => {
         const isRailway = row.author === 'Railway';
         const color = isRailway ? '#6366f1' : 'var(--text-main)';
-        
-        // Vamos considerar que localmente ele "Passou" na simulação e no Railway foi "Concluído"
-        const statusText = 'Concluído';
+        const { area, impact } = _parseCommit(row.message);
+
+        // Badge de Área com cor semântica
+        const AREA_COLORS = {
+            'Interface'            : { bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.3)',  color: '#818cf8' },
+            'Log de Testes'        : { bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.3)',  color: '#fbbf24' },
+            'Infraestrutura'       : { bg: 'rgba(239,68,68,0.1)',    border: 'rgba(239,68,68,0.25)',  color: '#f87171' },
+            'E-mail / Gabi AI'     : { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)',  color: '#a78bfa' },
+            'Relatórios'           : { bg: 'rgba(14,165,233,0.12)', border: 'rgba(14,165,233,0.3)',  color: '#38bdf8' },
+            'Customer Success'     : { bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)',  color: '#2dd4bf' },
+            'Banco de Dados'       : { bg: 'rgba(220,38,38,0.1)',   border: 'rgba(220,38,38,0.25)',  color: '#fca5a5' },
+        };
+        const ac = AREA_COLORS[area] || { bg: 'rgba(100,116,139,0.12)', border: 'rgba(100,116,139,0.3)', color: '#94a3b8' };
+        const areaBadge = `<span style="font-size:0.72rem; background:${ac.bg}; color:${ac.color}; border:1px solid ${ac.border}; border-radius:5px; padding:0.15rem 0.5rem; white-space:nowrap; font-weight:600;">${_escapeHtml(area)}</span>`;
+
         const statusHtml = `<span style="font-size:0.75rem; background:rgba(16,185,129,0.12); color:#10b981; padding:0.15rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.25);">
-            <i class="ph ph-check-circle"></i> ${statusText}
+            <i class="ph ph-check-circle"></i> Concluído
         </span>`;
 
         return `
@@ -70,12 +148,12 @@ function _renderRows(data) {
                         <i class="ph ${isRailway ? 'ph-robot' : 'ph-user'}"></i> ${_escapeHtml(row.author)}
                     </span>
                 </td>
-                <td style="font-size:0.85rem; font-family:monospace; color:#a78bfa;">
-                    <i class="ph ph-git-commit" style="margin-right:0.2rem; color:var(--text-muted);"></i>
-                    ${_escapeHtml(row.hash)}
+                <td>${areaBadge}</td>
+                <td style="font-size:0.82rem; max-width:360px; word-break:break-word; line-height:1.4;">
+                    ${_escapeHtml(impact)}
                 </td>
-                <td style="font-size:0.85rem; max-width:400px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${_escapeHtml(row.message)}
+                <td style="font-size:0.85rem; font-family:monospace; color:#a78bfa; white-space:nowrap;">
+                    <i class="ph ph-git-commit" style="margin-right:0.2rem; color:var(--text-muted);"></i>${_escapeHtml(row.hash)}
                 </td>
                 <td>${statusHtml}</td>
             </tr>
@@ -216,9 +294,10 @@ function _exposeGlobals() {
         } else {
             const values = [...new Set((_manager?.getData ? _manager.getData() : _allRows).map(r => r[key]).filter(Boolean))].sort();
             const current = _filters[key] || '';
+            const filterLabel = key === 'author' ? 'Autor' : key === 'area' ? 'Área' : 'Status';
             popover.innerHTML = `
                 <div class="filter-group">
-                    <span class="filter-label">Filtrar por ${key === 'author' ? 'Autor' : 'Status'}</span>
+                    <span class="filter-label">Filtrar por ${filterLabel}</span>
                     <div class="filter-list">
                         <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._deployFilter('${key}', '')">(Tudo)</div>
                         ${values.map(v => `<div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._deployFilter('${key}', '${v.replace(/'/g, "\\'")}')">${v}</div>`).join('')}
@@ -278,6 +357,7 @@ function _applyFilters() {
     let data = [..._allRows];
 
     if (_filters.author) data = data.filter(r => r.author === _filters.author);
+    if (_filters.area)   data = data.filter(r => _parseCommit(r.message).area === _filters.area);
     if (_filters.status) data = data.filter(r => r.status === _filters.status);
     if (_filters.dateFrom || _filters.dateTo) {
         data = data.filter(r => {
@@ -337,7 +417,7 @@ export const deployMonitor = {
                             <table class="company-table" id="deploy-tracker-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable-header" data-key="date" style="width:150px; position:relative;">
+                                        <th class="sortable-header" data-key="date" style="width:145px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('date')">Quando</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('date', event)">
@@ -346,7 +426,7 @@ export const deployMonitor = {
                                             </div>
                                             <div id="filter-popover-deploy_date" class="filter-popover" style="min-width:260px;"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="author" style="width:180px; position:relative;">
+                                        <th class="sortable-header" data-key="author" style="width:160px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('author')">Quem</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('author', event)">
@@ -355,17 +435,26 @@ export const deployMonitor = {
                                             </div>
                                             <div id="filter-popover-deploy_author" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="hash" style="width:100px;">
+                                        <th class="sortable-header" data-key="area" style="width:150px; position:relative;">
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('area')">Área</span>
+                                                <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('area', event)">
+                                                    <i class="ph ph-funnel"></i>
+                                                </button>
+                                            </div>
+                                            <div id="filter-popover-deploy_area" class="filter-popover"></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="impact">
+                                            <div class="header-content">
+                                                <span onclick="window._deploySort('impact')">O que mudou</span>
+                                            </div>
+                                        </th>
+                                        <th class="sortable-header" data-key="hash" style="width:90px;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('hash')">Versão</span>
                                             </div>
                                         </th>
-                                        <th class="sortable-header" data-key="message">
-                                            <div class="header-content">
-                                                <span onclick="window._deploySort('message')">O que foi feito</span>
-                                            </div>
-                                        </th>
-                                        <th class="sortable-header" data-key="status" style="width:120px; position:relative;">
+                                        <th class="sortable-header" data-key="status" style="width:115px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="window._deploySort('status')">Status</span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('status', event)">
