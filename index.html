@@ -4885,6 +4885,73 @@
   });
 })();
 </script>
+
+<script>
+/* ── NPS Details Modal — Global Handler ─────────────────────────────────────
+   Escuta cliques no documento inteiro para abrir o modal de respostas NPS.
+   Funciona independentemente dos módulos ES6, closures ou re-renders.
+────────────────────────────────────────────────────────────────────────────── */
+(function() {
+  window._npsStore = window._npsStore || {};
+
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-nps-key]');
+    if (!btn) return;
+
+    const key = btn.getAttribute('data-nps-key');
+    const npsItem = window._npsStore[key];
+    if (!npsItem) { console.warn('[NPS Modal] Item não encontrado para key:', key); return; }
+
+    const overlay = document.getElementById('nps-details-modal-overlay');
+    if (!overlay) { console.warn('[NPS Modal] Modal não encontrado no DOM!'); return; }
+
+    // Preenche cabeçalho
+    const dest = document.getElementById('nps-details-destinatario');
+    const data = document.getElementById('nps-details-data');
+    const tipo = document.getElementById('nps-details-formulariotype');
+    const badge = document.getElementById('nps-details-score-badge');
+    const list  = document.getElementById('nps-details-questions-list');
+
+    if (dest)  dest.textContent  = npsItem.destinatarios || npsItem.destinatario || '—';
+    if (data)  data.textContent  = npsItem.data || '—';
+    if (tipo)  tipo.textContent  = npsItem.formType || npsItem.formulario || 'Formulário';
+
+    const scoreVal = parseFloat(npsItem.score);
+    if (badge) {
+      badge.textContent = isNaN(scoreVal) ? '?' : scoreVal.toFixed(1);
+      badge.style.color = isNaN(scoreVal) ? '#94a3b8' : scoreVal >= 9 ? '#10b981' : scoreVal >= 7 ? '#f59e0b' : '#ef4444';
+      badge.style.background = isNaN(scoreVal) ? 'rgba(148,163,184,0.1)' : scoreVal >= 9 ? 'rgba(16,185,129,0.1)' : scoreVal >= 7 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
+      badge.style.borderColor = badge.style.color;
+    }
+
+    // Preenche perguntas e respostas
+    if (list) {
+      list.innerHTML = '';
+      try {
+        const respostas = (typeof npsItem.respostasJSON === 'string')
+          ? JSON.parse(npsItem.respostasJSON)
+          : npsItem.respostasJSON;
+        if (respostas && typeof respostas === 'object') {
+          Object.entries(respostas).forEach(function([pergunta, resposta]) {
+            const div = document.createElement('div');
+            div.style.cssText = 'background:var(--bg-secondary,#1e2436);border:1px solid var(--border-color,#2a3148);border-radius:8px;padding:1rem;';
+            div.innerHTML =
+              '<div style="font-size:0.82rem;color:var(--text-muted,#8892a4);font-weight:600;margin-bottom:0.5rem;">' + pergunta + '</div>' +
+              '<div style="font-size:0.95rem;color:var(--text-main,#e2e8f0);font-weight:500;">' + (resposta || '<em style="opacity:.5">Não respondeu</em>') + '</div>';
+            list.appendChild(div);
+          });
+        } else {
+          list.innerHTML = '<p style="color:var(--text-muted);">Sem respostas registradas.</p>';
+        }
+      } catch(err) {
+        list.innerHTML = '<p style="color:#ef4444;">Erro ao carregar respostas: ' + err.message + '</p>';
+      }
+    }
+
+    overlay.style.display = 'flex';
+  });
+})();
+</script>
 </body>
 
 </html>
