@@ -533,7 +533,7 @@ function _renderKanban(tasks) {
                 });
                 const sortedColTasks = _sortColTasks(colTasks, _columnSorts[col.key]);
                 return `
-                <div class="kanban-column glass-panel" style="padding:0; position:relative;">
+                <div class="kanban-column glass-panel" style="padding:0; position:relative; z-index:${100 - col.ttColIdx};">
                     <div data-col-sort-anchor style="display:flex; align-items:center; justify-content:space-between; padding:0.75rem 1rem; border-bottom:1px solid rgba(255,255,255,0.06); border-top-left-radius:var(--radius-md); border-top-right-radius:var(--radius-md); position:relative;">
                         <div style="display:flex;align-items:center;gap:0.5rem;">
                             <i class="ph ${col.icon}" style="color:${col.color};font-size:1rem;"></i>
