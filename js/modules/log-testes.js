@@ -170,7 +170,6 @@ function _renderRows(data) {
     }
 
     tbody.innerHTML = data.map(row => {
-        const hasDetails = row._errorMsg || row._errorStack || row._screenshot || row._video || row._aiAnalysis;
         const detailsId  = `log-detail-${row._rowId}`;
         const isFailed = row.status === 'REPROVADO' || row.status === 'ERRO DO TESTE';
 
@@ -296,10 +295,25 @@ function _renderRows(data) {
             </details>` : '';
 
         const borderColor = isFailed ? '#ef4444' : '#10b981';
+
+        // Testes E2E aprovados sempre podem expandir (mostrar mensagem de sucesso / evidências)
+        const isE2E = row.tipo === 'E2E';
+        const isAprovado = row.status === 'APROVADO';
+        const hasDetails = !!(row._errorMsg || row._errorStack || row._screenshot || row._video || row._aiAnalysis || (isE2E && isAprovado));
+
+        // Se aprovado E2E e não tem nada, mostra mensagem de sucesso
+        const successSection = (isAprovado && !row._errorMsg && !row._aiAnalysis && !row._screenshot && !row._video)
+            ? `<div style="display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; color:#4ade80; margin-bottom:0.5rem;">
+                   <i class="ph ph-check-circle" style="font-size:1.1rem;"></i>
+                   <span>Teste passou com sucesso</span>
+               </div>`
+            : '';
+
         const detailContent = hasDetails ? `
             <tr id="${detailsId}" class="log-detail-row" style="display:none;">
                 <td colspan="7" style="padding:0.85rem 1.25rem 1rem; background:rgba(0,0,0,0.25); border-left:3px solid ${borderColor};">
                     ${locationSection}
+                    ${successSection}
                     ${errorSection}
                     ${analysisSection}
                     ${fixSection}
@@ -458,23 +472,17 @@ function _buildFilterPopovers() {
     const tipoValues   = _manager.getUniqueValues('tipo');
     const moduloValues = _manager.getUniqueValues('modulo');
     const statusValues = ['APROVADO', 'REPROVADO', 'ERRO DO TESTE', 'IGNORADO'];
-    const statusLabels = {
-        'APROVADO':     'Aprovado',
-        'REPROVADO':    'Reprovado',
-        'ERRO DO TESTE':'Erro do teste',
-        'IGNORADO':     'Ignorado',
-    };
 
     _buildSelectPopover('filter-popover-tipo',     tipoValues,   'tipo');
     _buildSelectPopover('filter-popover-modulo',   moduloValues, 'modulo');
-    _buildSelectPopover('filter-popover-status',   statusValues, 'status', statusLabels);
+    _buildSelectPopover('filter-popover-status',   statusValues, 'status');
     _buildTextSearchPopover('filter-popover-hora',       'hora');
     _buildTextSearchPopover('filter-popover-descricao',  'descricao');
     _buildDurationPopover('filter-popover-duracao',      'duracao');
     _buildDatePopover('filter-popover-data',             'data');
 }
 
-function _buildSelectPopover(id, values, filterKey, displayMap = {}) {
+function _buildSelectPopover(id, values, filterKey) {
     const el = document.getElementById(id);
     if (!el) return;
 
@@ -501,7 +509,7 @@ function _buildSelectPopover(id, values, filterKey, displayMap = {}) {
                 </div>
                 ${values.map(v => `
                     <div class="filter-option ${current === v ? 'selected' : ''}" onclick="window._logTesteFilter('${filterKey}', '${v}', event)">
-                        ${displayMap[v] || v}
+                        ${v}
                     </div>`).join('')}
             </div>
         </div>
