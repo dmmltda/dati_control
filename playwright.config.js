@@ -51,8 +51,8 @@ export default defineConfig({
     // ─── Configurações globais de uso ────────────────────────────────────────
     use: {
         baseURL:    BASE_URL,
-        screenshot: 'on',
-        video:      'on',
+        screenshot: 'only-on-failure',
+        video:      'retain-on-failure',
         trace:      'on-first-retry',
 
         // Viewport padrão desktop

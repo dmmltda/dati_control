@@ -17,7 +17,12 @@
  */
 
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, relative } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = resolve(__dirname, '..');
 
 const API_URL = process.env.API_URL || 'http://localhost:8000';
 const API_TOKEN = process.env.TEST_INGEST_TOKEN || ''; // Bearer opcional
@@ -118,8 +123,17 @@ function parsePlaywright(raw) {
                     duration_ms:    Math.round(durationMs),
                     error_message:  failed ? (result.error?.message || 'E2E falhou') : null,
                     error_stack:    failed ? (result.error?.stack || null) : null,
-                    screenshot_url: result.attachments?.find(a => a.contentType?.startsWith('image/'))?.path || null,
-                    video_url:      result.attachments?.find(a => a.contentType?.startsWith('video/'))?.path || null,
+                    // Converte caminho absoluto → URL relativa p/ o Express servir
+                    screenshot_url: (() => {
+                        const p = result.attachments?.find(a => a.contentType?.startsWith('image/'))?.path;
+                        if (!p) return null;
+                        return '/' + relative(PROJECT_ROOT, p).replace(/\\/g, '/');
+                    })(),
+                    video_url: (() => {
+                        const p = result.attachments?.find(a => a.contentType?.startsWith('video/'))?.path;
+                        if (!p) return null;
+                        return '/' + relative(PROJECT_ROOT, p).replace(/\\/g, '/');
+                    })(),
                     // Localização
                     location_file:  failed && errLine ? relFile : null,
                     location_line:  failed ? errLine : null,

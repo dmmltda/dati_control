@@ -286,6 +286,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.getElementById('sidebar-toggle-btn');
         if (btn) btn.title = 'Expandir Menu';
     }
+
+    // Abre o grupo Análise por padrão (Dashboard está dentro dele)
+    const analiseGroup = document.getElementById('nav-group-analise');
+    if (analiseGroup) {
+        analiseGroup.classList.add('open');
+        const sub = analiseGroup.querySelector('.nav-sub-menu');
+        if (sub) sub.style.maxHeight = sub.scrollHeight + 'px';
+    }
 });
 // =============================================================================
 
@@ -1054,15 +1062,17 @@ window.ui = ui;
 
 // ─── Audit Log — Histórico de Alterações ────────────────────────────────────
 window.auditLog = {
-    init:              auditLog.init,
-    refresh:           auditLog.refresh,
-    notifyChange:      auditLog.notifyChange,
-    handleSearch:      auditLog.handleSearch,
-    handleSort:        auditLog.handleSort,
-    handleActionFilter: auditLog.handleActionFilter,
-    handleDateFrom:    auditLog.handleDateFrom,
-    handleDateTo:      auditLog.handleDateTo,
-    clearFilters:      auditLog.clearFilters,
+    init:                 auditLog.init,
+    refresh:              auditLog.refresh,
+    notifyChange:         auditLog.notifyChange,
+    handleSearch:         auditLog.handleSearch,
+    handleSort:           auditLog.handleSort,
+    handleActionFilter:   auditLog.handleActionFilter,
+    handleQuemFilter:     auditLog.handleQuemFilter,
+    handleEntidadeFilter: auditLog.handleEntidadeFilter,
+    handleDateFrom:       auditLog.handleDateFrom,
+    handleDateTo:         auditLog.handleDateTo,
+    clearFilters:         auditLog.clearFilters,
 };
 
 // ─── Interceptor global de fetch — auto-refresh do Histórico ─────────────────

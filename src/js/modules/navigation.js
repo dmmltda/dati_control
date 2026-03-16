@@ -21,7 +21,7 @@ export const navigation = {
       </div>
       
       <div class="sidebar-nav">
-        <div class="nav-section-label">Trabalho</div>
+        <div class="nav-section-label">Meu Espaço</div>
         <div class="nav-item" data-screen="s2">
           <i class="ph-bold ph-buildings nav-icon"></i>
           Empresas

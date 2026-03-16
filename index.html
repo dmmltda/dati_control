@@ -131,32 +131,49 @@
             </div>
 
             <nav>
-                <a class="nav-item active" data-view="dashboard" data-nav-permission="dashboard.view">
-                    <i class="ph ph-squares-four"></i> Dashboard
-                </a>
 
-                <!-- ── TRABALHO ────────────────────────────────── -->
+                <!-- ── MEU ESPAÇO ──────────────────────────────────── -->
                 <div class="nav-group" id="nav-group-trabalho">
                     <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-trabalho')">
-                        <i class="ph ph-briefcase"></i>
-                        <span>Trabalho</span>
+                        <i class="ph ph-house-simple"></i>
+                        <span>Meu Espaço</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item active" data-view="dashboard" data-nav-permission="dashboard.view">
+                            <i class="ph ph-squares-four"></i> Dashboard
+                        </a>
+                        <a class="nav-sub-item" data-view="minhas-tarefas" data-nav-permission="my_tasks.view">
+                            <i class="ph ph-checks"></i> Minhas Atividades
+                        </a>
+                        <a class="nav-sub-item" data-view="email-monitor" data-master-only>
+                            <i class="ph ph-envelope-simple"></i> E-mails
+                        </a>
+                        <a class="nav-sub-item" data-view="whatsapp-inbox" data-nav-permission="whatsapp.view">
+                            <i class="ph ph-whatsapp-logo"></i> Whatsapp
+                        </a>
+                    </div>
+                </div>
+
+                <!-- ── EMPRESAS ────────────────────────────────────── -->
+                <div class="nav-group" id="nav-group-empresas" data-nav-permission-group="companies.view">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-empresas')">
+                        <i class="ph ph-buildings"></i>
+                        <span>Empresas</span>
                         <i class="ph ph-caret-down nav-group-caret"></i>
                     </div>
                     <div class="nav-sub-menu">
                         <a class="nav-sub-item" data-view="company-list" data-nav-permission="companies.view">
                             <i class="ph ph-buildings"></i> Empresas
                         </a>
-                        <a class="nav-sub-item" data-view="minhas-tarefas" data-nav-permission="my_tasks.view">
-                            <i class="ph ph-checks"></i> Minhas Atividades
-                        </a>
                     </div>
                 </div>
 
-                <!-- ── ANÁLISE ─────────────────────────────────── -->
-                <div class="nav-group" id="nav-group-analise">
-                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-analise')">
-                        <i class="ph ph-chart-line-up"></i>
-                        <span>Análise</span>
+                <!-- ── RELATÓRIOS ──────────────────────────────────── -->
+                <div class="nav-group" id="nav-group-relatorios" data-nav-permission-group="reports.view">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-relatorios')">
+                        <i class="ph ph-file-text"></i>
+                        <span>Relatórios</span>
                         <i class="ph ph-caret-down nav-group-caret"></i>
                     </div>
                     <div class="nav-sub-menu">
@@ -166,6 +183,7 @@
                     </div>
                 </div>
 
+
                 <!-- ── MONITORAMENTO ───────────────────────────── -->
                 <div class="nav-group" id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view,deploy.view">
                     <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-monitoring')">
@@ -174,34 +192,20 @@
                         <i class="ph ph-caret-down nav-group-caret"></i>
                     </div>
                     <div class="nav-sub-menu">
-                        <a class="nav-sub-item" data-view="deploy" data-nav-permission="deploy.view">
-                            <i class="ph ph-rocket-launch"></i> Deploy
-                        </a>
                         <a class="nav-sub-item" data-view="audit-log" data-nav-permission="audit.view">
                             <i class="ph ph-clock-counter-clockwise"></i> Histórico Alterações
                         </a>
                         <a class="nav-sub-item" data-view="log" data-nav-permission="test_logs.view">
                             <i class="ph ph-flask"></i> Logs de Testes
                         </a>
-                        <a class="nav-sub-item" data-view="email-monitor" data-master-only>
-                            <i class="ph ph-envelope-simple"></i> Monitor de E-mails
+                        <a class="nav-sub-item" data-view="deploy" data-nav-permission="deploy.view">
+                            <i class="ph ph-rocket-launch"></i> Deploy
                         </a>
+
                     </div>
                 </div>
 
-                <!-- ── CANAIS ─────────────────────────────────── -->
-                <div class="nav-group" id="nav-group-canais" data-nav-permission-group="whatsapp.view">
-                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-canais')">
-                        <i class="ph ph-chat-centered-dots"></i>
-                        <span>Canais</span>
-                        <i class="ph ph-caret-down nav-group-caret"></i>
-                    </div>
-                    <div class="nav-sub-menu">
-                        <a class="nav-sub-item" data-view="whatsapp-inbox" data-nav-permission="whatsapp.view">
-                            <i class="ph ph-whatsapp-logo"></i> WhatsApp HD
-                        </a>
-                    </div>
-                </div>
+
 
 
                 <!-- ── CONFIGURAÇÕES ───────────────────────────── -->
