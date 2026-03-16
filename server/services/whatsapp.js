@@ -98,9 +98,22 @@ export function normalizePhone(phone) {
  * @returns {string}
  */
 export function normalizePhoneForSend(phone) {
-    return normalizePhone(phone);
+    let clean = normalizePhone(phone);
+    if (!clean) return '';
+    
+    // Regra do 9º dígito: +55 (Brasil) + DDD (2 dígitos) + 8 dígitos = 12 dígitos totais
+    // Se tiver 12 dígitos e começar com 55, adicionamos o 9 após o DDD
+    if (clean.length === 12 && clean.startsWith('55')) {
+        const ddd = clean.substring(2, 4);
+        const numero = clean.substring(4);
+        
+        // (Opcional, mas seguro) Apenas números de celular normalmente começam com 6, 7, 8 ou 9.
+        // Mas a regra geral da Anatel para todos os celulares do Brasil é ter 9.
+        clean = `55${ddd}9${numero}`;
+    }
+    
+    return clean;
 }
-
 
 /**
  * Verifica se o serviço de WhatsApp está configurado (token + number_id presentes).
@@ -150,8 +163,8 @@ export async function sendTextMessage(to, text, opts = {}) {
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    // Normaliza: remove + e espaços para envio (usa mesmo formato do webhook inbound)
-    const toClean = normalizePhone(to);
+    // Normaliza: remove + e espaços para envio e injeta o 9º dígito se necessário
+    const toClean = normalizePhoneForSend(to);
     if (!toClean) {
         console.warn('[WhatsApp] Número de destino inválido:', to);
         return { sent: false, error: 'Número inválido' };
@@ -221,7 +234,7 @@ export async function sendTemplateMessage(to, templateName, languageCode = 'pt_B
         return { sent: false, error: 'WhatsApp não configurado' };
     }
 
-    const toClean = normalizePhone(to);
+    const toClean = normalizePhoneForSend(to);
     if (!toClean) {
         return { sent: false, error: 'Número inválido' };
     }
