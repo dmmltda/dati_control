@@ -12,6 +12,7 @@ export const FEATURE_PERMISSIONS = {
   'reports.view':        'Relatórios',
   'audit.view':          'Histórico de Alterações',
   'test_logs.view':      'Log de Testes',
+  'deploy.view':         'Deploy Tracker',
   'gabi.view':           'Gabi AI',
   'whatsapp.view':       'WhatsApp Inbox HD',
 
@@ -48,6 +49,7 @@ export const PERMISSION_GROUPS = [
       'reports.view',
       'audit.view',
       'test_logs.view',
+      'deploy.view',
       'gabi.view',
       'whatsapp.view',
     ],
