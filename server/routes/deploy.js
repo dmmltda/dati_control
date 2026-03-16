@@ -1,33 +1,76 @@
 import { Router } from 'express';
 import { requireFeature } from '../middleware/checkAccess.js';
-import { exec } from 'child_process';
 
 const router = Router();
 
-router.get('/history', requireFeature('deploy.view'), (req, res) => {
-    // Busca últimos 50 commits (simulando histórico de deploys no Railway)
-    const format = '{"hash":"%h", "message":"%s", "author":"%an", "date":"%cI"}';
-    const cmd = `git log -n 50 --pretty=format:'${format}'`;
+const RAILWAY_API_URL   = 'https://backboard.railway.com/graphql/v2';
+const RAILWAY_API_TOKEN = process.env.RAILWAY_API_TOKEN;
+const RAILWAY_SERVICE_ID = process.env.RAILWAY_SERVICE_ID;
 
-    exec(cmd, { cwd: process.cwd() }, (error, stdout, stderr) => {
-        if (error) {
-            console.error('[GET /api/deploy/history] Erro:', error);
-            // Se falhar (ex: git não instalado no host), retorna mock fallback
-            return res.json([
-                { hash: 'latest', message: 'Railway Build Executado', author: 'Railway', date: new Date().toISOString() }
-            ]);
+/**
+ * Query GraphQL do Railway para listar deployments de um serviço.
+ * Retorna os últimos 50 deployments com status real.
+ */
+async function fetchRailwayDeployments() {
+    if (!RAILWAY_API_TOKEN || !RAILWAY_SERVICE_ID) {
+        throw new Error('RAILWAY_API_TOKEN ou RAILWAY_SERVICE_ID não configurados no .env');
+    }
+
+    const query = `
+        query {
+            deployments(input: { serviceId: "${RAILWAY_SERVICE_ID}" }, first: 50) {
+                edges {
+                    node {
+                        id
+                        status
+                        createdAt
+                        meta
+                    }
+                }
+            }
         }
-        
-        try {
-            // O output é um JSON Line (cada linha é um objeto JSON separado, não um array válido)
-            const lines = stdout.trim().split('\n');
-            const data = lines.filter(Boolean).map(line => JSON.parse(line));
-            res.json(data);
-        } catch (parseError) {
-            console.error('[GET /api/deploy/history] Parse Error:', parseError);
-            res.status(500).json({ error: 'Erro ao converter histórico de deploys' });
-        }
+    `;
+
+    const res = await fetch(RAILWAY_API_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${RAILWAY_API_TOKEN}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
     });
+
+    if (!res.ok) {
+        throw new Error(`Railway API HTTP ${res.status}`);
+    }
+
+    const json = await res.json();
+
+    if (json.errors?.length) {
+        throw new Error(`Railway GraphQL error: ${json.errors[0].message}`);
+    }
+
+    return json.data.deployments.edges.map(({ node }) => {
+        const meta = node.meta || {};
+        return {
+            id:      node.id,
+            status:  node.status,                          // BUILDING, SUCCESS, FAILED, REMOVED, QUEUED, etc.
+            date:    node.createdAt,
+            hash:    meta.commitHash?.slice(0, 7) || '—', // hash curto (7 chars)
+            message: meta.commitMessage || '—',
+            author:  meta.commitAuthor  || 'Railway',
+        };
+    });
+}
+
+router.get('/history', requireFeature('deploy.view'), async (req, res) => {
+    try {
+        const deployments = await fetchRailwayDeployments();
+        res.json(deployments);
+    } catch (err) {
+        console.error('[GET /api/deploy/history] Erro ao consultar Railway API:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 export default router;

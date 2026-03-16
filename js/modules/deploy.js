@@ -159,6 +159,47 @@ function _escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+/**
+ * Renderiza badge de status do Railway com cor e ícone semânticos.
+ * Status possíveis: BUILDING, DEPLOYING, SUCCESS, FAILED, CRASHED,
+ *                   REMOVED, SLEEPING, SKIPPED, WAITING, QUEUED
+ */
+function _renderStatusBadge(status) {
+    const STATUS_CONFIG = {
+        'SUCCESS'   : { label: 'Concluído',   icon: 'ph-check-circle',       color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.25)', pulse: false },
+        'BUILDING'  : { label: 'Construindo', icon: 'ph-hammer',             color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.25)',  pulse: true  },
+        'DEPLOYING' : { label: 'Publicando',  icon: 'ph-rocket-launch',      color: '#60a5fa', bg: 'rgba(96,165,250,0.12)',  border: 'rgba(96,165,250,0.25)',  pulse: true  },
+        'QUEUED'    : { label: 'Na fila',     icon: 'ph-clock',              color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.25)',  pulse: false },
+        'WAITING'   : { label: 'Aguardando',  icon: 'ph-hourglass',          color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  border: 'rgba(251,191,36,0.25)',  pulse: false },
+        'FAILED'    : { label: 'Falhou',      icon: 'ph-x-circle',           color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.25)', pulse: false },
+        'CRASHED'   : { label: 'Crashou',     icon: 'ph-warning-circle',     color: '#f87171', bg: 'rgba(248,113,113,0.12)', border: 'rgba(248,113,113,0.25)', pulse: false },
+        'REMOVED'   : { label: 'Removido',    icon: 'ph-trash',              color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.18)', pulse: false },
+        'SKIPPED'   : { label: 'Ignorado',    icon: 'ph-skip-forward',       color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.18)', pulse: false },
+        'SLEEPING'  : { label: 'Hibernando',  icon: 'ph-moon',               color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.25)', pulse: false },
+    };
+
+    const cfg = STATUS_CONFIG[status] || {
+        label: status || '—', icon: 'ph-question', color: '#94a3b8',
+        bg: 'rgba(148,163,184,0.08)', border: 'rgba(148,163,184,0.18)', pulse: false,
+    };
+
+    const pulseStyle = cfg.pulse
+        ? 'animation: pulse-dot 1.5s ease-in-out infinite;'
+        : '';
+
+    return `<span style="
+        font-size:0.75rem;
+        background:${cfg.bg};
+        color:${cfg.color};
+        padding:0.15rem 0.5rem;
+        border-radius:4px;
+        border:1px solid ${cfg.border};
+        display:inline-flex; align-items:center; gap:0.3rem;
+        white-space:nowrap;
+        ${pulseStyle}
+    "><i class="ph ${cfg.icon}"></i> ${cfg.label}</span>`;
+}
+
 function _renderRows(data) {
     const tbody = document.getElementById('deploy-table-body');
     if (!tbody) return;
@@ -252,9 +293,7 @@ function _renderRows(data) {
                 </span>
               </span>`;
 
-        const statusHtml = `<span style="font-size:0.75rem; background:rgba(16,185,129,0.12); color:#10b981; padding:0.15rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.25);">
-            <i class="ph ph-check-circle"></i> Concluído
-        </span>`;
+        const statusHtml = _renderStatusBadge(row.status);
 
         return `
             <tr style="cursor:default;">
