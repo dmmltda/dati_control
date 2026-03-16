@@ -1288,6 +1288,7 @@ function _initTestLogsTooltips() {
             frame=0; 
             if(animId)cancelAnimationFrame(animId); 
             animId=requestAnimationFrame(tick);
+            window._vttPulse?.seen(id);
         };
 
         const hideTooltip = (e) => {
@@ -1305,6 +1306,7 @@ function _initTestLogsTooltips() {
         tooltip.addEventListener('mouseenter', () => { if(visible) return; showTooltip(); });
         tooltip.addEventListener('mouseleave', hideTooltip);
         draw();
+        window._vttPulse?.add(wrap, id, id.includes('agendamento') || id.includes('rodar') ? 'green' : undefined);
     }
 
     setup('tl-data', 180);

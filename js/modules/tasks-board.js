@@ -2448,7 +2448,8 @@ function _initKanbanColumnTooltips() {
         function show(wt,tt,ca,fi){
             return function(){ if(visible) return; visible=true;
                 document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
-                tt.classList.add('vtt-visible'); startAnim(fi)()(); };
+                tt.classList.add('vtt-visible'); startAnim(fi)()();
+                window._vttPulse?.seen(`kb-${fi}`); };
         }
         function hide(tt){ return function(e){ if(!document.getElementById(`vcw-kb-${tt._idx}`).contains(e.relatedTarget)){ visible=false; tt.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); } }; }
 
@@ -2459,6 +2460,7 @@ function _initKanbanColumnTooltips() {
         wrapEl.addEventListener('mouseenter', _show);
         wrapEl.addEventListener('mouseleave', (e)=>{ if(!wrapEl.contains(e.relatedTarget)){ visible=false; tooltipEl.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); } });
         drawFrame(0);
+        window._vttPulse?.add(wrapEl, `kb-${i}`);
     }
 }
 
@@ -2566,11 +2568,13 @@ function _initViewToggleTooltips() {
             if(visible) return; visible=true;
             document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
             tooltip.classList.add('vtt-visible'); startAnim();
+            window._vttPulse?.seen(`kb-view-${id}`);
         });
         wrap.addEventListener('mouseleave', (e) => {
             if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); stopAnim(); drawerFunction(ctx,0); }
         });
         drawerFunction(ctx,0);
+        window._vttPulse?.add(wrap, `kb-view-${id}`);
     }
 
     setup('kanban', drawKanbanToggle, 240);

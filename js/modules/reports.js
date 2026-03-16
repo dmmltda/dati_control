@@ -1087,11 +1087,13 @@ function _initReportsTooltips() {
             if(visible) return; visible=true;
             document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
             tooltip.classList.add('vtt-visible'); frame=0; if(animId)cancelAnimationFrame(animId); animId=requestAnimationFrame(tick);
+            window._vttPulse?.seen(id);
         });
         wrap.addEventListener('mouseleave', (e) => {
             if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); if(animId)cancelAnimationFrame(animId); animId=null; frame=0; draw(); }
         });
         draw();
+        window._vttPulse?.add(wrap, id);
     }
 
     setup('rpt-tab-empresas', 240);
