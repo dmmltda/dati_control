@@ -400,11 +400,11 @@ const emailMonitor = (() => {
                             
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05);">
                                 <div>
-                                    <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.25rem;">INTENÇÃO DETECTADA:</span>
-                                    <strong style="color:#f1f5f9; font-size:0.9rem;">${gabi.intent}</strong>
+                                    <span style="font-size:11.5px; color:#cbd5e1; display:block; margin-bottom:0.25rem; text-transform:uppercase; font-weight:700;">INTENÇÃO DETECTADA:</span>
+                                    <strong style="color:#ffffff; font-size:0.9rem;">${gabi.intent}</strong>
                                 </div>
                                 <div>
-                                    <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.25rem;">AÇÃO EXECUTADA:</span>
+                                    <span style="font-size:11.5px; color:#cbd5e1; display:block; margin-bottom:0.25rem; text-transform:uppercase; font-weight:700;">AÇÃO EXECUTADA:</span>
                                     <strong style="color:#10b981; font-size:0.9rem;">${gabi.action_taken === 'auto_replied' ? '✅ Resposta Automática' : '👤 Transbordo Humano'}</strong>
                                 </div>
                             </div>
@@ -467,9 +467,9 @@ const emailMonitor = (() => {
                         <!-- Badge Status -->
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                             <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
-                                <div style="display:flex; flex-direction:column;">
-                                    <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">De: <span style="color:#cbd5e1; text-transform:none; font-weight:400;">${_esc(fromStr)}</span></span>
-                                    <span style="font-size:0.65rem; color:#64748b; text-transform:uppercase; font-weight:700;">Para: <span style="color:#cbd5e1; text-transform:none; font-weight:400;">${_esc(toStr)}</span></span>
+                                <div style="display:flex; flex-direction:column; gap:0.2rem;">
+                                    <span style="font-size:11.5px; color:#cbd5e1; text-transform:uppercase; font-weight:700;">De: <span style="color:#ffffff; text-transform:none; font-weight:600;">${_esc(fromStr)}</span></span>
+                                    <span style="font-size:11.5px; color:#cbd5e1; text-transform:uppercase; font-weight:700;">Para: <span style="color:#ffffff; text-transform:none; font-weight:600;">${_esc(toStr)}</span></span>
                                 </div>
                             </div>
                             
