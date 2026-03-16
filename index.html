@@ -565,25 +565,39 @@
                                 </div>
                             </div>
                             <div class="bulk-toolbar-actions">
-                                <button type="button" id="btn-log-agendamento" class="bulk-action-btn"
-                                    onclick="agendamento.openModal()">
-                                    <i class="ph ph-clock" id="sched-btn-icon"></i>
-                                    <span id="sched-btn-label">Agendamento</span>
-                                    <span id="sched-btn-active-badge" style="display:none; align-items:center; gap:0.35rem; margin-left:0.4rem; font-size:0.72rem; font-weight:700; color:#10b981;">
-                                        <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:schedPulse 1.4s ease-in-out infinite;display:inline-block;"></span>
-                                        <span id="sched-btn-next-time"></span>
-                                    </span>
-                                </button>
+                                <div class="vcw" id="vcw-tl-agendamento" style="position:relative;display:inline-flex;">
+                                    <button type="button" id="btn-log-agendamento" class="bulk-action-btn"
+                                        onclick="agendamento.openModal()">
+                                        <i class="ph ph-clock" id="sched-btn-icon"></i>
+                                        <span id="sched-btn-label">Agendamento</span>
+                                        <span id="sched-btn-active-badge" style="display:none; align-items:center; gap:0.35rem; margin-left:0.4rem; font-size:0.72rem; font-weight:700; color:#10b981;">
+                                            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:schedPulse 1.4s ease-in-out infinite;display:inline-block;"></span>
+                                            <span id="sched-btn-next-time"></span>
+                                        </span>
+                                    </button>
+                                    <div class="vtt-tooltip" id="vct-tl-agendamento" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                        <div class="vtt-video-container" id="vcvc-tl-agendamento"><canvas class="vtt-canvas" id="vcc-tl-agendamento" width="300" height="169"></canvas></div>
+                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:13</div><div class="vtt-title">Agendar Execuções</div><div class="vtt-desc">Programe a suíte para rodar periodicamente (ex: a cada hora). Mantendo o ecossistema testado e minimizando surpresas.</div><div class="vtt-cta"><span class="vtt-link">Criar agendamento →</span><span class="vtt-time" id="vctm-tl-agendamento">0:00</span></div></div>
+                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                    </div>
+                                </div>
                                 <style>
                                     @keyframes schedPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.75)} }
                                 </style>
 
                                 <div class="bulk-toolbar-divider"></div>
-                                <button type="button" id="btn-log-run-now" class="bulk-action-btn"
-                                    onclick="agendamento.openRunModal()">
-                                    <i class="ph ph-play"></i>
-                                    <span>Rodar Testes</span>
-                                </button>
+                                <div class="vcw" id="vcw-tl-rodar" style="position:relative;display:inline-flex;">
+                                    <button type="button" id="btn-log-run-now" class="bulk-action-btn"
+                                        onclick="agendamento.openRunModal()">
+                                        <i class="ph ph-play"></i>
+                                        <span>Rodar Testes</span>
+                                    </button>
+                                    <div class="vtt-tooltip" id="vct-tl-rodar" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                        <div class="vtt-video-container" id="vcvc-tl-rodar"><canvas class="vtt-canvas" id="vcc-tl-rodar" width="300" height="169"></canvas></div>
+                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Execução Manual</div><div class="vtt-desc">Força a inicialização imediata do "Mestre dos Testes". Excelente para validar correções ou fazer um health check instantâneo do sistema.</div><div class="vtt-cta"><span class="vtt-link">Como rodar agora →</span><span class="vtt-time" id="vctm-tl-rodar">0:00</span></div></div>
+                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                    </div>
+                                </div>
                                 <div class="bulk-toolbar-divider" id="log-clear-divider" style="display:none;"></div>
                                 <button type="button" id="btn-clear-log-filters" class="bulk-action-btn" style="display:none;"
                                     onclick="logTestes.clearFilters()">
@@ -607,7 +621,14 @@
                                     <tr>
                                         <th class="sortable-header" data-key="data">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('data')">Data</span>
+                                                <div class="vcw" id="vcw-tl-data" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('data')">Data</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-data" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-data"><canvas class="vtt-canvas" id="vcc-tl-data" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Data da Execução</div><div class="vtt-desc">Dia em que os testes de saúde e performance do sistema foram executados. Use para analisar o histórico de estabilidade.</div><div class="vtt-cta"><span class="vtt-link">Como ordenar →</span><span class="vtt-time" id="vctm-tl-data">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('data', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -616,7 +637,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="hora">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('hora')">Hora</span>
+                                                <div class="vcw" id="vcw-tl-hora" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('hora')">Hora</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-hora" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-hora"><canvas class="vtt-canvas" id="vcc-tl-hora" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Horário Exato</div><div class="vtt-desc">Horário de Brasília no momento exato em que a automação disparou a suíte de testes contra aquele módulo específico.</div><div class="vtt-cta"><span class="vtt-link">Dica de análise →</span><span class="vtt-time" id="vctm-tl-hora">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('hora', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -625,7 +653,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="tipo">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('tipo')">Tipo</span>
+                                                <div class="vcw" id="vcw-tl-tipo" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('tipo')">Tipo</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-tipo" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-tipo"><canvas class="vtt-canvas" id="vcc-tl-tipo" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:12</div><div class="vtt-title">Tipo de Teste (E2E)</div><div class="vtt-desc">Identifica o tipo da automação (ex: E2E). Testes E2E (End-to-End) simulam interações reais de usuário navegando por telas.</div><div class="vtt-cta"><span class="vtt-link">Entenda os tipos →</span><span class="vtt-time" id="vctm-tl-tipo">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('tipo', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -634,7 +669,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="modulo">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('modulo')">M&oacute;dulo</span>
+                                                <div class="vcw" id="vcw-tl-modulo" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('modulo')">M&oacute;dulo</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-modulo" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-modulo"><canvas class="vtt-canvas" id="vcc-tl-modulo" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Área do Sistema</div><div class="vtt-desc">O módulo alvo do teste (ex: Gabi AI, Autenticação, Faturamento). Indica qual inteligência ou área técnica foi validada.</div><div class="vtt-cta"><span class="vtt-link">Ver módulos →</span><span class="vtt-time" id="vctm-tl-modulo">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="left:20px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('modulo', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -643,7 +685,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="descricao">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('descricao')">O que foi testado</span>
+                                                <div class="vcw" id="vcw-tl-descricao" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('descricao')">O que foi testado</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-descricao" style="top:calc(100% + 8px);bottom:auto;left:-50px;right:auto;transform-origin:top left;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-descricao"><canvas class="vtt-canvas" id="vcc-tl-descricao" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Descrição do Escopo</div><div class="vtt-desc">Detalha o cenário testado, como "Health Check Gemini API", garantindo que as integrações externas respondam corretamente.</div><div class="vtt-cta"><span class="vtt-link">Exemplos práticos →</span><span class="vtt-time" id="vctm-tl-descricao">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="left:70px;right:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('descricao', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -652,7 +701,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="status">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('status')">Resultado</span>
+                                                <div class="vcw" id="vcw-tl-status" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('status')">Resultado</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-status" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-status"><canvas class="vtt-canvas" id="vcc-tl-status" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:13</div><div class="vtt-title">Status da Execução</div><div class="vtt-desc">Indica se a execução "Passou", ou se encontrou falhas. Relaxe! Falhas disparam alertas imediatos pros engenheiros.</div><div class="vtt-cta"><span class="vtt-link">Como corrigir falhas →</span><span class="vtt-time" id="vctm-tl-status">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('status', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -661,7 +717,14 @@
                                         </th>
                                         <th class="sortable-header" data-key="duracao">
                                             <div class="header-content">
-                                                <span onclick="logTestes.handleSort('duracao')">Dura&ccedil;&atilde;o</span>
+                                                <div class="vcw" id="vcw-tl-duracao" style="position:relative;display:inline-flex;">
+                                                    <span onclick="logTestes.handleSort('duracao')">Dura&ccedil;&atilde;o</span>
+                                                    <div class="vtt-tooltip" id="vct-tl-duracao" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                                                        <div class="vtt-video-container" id="vcvc-tl-duracao"><canvas class="vtt-canvas" id="vcc-tl-duracao" width="300" height="169"></canvas></div>
+                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:12</div><div class="vtt-title">Performance (ms)</div><div class="vtt-desc">Tempo total levado pela automação. Monitoramos isso para detectar anomalias ou degradação na velocidade das respostas.</div><div class="vtt-cta"><span class="vtt-link">Por que monitoramos →</span><span class="vtt-time" id="vctm-tl-duracao">0:00</span></div></div>
+                                                        <div class="vtt-arrow" style="right:20px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                                                    </div>
+                                                </div>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('duracao', event)"><i
                                                         class="ph ph-funnel"></i></button>
