@@ -22,25 +22,35 @@ let _allRows = [];
 let _filters = { author: '', area: '', status: '', dateFrom: '', dateTo: '' };
 
 // ─── Mapa de palavras-chave → Área de Produto ─────────────────────────────────
+// IMPORTANTE: a ordem é prioridade decrescente — o primeiro match vence
 const AREA_MAP = [
-    { keywords: ['whatsapp', 'wha', 'inbox'],                         area: 'WhatsApp HD'          },
-    { keywords: ['email', 'e-mail', 'gabi', 'inbound'],               area: 'E-mail / Gabi AI'     },
-    { keywords: ['nps'],                                              area: 'NPS'                  },
-    { keywords: ['deploy', 'railway', 'migration', 'migrate'],        area: 'Infraestrutura'       },
-    { keywords: ['audit', 'histórico', 'historico'],                  area: 'Histórico'            },
-    { keywords: ['log', 'testes', 'test', 'scheduler', 'agendament'], area: 'Log de Testes'        },
-    { keywords: ['relatório', 'relatorio', 'report', 'adherence'],    area: 'Relatórios'          },
-    { keywords: ['kanban', 'pipeline', 'funil', 'funnel'],            area: 'Funil de Vendas'      },
-    { keywords: ['customer', 'success', 'cs', 'sesão', 'sessao'],    area: 'Customer Success'     },
-    { keywords: ['empresa', 'company', 'companies', 'companies'],     area: 'Empresas'             },
-    { keywords: ['atividade', 'activity', 'activities', 'tarefa'],    area: 'Atividades'           },
-    { keywords: ['permiss', 'permission', 'usuário', 'usuario'],      area: 'Usuários e Permissões'},
-    { keywords: ['tooltip', 'canvas', 'ui', 'visual', 'layout'],     area: 'Interface'            },
-    { keywords: ['kpi', 'dashboard'],                                 area: 'Dashboard'            },
-    { keywords: ['import', 'csv'],                                    area: 'Importação'          },
-    { keywords: ['api', 'route', 'rota', 'middleware', 'backend'],    area: 'Back-end / API'       },
-    { keywords: ['prisma', 'banco', 'database', 'schema'],            area: 'Banco de Dados'       },
-    { keywords: ['auth', 'login', 'clerk', 'session'],                area: 'Autenticação'        },
+    // Módulos específicos (palavras-chave muito precisas, rodam primeiro)
+    { keywords: ['whatsapp', 'wha', 'inbox'],                                         area: 'WhatsApp HD'           },
+    { keywords: ['email', 'e-mail', 'gabi', 'inbound', 'resend', 'webhook'],          area: 'E-mail / Gabi AI'      },
+    { keywords: ['nps'],                                                               area: 'NPS'                   },
+    { keywords: ['audit', 'histórico', 'historico'],                                    area: 'Histórico'             },
+    { keywords: ['scheduler', 'agendament', 'vtt',
+                 'log de testes', 'logs de testes',
+                 'test log', 'cleanup arquivo', 'cleanup'],                            area: 'Log de Testes'         },
+    { keywords: ['relatório', 'relatorio', 'report', 'adherence'],                     area: 'Relatórios'           },
+    { keywords: ['kanban', 'pipeline', 'funil', 'funnel'],                             area: 'Funil de Vendas'       },
+    { keywords: ['customer success', 'reunião cs', 'reuniao cs', 'cs meeting'],        area: 'Customer Success'      },
+    { keywords: ['empresa', 'company', 'companies'],                                   area: 'Empresas'              },
+    { keywords: ['tarefa', 'minhas tarefas', 'my task', 'atividade'],                  area: 'Atividades'            },
+    { keywords: ['permiss', 'permission', 'usuário', 'usuario', 'admin role'],         area: 'Usuários e Permissões' },
+    { keywords: ['kpi', 'dashboard'],                                                  area: 'Dashboard'             },
+    { keywords: ['import', 'csv'],                                                     area: 'Importação'           },
+    { keywords: ['deploy', 'railway', 'migration', 'migrate', 'tracker'],              area: 'Infraestrutura'        },
+    // Tooltip/UI — mais específicos para os painéis que temos
+    { keywords: ['tooltip log', 'tooltip testes', 'canvas log', 'canvas testes',
+                 'log tooltip', 'test tooltip', 'painel log'],                         area: 'Log de Testes'         },
+    { keywords: ['tooltip relat', 'canvas relat', 'tooltip report'],                   area: 'Relatórios'           },
+    { keywords: ['tooltip', 'canvas', 'pulse', 'dot', 'ui', 'visual', 'layout',
+                 'dark mode', 'glass', 'animation'],                                   area: 'Interface'             },
+    // Técnicas — genéricas, sem link de navegação específico
+    { keywords: ['auth', 'login', 'clerk', 'session'],                                 area: 'Autenticação'         },
+    { keywords: ['prisma', 'banco', 'database', 'schema', 'migration'],                area: 'Banco de Dados'        },
+    { keywords: ['api', 'route', 'rota', 'middleware', 'backend', 'server'],           area: 'Back-end / API'        },
 ];
 
 const TYPE_MAP = {
@@ -55,26 +65,25 @@ const TYPE_MAP = {
     'build' : 'Build',
 };
 
-// ─── Mapa Área → view ID do app (data-view nos nav-items) ────────────────────
+// ─── Mapa Área → view ID do app ─────────────────────────────────────────────────
+// Áreas técnicas (Interface, Back-end, DB, Infra) NÃO têm navTarget válido:
+// elas afetam o app inteiro e navegar para 'deploy' (página atual) não faz sentido.
 const AREA_NAV_MAP = {
-    'Dashboard'            : { view: 'dashboard',        icon: 'ph-chart-bar'                 },
-    'Empresas'             : { view: 'company-list',     icon: 'ph-buildings'                 },
-    'Atividades'           : { view: 'minhas-tarefas',   icon: 'ph-check-square'              },
-    'Relatórios'           : { view: 'reports',          icon: 'ph-chart-line-up'             },
-    'Histórico'            : { view: 'audit-log',        icon: 'ph-clock-counter-clockwise', callback: () => auditLog?.init?.()    },
-    'Log de Testes'        : { view: 'log',              icon: 'ph-flask'                     },
-    'E-mail / Gabi AI'     : { view: 'email-monitor',    icon: 'ph-envelope',                 callback: () => emailMonitor?.init?.()  },
-    'WhatsApp HD'          : { view: 'whatsapp-inbox',   icon: 'ph-whatsapp-logo',            callback: () => whatsappInbox?.init?.() },
-    'Usuários e Permissões': { view: 'config-usuarios',  icon: 'ph-users'                     },
-    'Infraestrutura'       : { view: 'deploy',           icon: 'ph-rocket',                   callback: () => deployMonitor?.init?.() },
-    'Interface'            : { view: 'deploy',           icon: 'ph-monitor',                  callback: () => deployMonitor?.init?.() },
-    'Back-end / API'       : { view: 'deploy',           icon: 'ph-code',                     callback: () => deployMonitor?.init?.() },
-    'Banco de Dados'       : { view: 'deploy',           icon: 'ph-database',                 callback: () => deployMonitor?.init?.() },
-    'Autenticação'         : { view: 'config-usuarios',  icon: 'ph-lock'                      },
-    'Importação'           : { view: 'company-list',     icon: 'ph-upload-simple'             },
-    'NPS'                  : { view: 'company-list',     icon: 'ph-smiley'                    },
-    'Customer Success'     : { view: 'company-list',     icon: 'ph-handshake'                 },
-    'Funil de Vendas'      : { view: 'company-list',     icon: 'ph-funnel'                    },
+    'Dashboard'            : { view: 'dashboard',        icon: 'ph-chart-bar'                  },
+    'Empresas'             : { view: 'company-list',     icon: 'ph-buildings'                  },
+    'Atividades'           : { view: 'minhas-tarefas',   icon: 'ph-check-square'               },
+    'Relatórios'           : { view: 'reports',          icon: 'ph-chart-line-up'              },
+    'Histórico'            : { view: 'audit-log',        icon: 'ph-clock-counter-clockwise',   callback: () => typeof auditLog     !== 'undefined' && auditLog.init?.()     },
+    'Log de Testes'        : { view: 'log',              icon: 'ph-flask'                      },
+    'E-mail / Gabi AI'     : { view: 'email-monitor',    icon: 'ph-envelope',                  callback: () => typeof emailMonitor  !== 'undefined' && emailMonitor.init?.()  },
+    'WhatsApp HD'          : { view: 'whatsapp-inbox',   icon: 'ph-whatsapp-logo',             callback: () => typeof whatsappInbox !== 'undefined' && whatsappInbox.init?.() },
+    'Usuários e Permissões': { view: 'config-usuarios',  icon: 'ph-users'                      },
+    'Autenticação'         : { view: 'config-usuarios',  icon: 'ph-lock'                       },
+    'Importação'           : { view: 'company-list',     icon: 'ph-upload-simple'              },
+    'NPS'                  : { view: 'company-list',     icon: 'ph-smiley'                     },
+    'Customer Success'     : { view: 'company-list',     icon: 'ph-handshake'                  },
+    'Funil de Vendas'      : { view: 'company-list',     icon: 'ph-funnel'                     },
+    // Interface, Infra, API, DB → sem nav (null é configurado em _parseCommit)
 };
 
 function _deployNav(area) {
