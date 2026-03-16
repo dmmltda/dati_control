@@ -576,17 +576,16 @@ export const deployMonitor = {
                                     <tr>
                                         <th class="sortable-header" data-key="date" style="width:135px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('date')">${renderTitleWithTooltip('Quando')}</span>
-                                                        <div id="vct-dep-date" class="vtt-tooltip" style="width:280px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-date" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Métrica de Tempo</div>
-                                                                <div class="vtt-title">Quando</div>
-                                                                <div class="vtt-desc">Data e hora exata em que o deploy foi finalizado no ambiente de produção do Railway.</div>
-                                                            </div>
+                                                <span id="vcw-dep-date" onclick="window._deploySort('date')">${renderTitleWithTooltip('Quando')}
+                                                    <div id="vct-dep-date" class="vtt-tooltip" style="width:280px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-date" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Métrica de Tempo</div>
+                                                            <div class="vtt-title">Quando</div>
+                                                            <div class="vtt-desc">Data e hora exata em que o deploy foi finalizado no ambiente de produção do Railway.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('date', event)">
                                                     <i class="ph ph-funnel"></i>
@@ -596,17 +595,16 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="author" style="width:145px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('author')">${renderTitleWithTooltip('Quem')}</span>
-                                                        <div id="vct-dep-author" class="vtt-tooltip" style="width:280px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-author" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Autoria</div>
-                                                                <div class="vtt-title">Quem</div>
-                                                                <div class="vtt-desc">Quem aprovou ou disparou o deploy. 'Railway' indica deploys automáticos da esteira.</div>
-                                                            </div>
+                                                <span id="vcw-dep-author" onclick="window._deploySort('author')">${renderTitleWithTooltip('Quem')}
+                                                    <div id="vct-dep-author" class="vtt-tooltip" style="width:280px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-author" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Autoria</div>
+                                                            <div class="vtt-title">Quem</div>
+                                                            <div class="vtt-desc">Quem aprovou ou disparou o deploy. 'Railway' indica deploys automáticos da esteira.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('author', event)">
                                                     <i class="ph ph-funnel"></i>
@@ -616,17 +614,16 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="area" style="width:140px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('area')">${renderTitleWithTooltip('Área')}</span>
-                                                        <div id="vct-dep-area" class="vtt-tooltip" style="width:280px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-area" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Módulo Afetado</div>
-                                                                <div class="vtt-title">Área</div>
-                                                                <div class="vtt-desc">Módulo ou seção do sistema afetada por este deploy, categorizada automaticamente pela IA.</div>
-                                                            </div>
+                                                <span id="vcw-dep-area" onclick="window._deploySort('area')">${renderTitleWithTooltip('Área')}
+                                                    <div id="vct-dep-area" class="vtt-tooltip" style="width:280px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-area" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Módulo Afetado</div>
+                                                            <div class="vtt-title">Área</div>
+                                                            <div class="vtt-desc">Módulo ou seção do sistema afetada por este deploy, categorizada automaticamente pela IA.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('area', event)">
                                                     <i class="ph ph-funnel"></i>
@@ -636,65 +633,61 @@ export const deployMonitor = {
                                         </th>
                                         <th data-key="de" style="width:130px;">
                                             <div class="header-content">
-                                                <span>${renderTitleWithTooltip('De')}</span>
-                                                        <div id="vct-dep-de" class="vtt-tooltip" style="width:280px;right:-140px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="left:50%; margin-left:-4px;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-de" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Motivação</div>
-                                                                <div class="vtt-title">Estado Anterior</div>
-                                                                <div class="vtt-desc">Estado ou versão anterior antes da modificação. O problema ou gargalo que motivou o deploy.</div>
-                                                            </div>
+                                                <span id="vcw-dep-de">${renderTitleWithTooltip('De')}
+                                                    <div id="vct-dep-de" class="vtt-tooltip" style="width:280px;right:-140px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="left:50%; margin-left:-4px;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-de" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Motivação</div>
+                                                            <div class="vtt-title">Estado Anterior</div>
+                                                            <div class="vtt-desc">Estado ou versão anterior antes da modificação. O problema ou gargalo que motivou o deploy.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                             </div>
                                         </th>
                                         <th data-key="para">
                                             <div class="header-content">
-                                                <span>${renderTitleWithTooltip('Para')}</span>
-                                                        <div id="vct-dep-para" class="vtt-tooltip" style="width:280px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-para" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Resultado</div>
-                                                                <div class="vtt-title">O que foi feito</div>
-                                                                <div class="vtt-desc">O que esta versão alterou ou entregou. Clique no botão de atalho para navegar diretamente para a área afetada no sistema.</div>
-                                                            </div>
+                                                <span id="vcw-dep-para">${renderTitleWithTooltip('Para')}
+                                                    <div id="vct-dep-para" class="vtt-tooltip" style="width:280px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-para" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Resultado</div>
+                                                            <div class="vtt-title">O que foi feito</div>
+                                                            <div class="vtt-desc">O que esta versão alterou ou entregou. Clique no botão de atalho para navegar diretamente para a área afetada no sistema.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                             </div>
                                         </th>
                                         <th class="sortable-header" data-key="hash" style="width:85px;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('hash')">${renderTitleWithTooltip('Versão')}</span>
-                                                        <div id="vct-dep-hash" class="vtt-tooltip" style="width:280px;right:-15px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-hash" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Identificação Única</div>
-                                                                <div class="vtt-title">Código SHA</div>
-                                                                <div class="vtt-desc">Identificador curto e único do bloqueio de código (commit) inserido no repositório oficial.</div>
-                                                            </div>
+                                                <span id="vcw-dep-hash" onclick="window._deploySort('hash')">${renderTitleWithTooltip('Versão')}
+                                                    <div id="vct-dep-hash" class="vtt-tooltip" style="width:280px;right:-15px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-hash" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Identificação Única</div>
+                                                            <div class="vtt-title">Código SHA</div>
+                                                            <div class="vtt-desc">Identificador curto e único do bloqueio de código (commit) inserido no repositório oficial.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                             </div>
                                         </th>
                                         <th class="sortable-header" data-key="status" style="width:110px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('status')">${renderTitleWithTooltip('Status')}</span>
-                                                        <div id="vct-dep-status" class="vtt-tooltip" style="width:280px;right:-15px;">
-                                                            <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
-                                                            <div class="vtt-video-container"><canvas id="vcc-dep-status" class="vtt-canvas"></canvas></div>
-                                                            <div class="vtt-body">
-                                                                <div class="vtt-label">Sincronização API</div>
-                                                                <div class="vtt-title">Progresso na Esteira</div>
-                                                                <div class="vtt-desc">Status real do deploy no Railway. "Construindo" ou "Publicando" significa que o código ainda não está visível para os usuários finais.</div>
-                                                            </div>
+                                                <span id="vcw-dep-status" onclick="window._deploySort('status')">${renderTitleWithTooltip('Status')}
+                                                    <div id="vct-dep-status" class="vtt-tooltip" style="width:280px;right:-15px;">
+                                                        <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
+                                                        <div class="vtt-video-container"><canvas id="vcc-dep-status" class="vtt-canvas"></canvas></div>
+                                                        <div class="vtt-body">
+                                                            <div class="vtt-label">Sincronização API</div>
+                                                            <div class="vtt-title">Progresso na Esteira</div>
+                                                            <div class="vtt-desc">Status real do deploy no Railway. "Construindo" ou "Publicando" significa que o código ainda não está visível para os usuários finais.</div>
                                                         </div>
-                                                    </span>
+                                                    </div>
                                                 </span>
                                                 <button type="button" class="btn-filter-column" onclick="window._deployToggleFilter('status', event)">
                                                     <i class="ph ph-funnel"></i>

@@ -55,7 +55,7 @@ let _manager      = null;
 let _allRows      = [];
 let _rawRows      = [];     // dados brutos para o toggle de detalhe
 let _initialized  = false;
-let _filters      = { action: '', dateFrom: '', dateTo: '' };
+let _filters      = { action: '', quem: '', entidade: '', dateFrom: '', dateTo: '' };
 let _pollTimer    = null;   // timer de auto-refresh
 const POLL_INTERVAL = 30_000; // 30 segundos
 
@@ -217,9 +217,33 @@ function _updateCount(total) {
     if (el) el.textContent = `${total.toLocaleString('pt-BR')} registro${total !== 1 ? 's' : ''}`;
 }
 
-// ─── Popovers de filtro por coluna ───────────────────────────────────────────
+// ─── Popular selects de Quem + Entidade na toolbar ───────────────────────────
+function _populateToolbarSelects() {
+    if (!_manager) return;
+
+    // --- Quem ---
+    const quemSel = document.getElementById('audit-filter-quem');
+    if (quemSel) {
+        const curQuem = _filters.quem;
+        const quemValues = _manager.getUniqueValues('quem').sort();
+        quemSel.innerHTML = '<option value="">Quem</option>' +
+            quemValues.map(v => `<option value="${_escapeHtml(String(v))}"${curQuem === String(v) ? ' selected' : ''}>${_escapeHtml(String(v))}</option>`).join('');
+    }
+
+    // --- Entidade ---
+    const entidadeSel = document.getElementById('audit-filter-entidade');
+    if (entidadeSel) {
+        const curEntidade = _filters.entidade;
+        const entidadeValues = _manager.getUniqueValues('entidade').sort();
+        entidadeSel.innerHTML = '<option value="">Entidade</option>' +
+            entidadeValues.map(v => `<option value="${_escapeHtml(String(v))}"${curEntidade === String(v) ? ' selected' : ''}>${_escapeHtml(String(v))}</option>`).join('');
+    }
+}
+
 function _buildFilterPopovers() {
     if (!_manager) return;
+
+    _populateToolbarSelects();
 
     const quemValues     = _manager.getUniqueValues('quem');
     const acaoValues     = _manager.getUniqueValues('acao');
@@ -301,6 +325,12 @@ function _applyExternalFilters(rows) {
         // Filtro por ação (original action code, não label)
         if (_filters.action && row._raw.action !== _filters.action) return false;
 
+        // Filtro por Quem (actor_label)
+        if (_filters.quem && row.quem !== _filters.quem) return false;
+
+        // Filtro por Entidade
+        if (_filters.entidade && row.entidade !== _filters.entidade) return false;
+
         // Filtro por data
         if (_filters.dateFrom || _filters.dateTo) {
             const d = new Date(row._raw.created_at);
@@ -321,6 +351,15 @@ function _applyExternalFilters(rows) {
 // ─── Mostrar / ocultar botão "Limpar Filtros" ─────────────────────────────────
 function _syncClearBtn() {
     if (_manager) _renderActiveFilters(_manager.getActiveFilters(), _manager._search);
+
+    // Botão Limpar na toolbar
+    const btn = document.getElementById('audit-btn-clear-filters');
+    if (btn) {
+        const hasFilters = _filters.action || _filters.quem || _filters.entidade ||
+                           _filters.dateFrom || _filters.dateTo ||
+                           (_manager && (_manager._search || Object.keys(_manager.filters || {}).some(k => _manager.filters[k])));
+        btn.style.display = hasFilters ? 'inline-flex' : 'none';
+    }
 }
 
 function _renderActiveFilters(activeFilters, search) {
@@ -335,6 +374,26 @@ function _renderActiveFilters(activeFilters, search) {
             <span class="filter-chip">
                 Ação: <strong>${_escapeHtml(ACTION_CONFIG[_filters.action]?.label || _filters.action)}</strong>
                 <button class="chip-remove" data-remove-global="action" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    if (_filters.quem) {
+        chips.push(`
+            <span class="filter-chip">
+                Quem: <strong>${_escapeHtml(_filters.quem)}</strong>
+                <button class="chip-remove" data-remove-global="quem" title="Remover filtro">
+                    <i class="ph ph-x"></i>
+                </button>
+            </span>`);
+    }
+
+    if (_filters.entidade) {
+        chips.push(`
+            <span class="filter-chip">
+                Entidade: <strong>${_escapeHtml(_filters.entidade)}</strong>
+                <button class="chip-remove" data-remove-global="entidade" title="Remover filtro">
                     <i class="ph ph-x"></i>
                 </button>
             </span>`);
@@ -389,6 +448,16 @@ function _renderActiveFilters(activeFilters, search) {
                 if (el && el._customSelectInstance) el._customSelectInstance.setValue('');
                 else if (el) el.value = '';
                 _filters.action = '';
+                _reloadWithFilters();
+            } else if (type === 'quem') {
+                const el = document.getElementById('audit-filter-quem');
+                if (el) el.value = '';
+                _filters.quem = '';
+                _reloadWithFilters();
+            } else if (type === 'entidade') {
+                const el = document.getElementById('audit-filter-entidade');
+                if (el) el.value = '';
+                _filters.entidade = '';
                 _reloadWithFilters();
             } else if (type === 'date') {
                 const dF = document.getElementById('audit-date-from');
@@ -762,6 +831,22 @@ export function handleActionFilter(value) {
 }
 
 /**
+ * Filtro por Quem (select na toolbar).
+ */
+export function handleQuemFilter(value) {
+    _filters.quem = value;
+    _reloadWithFilters();
+}
+
+/**
+ * Filtro por Entidade (select na toolbar).
+ */
+export function handleEntidadeFilter(value) {
+    _filters.entidade = value;
+    _reloadWithFilters();
+}
+
+/**
  * Filtro de data "De".
  */
 export function handleDateFrom(value) {
@@ -834,17 +919,23 @@ export function handleSort(key) {
  * Limpa todos os filtros.
  */
 export function clearFilters() {
-    _filters = { action: '', dateFrom: '', dateTo: '' };
+    _filters = { action: '', quem: '', entidade: '', dateFrom: '', dateTo: '' };
 
     const s = document.getElementById('audit-search-global');
     if (s) s.value = '';
-    
+
     const a = document.getElementById('audit-filter-action');
     if (a) {
         if (a._customSelectInstance) a._customSelectInstance.setValue('');
         else a.value = '';
     }
-    
+
+    const q = document.getElementById('audit-filter-quem');
+    if (q) q.value = '';
+
+    const e = document.getElementById('audit-filter-entidade');
+    if (e) e.value = '';
+
     const df = document.getElementById('audit-date-from');
     if (df) df.value = '';
     const dt = document.getElementById('audit-date-to');

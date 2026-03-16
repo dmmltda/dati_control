@@ -507,8 +507,9 @@
     flex-shrink: 0;
 }
 
-.nav-group.open .nav-caret {
-    transform: rotate(90deg);
+.nav-group.open .nav-caret,
+.nav-group.open .nav-group-caret {
+    transform: rotate(180deg);
 }
 
 .nav-sub-menu {
@@ -519,7 +520,9 @@
 }
 
 .nav-group.open .nav-sub-menu {
-    max-height: 200px;
+    /* max-height é definido dinamicamente pelo JS via scrollHeight */
+    /* fallback para quando CSS é aplicado sem JS */
+    max-height: 600px;
 }
 
 .nav-sub-item {

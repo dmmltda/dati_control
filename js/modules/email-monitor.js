@@ -620,8 +620,9 @@ const emailMonitor = (() => {
                                             </div>
                                             <div>
                                                 <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; margin-bottom:0.6rem;">AÇÃO EXECUTADA</div>
-                                                <div style="color:#34d399; font-weight:900; font-size:1.15rem; display:flex; align-items:center; gap:0.5rem;">
-                                                    <i class="ph ph-check-circle"></i> Resposta Automática
+                                                <div style="color:#34d399; font-weight:900; font-size:1.15rem; display:flex; align-items:center; gap:0.6rem;">
+                                                    <i class="ph ph-check-circle"></i> Resposta Enviada
+                                                    <span style="font-size:9px; background:rgba(52,211,153,0.1); padding:2px 7px; border-radius:5px; border:1px solid rgba(52,211,153,0.25); color:#34d399;">ENVIADO</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -629,10 +630,31 @@ const emailMonitor = (() => {
                                             <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; margin-bottom:0.6rem;">PROCESSO DE PENSAMENTO DA IA:</div>
                                             <div style="color:#cbd5e1; font-size:0.95rem; line-height:1.7;">${_esc(row.gabi_analysis.summary || 'A IA processou o e-mail de forma objetiva.')}</div>
                                         </div>
-                                         <div style="background:rgba(0,0,0,0.3); border-radius:14px; border:1px solid rgba(255,255,255,0.03); padding:1.2rem;">
-                                            <div style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase; margin-bottom:0.8rem;">PROPOSTA DE RESPOSTA (ENVIADA EM SEGUIDA):</div>
-                                            <div style="color:#818cf8; font-size:0.95rem; line-height:1.6; font-style:italic;">"${_esc(row.gabi_analysis.summary || 'Veja card seguinte.')}"</div>
-                                        </div>
+                                         ${(() => {
+                                            const next = data[idx + 1];
+                                            const hasNext = next && next.direction === 'outbound';
+                                            const responseContent = hasNext ? next.content : (row.gabi_analysis.response_content || row.gabi_analysis.suggested_reply || null);
+                                            const nextNum = idx + 2;
+                                            return `
+                                                <div style="background:rgba(99,102,241,0.06); border-radius:14px; border:1px solid rgba(99,102,241,0.2); padding:1.2rem;">
+                                                    <div style="font-size:10px; color:#818cf8; font-weight:800; text-transform:uppercase; margin-bottom:0.0rem; display:flex; justify-content:space-between; align-items:center;">
+                                                        <span style="display:flex; align-items:center; gap:5px;"><i class="ph ph-paper-plane-tilt"></i> E-MAIL ENVIADO PELA GABI</span>
+                                                        ${hasNext ? `<span style="background:#6366f1; color:#fff; padding:2px 8px; border-radius:6px; font-size:9px; font-weight:900;">E-MAIL #${nextNum}</span>` : ''}
+                                                    </div>
+                                                    <div style="color:#ffffff; font-size:0.92rem; line-height:1.7; white-space:pre-wrap; max-height:180px; overflow-y:auto; margin-top:0.8rem;">
+                                                        ${responseContent ? _esc(responseContent.substring(0, 600)) + (responseContent.length > 600 ? '...' : '') : '<span style="color:#475569; font-style:italic;">Ver card seguinte.</span>'}
+                                                    </div>
+                                                    <div style="margin-top:0.8rem; border-top:1px solid rgba(99,102,241,0.1); padding-top:0.7rem; display:flex; justify-content:space-between; align-items:center;">
+                                                        <span style="font-size:9px; color:#6366f1; font-weight:800; display:flex; align-items:center; gap:4px;">
+                                                            <i class="ph ph-arrow-down-bold"></i> ESTA ANÁLISE GEROU O E-MAIL #${nextNum} ABAIXO
+                                                        </span>
+                                                        <span style="font-size:9px; color:#475569; font-weight:700; display:flex; align-items:center; gap:4px;">
+                                                            <i class="ph ph-check-double"></i> SMTP JOURNEY
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            `;
+                                         })()}
                                     </div>
                                 ` : ''}
                             </div>

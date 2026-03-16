@@ -379,7 +379,6 @@ function _injectStyles() {
             font-size: 0.75rem;
             color: #a78bfa;
             font-weight: 700;
-            text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 0.5rem;
         }
@@ -482,7 +481,6 @@ function _injectStyles() {
             font-weight: 600;
             color: #8b98b4;
             margin-bottom: 0.4rem;
-            text-transform: uppercase;
             letter-spacing: 0.04em;
         }
         .wa-modal-input {

@@ -90,10 +90,9 @@ document.addEventListener('dati:app-ready', () => {
         if (me.user_type === 'master') {
             const navConfig = document.getElementById('nav-group-config');
             if (navConfig) navConfig.style.display = 'block';
+            // navLabelConfig e navConfigFlat foram consolidados no nav-group-config
             const navLabelConfig = document.getElementById('nav-label-config');
             if (navLabelConfig) navLabelConfig.style.display = 'flex';
-            const navConfigFlat = document.getElementById('nav-group-config-flat');
-            if (navConfigFlat) navConfigFlat.style.display = 'block';
         }
     }
 
@@ -333,19 +332,35 @@ function handleNavigation(target) {
         return true;
     }
 
+    // ── nav-sub-item (menus colapsáveis) ──
     if (target.closest('.nav-sub-item')) {
         const subItem = target.closest('.nav-sub-item');
         document.querySelectorAll('.nav-sub-item').forEach(i => i.classList.remove('active'));
         subItem.classList.add('active');
         const view = subItem.getAttribute('data-view');
-        if (view) nav.switchView(view);
-        if (view === 'log') logTestes.initLogTestes();
-        if (view === 'audit-log') auditLog.init();
-        if (view === 'config-usuarios') initSettingsUsers();
-        if (view === 'config-gabi')     initSettingsGabi();
+        if (view) {
+            nav.switchView(view);
+            if (view === 'import') initImportModule();
+            if (view === 'dashboard') mostrarJourneyDashboard();
+            if (view === 'minhas-tarefas') tasksBoard.initTasksBoard();
+            if (view === 'reports') reports.initReports();
+            if (view === 'audit-log') auditLog.init();
+            if (view === 'log') logTestes.initLogTestes();
+            if (view === 'deploy') window.deployMonitor?.init();
+            if (view === 'email-monitor') window.emailMonitor?.init();
+            if (view === 'whatsapp-inbox') window.whatsappInbox?.init();
+            if (view === 'config-usuarios') initSettingsUsers();
+            if (view === 'config-gabi')     initSettingsGabi();
+            if (view === 'settings-whatsapp') initSettingsWhatsApp();
+            if (view === 'company-list') {
+                api.getCompanies().then(updated => {
+                    state.companies = updated;
+                    ui.renderDashboard();
+                    ui.renderCompanyList();
+                }).catch(err => console.warn('[Nav] Falha ao atualizar lista:', err));
+            }
+        }
         return true;
-
-
     }
 
     if (target.closest('.btn-new-company')) {
@@ -983,9 +998,37 @@ window.switchCSSubTab = nav.switchCSSubTab;
 window.switchFormTab = nav.switchFormTab;
 window.maskCurrency = utils.maskCurrency;
 window.maskCNPJ = utils.maskCNPJ;
+
+// ─── Expõe funções de inicialização de módulos como globais ───────────────────
+// Necessário para chamadas em onclick= dos nav-sub-item e outros elementos HTML
+window.initSettingsUsers    = initSettingsUsers;
+window.initSettingsGabi     = initSettingsGabi;
+window.initSettingsWhatsApp = initSettingsWhatsApp;
 window.toggleNavGroup = (groupId) => {
     const group = document.getElementById(groupId);
-    if (group) group.classList.toggle('open');
+    if (!group) return;
+
+    const isOpen = group.classList.contains('open');
+
+    // Fecha todos os outros grupos (accordion)
+    document.querySelectorAll('.nav-group.open').forEach(g => {
+        if (g !== group) {
+            g.classList.remove('open');
+            const sub = g.querySelector('.nav-sub-menu');
+            if (sub) sub.style.maxHeight = null;
+        }
+    });
+
+    // Abre/fecha o grupo clicado
+    if (isOpen) {
+        group.classList.remove('open');
+        const sub = group.querySelector('.nav-sub-menu');
+        if (sub) sub.style.maxHeight = null;
+    } else {
+        group.classList.add('open');
+        const sub = group.querySelector('.nav-sub-menu');
+        if (sub) sub.style.maxHeight = sub.scrollHeight + 'px';
+    }
 };
 
 // ─── Toggle do menu do usuário na sidebar footer ──────────────────────────────

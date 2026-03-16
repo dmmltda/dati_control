@@ -136,70 +136,94 @@
                 </a>
 
                 <!-- ── TRABALHO ────────────────────────────────── -->
-                <div class="nav-section-label">Trabalho</div>
-                <a class="nav-item" data-view="company-list" data-nav-permission="companies.view">
-                    <i class="ph ph-square"></i> Empresas
-                </a>
-                <a class="nav-item" data-view="minhas-tarefas" data-nav-permission="my_tasks.view">
-                    <i class="ph ph-user-circle"></i> Minhas Atividades
-                </a>
+                <div class="nav-group" id="nav-group-trabalho">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-trabalho')">
+                        <i class="ph ph-briefcase"></i>
+                        <span>Trabalho</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item" data-view="company-list" data-nav-permission="companies.view">
+                            <i class="ph ph-buildings"></i> Empresas
+                        </a>
+                        <a class="nav-sub-item" data-view="minhas-tarefas" data-nav-permission="my_tasks.view">
+                            <i class="ph ph-checks"></i> Minhas Atividades
+                        </a>
+                    </div>
+                </div>
 
                 <!-- ── ANÁLISE ─────────────────────────────────── -->
-                <div class="nav-section-label">Análise</div>
-                <a class="nav-item" data-view="reports" data-nav-permission="reports.view">
-                    <i class="ph ph-wave-sine"></i> Relatórios
-                </a>
+                <div class="nav-group" id="nav-group-analise">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-analise')">
+                        <i class="ph ph-chart-line-up"></i>
+                        <span>Análise</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item" data-view="reports" data-nav-permission="reports.view">
+                            <i class="ph ph-file-text"></i> Relatórios
+                        </a>
+                    </div>
+                </div>
 
                 <!-- ── MONITORAMENTO ───────────────────────────── -->
-                <div class="nav-section-label" id="nav-label-monitoramento" data-nav-permission-group="test_logs.view,audit.view,deploy.view">Monitoramento</div>
-                <div id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view,deploy.view">
-                    <a class="nav-item" data-view="deploy" data-nav-permission="deploy.view" onclick="deployMonitor.init()">
-                        <i class="ph ph-rocket"></i> Deploy
-                    </a>
-                    <a class="nav-item" id="nav-item-audit-log" data-view="audit-log" onclick="auditLog.init()" data-nav-permission="audit.view">
-                        <i class="ph ph-sliders-horizontal"></i> Histórico de alterações
-                    </a>
-                    <a class="nav-item" data-view="log" data-log-tab="log-testes" data-nav-permission="test_logs.view">
-                        <i class="ph ph-clock-countdown"></i> Logs de testes
-                    </a>
-                    <a class="nav-item" data-view="email-monitor" onclick="emailMonitor && emailMonitor.init()" data-master-only>
-                        <i class="ph ph-envelope"></i> Monitor de E-mails
-                    </a>
+                <div class="nav-group" id="nav-group-monitoring" data-nav-permission-group="test_logs.view,audit.view,deploy.view">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-monitoring')">
+                        <i class="ph ph-broadcast"></i>
+                        <span>Monitoramento</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item" data-view="deploy" data-nav-permission="deploy.view">
+                            <i class="ph ph-rocket-launch"></i> Deploy
+                        </a>
+                        <a class="nav-sub-item" data-view="audit-log" data-nav-permission="audit.view">
+                            <i class="ph ph-clock-counter-clockwise"></i> Histórico Alterações
+                        </a>
+                        <a class="nav-sub-item" data-view="log" data-nav-permission="test_logs.view">
+                            <i class="ph ph-flask"></i> Logs de Testes
+                        </a>
+                        <a class="nav-sub-item" data-view="email-monitor" data-master-only>
+                            <i class="ph ph-envelope-simple"></i> Monitor de E-mails
+                        </a>
+                    </div>
                 </div>
 
                 <!-- ── CANAIS ─────────────────────────────────── -->
-                <div class="nav-section-label" data-nav-permission-group="whatsapp.view">Canais</div>
-                <a class="nav-item" data-view="whatsapp-inbox" data-nav-permission="whatsapp.view" onclick="whatsappInbox && whatsappInbox.init()">
-                    <i class="ph ph-whatsapp-logo"></i> WhatsApp HD
-                </a>
-
-
-                <div class="nav-section-label" id="nav-label-config" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">Configurações</div>
-                <div id="nav-group-config-flat" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">
-                    <a class="nav-item" data-view="config-usuarios" data-master-only>
-                        <i class="ph ph-user-circle"></i> Usuários e permissões
-                    </a>
-                    <a class="nav-item" data-view="config-gabi" data-nav-permission="gabi.view">
-                        <i class="ph ph-diamond"></i> Gabi AI
-                    </a>
-                    <a class="nav-item" data-view="settings-whatsapp" data-master-only>
-                        <i class="ph ph-whatsapp-logo"></i> WhatsApp
-                    </a>
-                </div>
-
-                <!-- Grupos legados ocultos para compatibilidade com toggleNavGroup -->
-                <div class="nav-group" id="nav-group-config" data-master-only style="display:none;">
-                    <div class="nav-sub-menu" id="nav-sub-config">
-                        <a class="nav-sub-item" data-view="config-usuarios"></a>
-                        <a class="nav-sub-item" data-view="config-gabi"></a>
+                <div class="nav-group" id="nav-group-canais" data-nav-permission-group="whatsapp.view">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-canais')">
+                        <i class="ph ph-chat-centered-dots"></i>
+                        <span>Canais</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item" data-view="whatsapp-inbox" data-nav-permission="whatsapp.view">
+                            <i class="ph ph-whatsapp-logo"></i> WhatsApp HD
+                        </a>
                     </div>
                 </div>
-                <div class="nav-group" id="nav-group-log" data-nav-permission-group="test_logs.view,audit.view" style="display:none;">
-                    <div class="nav-sub-menu" id="nav-sub-log">
-                        <a class="nav-sub-item" data-view="log" data-log-tab="log-testes" data-nav-permission="test_logs.view"></a>
-                        <a class="nav-sub-item" data-view="audit-log" data-nav-permission="audit.view"></a>
+
+
+                <!-- ── CONFIGURAÇÕES ───────────────────────────── -->
+                <div class="nav-group" id="nav-group-config" data-nav-permission-group="config-usuarios,gabi.view" style="display:none;">
+                    <div class="nav-item nav-group-toggle" onclick="toggleNavGroup('nav-group-config')">
+                        <i class="ph ph-gear"></i>
+                        <span>Configurações</span>
+                        <i class="ph ph-caret-down nav-group-caret"></i>
+                    </div>
+                    <div class="nav-sub-menu">
+                        <a class="nav-sub-item" data-view="config-usuarios" data-master-only>
+                            <i class="ph ph-user-circle"></i> Usuários
+                        </a>
+                        <a class="nav-sub-item" data-view="config-gabi" data-nav-permission="gabi.view">
+                            <i class="ph ph-sparkle"></i> Gabi AI
+                        </a>
+                        <a class="nav-sub-item" data-view="settings-whatsapp" data-master-only>
+                            <i class="ph ph-whatsapp-logo"></i> WhatsApp
+                        </a>
                     </div>
                 </div>
+
             </nav>
 
             <div class="sidebar-footer">
@@ -489,17 +513,39 @@
                 <div id="log-testes">
 
                     <div class="glass-panel">
-                        <!-- Busca — mesmo padr\u00e3o de Empresas -->
-                        <div class="filters">
-                            <div class="search-container" style="flex:1;">
-                                <div class="search-wrapper">
-                                    <i class="ph ph-magnifying-glass search-icon"></i>
-                                    <input type="text" id="log-search-global" class="search-input"
-                                        placeholder="Pesquisar em todas as colunas..."
-                                        oninput="logTestes.handleSearch(this.value)">
-                                </div>
+                        <!-- Busca + Filtros — padrão rpt-filters (igual Monitor de E-mails) -->
+                        <div class="rpt-filters">
+                            <div class="rpt-filter-search" style="flex:1; min-width:220px;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="log-search-global"
+                                    placeholder="Pesquisar em todas as colunas..."
+                                    oninput="logTestes.handleLogSearch(this.value)">
+                            </div>
+
+                            <select id="filter-log-status" onchange="logTestes.setStatus(this.value)">
+                                <option value="">Resultado</option>
+                                <option value="APROVADO">Aprovado</option>
+                                <option value="REPROVADO">Reprovado</option>
+                                <option value="ERRO DO TESTE">Erro do teste</option>
+                                <option value="IGNORADO">Ignorado</option>
+                            </select>
+
+                            <select id="filter-log-tipo" onchange="logTestes.setTipo(this.value)">
+                                <option value="">Tipo</option>
+                                <option value="UNITÁRIO">Unitário</option>
+                                <option value="FUNCIONAL">Funcional</option>
+                                <option value="E2E">E2E</option>
+                            </select>
+
+                            <div class="rpt-date-range">
+                                <input type="date" id="filter-log-date-from"
+                                    title="De:" onchange="logTestes.setDateFrom(this.value)">
+                                <span>até</span>
+                                <input type="date" id="filter-log-date-to"
+                                    title="Até:" onchange="logTestes.setDateTo(this.value)">
                             </div>
                         </div>
+
 
                         <!-- Barra de a\u00e7\u00f5es \u2014 padr\u00e3o exato de Empresas -->
                         <div class="bulk-toolbar has-selection" id="log-bulk-toolbar">
@@ -534,10 +580,11 @@
                                 </button>
                                 <div class="bulk-toolbar-divider" id="log-clear-divider" style="display:none;"></div>
                                 <button type="button" id="btn-clear-log-filters" class="bulk-action-btn" style="display:none;"
-                                    onclick="logTestes.clearFilters()">
+                                    onclick="logTestes.clearLogFilters()">
                                     <i class="ph ph-funnel-simple-x"></i>
                                     <span>Limpar Filtros</span>
                                 </button>
+
                             </div>
                         </div>
 
@@ -553,7 +600,7 @@
                             <table class="company-table" id="log-testes-table">
                                 <thead>
                                     <tr>
-                                        <th class="sortable-header" data-key="data">
+                                        <th class="sortable-header" data-key="data" style="width:120px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="logTestes.handleSort('data')">Data</span>
                                                 <button type="button" class="btn-filter-column"
@@ -562,7 +609,7 @@
                                             </div>
                                             <div id="filter-popover-data" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="hora">
+                                        <th class="sortable-header" data-key="hora" style="width:100px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="logTestes.handleSort('hora')">Hora</span>
                                                 <button type="button" class="btn-filter-column"
@@ -571,7 +618,7 @@
                                             </div>
                                             <div id="filter-popover-hora" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="tipo">
+                                        <th class="sortable-header" data-key="tipo" style="width:120px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="logTestes.handleSort('tipo')">Tipo</span>
                                                 <button type="button" class="btn-filter-column"
@@ -580,7 +627,7 @@
                                             </div>
                                             <div id="filter-popover-tipo" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="modulo">
+                                        <th class="sortable-header" data-key="modulo" style="width:140px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="logTestes.handleSort('modulo')">M&oacute;dulo</span>
                                                 <button type="button" class="btn-filter-column"
@@ -598,7 +645,7 @@
                                             </div>
                                             <div id="filter-popover-descricao" class="filter-popover"></div>
                                         </th>
-                                        <th class="sortable-header" data-key="status">
+                                        <th class="sortable-header" data-key="status" style="width:140px; position:relative;">
                                             <div class="header-content">
                                                 <span onclick="logTestes.handleSort('status')">Resultado</span>
                                                 <button type="button" class="btn-filter-column"
@@ -658,7 +705,7 @@
                                 style="display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.8rem;">
                                 <i class="ph ph-heartbeat" style="color: #10b981;"></i>
                                 <span
-                                    style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">SAÚDE:</span>
+                                    style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Saúde:</span>
                                 <select id="emp-health-score" class="input-control"
                                     style="width: auto; padding: 0.2rem 1.5rem 0.2rem 0.5rem; font-size: 0.85rem;">
                                     <option value="">Definir...</option>
@@ -2791,7 +2838,19 @@
                             <option value="SYSTEM">Sistema</option>
                         </select>
 
-                        <!-- Período — componente rpt-date-range (igual a Relatórios) -->
+                        <!-- Quem — populado dinamicamente via JS -->
+                        <select id="audit-filter-quem"
+                            onchange="auditLog.handleQuemFilter(this.value)">
+                            <option value="">Quem</option>
+                        </select>
+
+                        <!-- Entidade — populado dinamicamente via JS -->
+                        <select id="audit-filter-entidade"
+                            onchange="auditLog.handleEntidadeFilter(this.value)">
+                            <option value="">Entidade</option>
+                        </select>
+
+                        <!-- Calendários — componente rpt-date-range (igual a Relatórios) -->
                         <div class="rpt-date-range">
                             <input type="date" id="audit-date-from"
                                 title="De:"
@@ -2801,6 +2860,12 @@
                                 title="Até:"
                                 onchange="auditLog.handleDateTo(this.value)">
                         </div>
+
+                        <!-- Limpar filtros -->
+                        <button type="button" id="audit-btn-clear-filters" class="btn-ghost btn-sm"
+                            onclick="auditLog.clearFilters()" style="display:none; white-space:nowrap; flex-shrink:0;">
+                            <i class="ph ph-x"></i> Limpar
+                        </button>
                     </div>
 
                     <!-- Info bar — padrão rpt-info-bar (igual a Relatórios) -->

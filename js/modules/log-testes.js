@@ -731,17 +731,57 @@ export async function refreshLogTestes() {
  */
 export function handleLogSearch(query) {
     if (!_manager) return;
-
-    const clearBtn = document.getElementById('btn-clear-log-filters');
-    if (clearBtn) clearBtn.style.display = query ? 'inline-flex' : 'none';
-
     _manager.setSearch(query);
+    _updateClearBtn();
 }
+
 
 export function handleLogSort(key) {
     if (!_manager) return;
     _manager.setSort(key);
 }
+
+// ─── Setters de filtros do top-bar ──────────────────────────────────────────
+export function setStatus(val) {
+    if (_manager) _manager.setFilter('status', val || null);
+    _updateClearBtn();
+}
+
+export function setTipo(val) {
+    if (_manager) _manager.setFilter('tipo', val || null);
+    _updateClearBtn();
+}
+
+const _dateFilters = { from: '', to: '' };
+
+export function setDateFrom(val) {
+    _dateFilters.from = val;
+    _applyDateRange();
+    _updateClearBtn();
+}
+
+export function setDateTo(val) {
+    _dateFilters.to = val;
+    _applyDateRange();
+    _updateClearBtn();
+}
+
+function _applyDateRange() {
+    if (!_manager) return;
+    const { from, to } = _dateFilters;
+    if (!from && !to) { _manager.setFilter('data', null); return; }
+    const fmt = (s) => s ? s.split('-').reverse().join('/') : null;
+    _manager.setFilter('data', (from && to) ? `${fmt(from)} a ${fmt(to)}` : fmt(from || to));
+}
+
+function _updateClearBtn() {
+    const clearBtn = document.getElementById('btn-clear-log-filters');
+    const clearDiv = document.getElementById('log-clear-divider');
+    const hasFilters = _manager && (_manager.getActiveFilters().length > 0 || !!_manager.getSearch?.());
+    if (clearBtn) clearBtn.style.display = hasFilters ? 'inline-flex' : 'none';
+    if (clearDiv) clearDiv.style.display = hasFilters ? 'block' : 'none';
+}
+
 
 /**
  * Filtros ativos (barrinha de chips)
@@ -806,10 +846,12 @@ function _renderActiveFilters(activeFilters, search) {
                     const btnF = th.querySelector('.btn-filter-column');
                     if (btnF) btnF.classList.remove('active');
                 }
+                _updateClearBtn();
             }
         });
     });
 }
+
 
 /**
  * Limpa filtros e busca.
@@ -819,12 +861,29 @@ export function clearLogFilters() {
     _manager.clearFilters();
     _manager.setSearch('');
 
+    // Limpa campos visuais — busca
     const searchInput = document.getElementById('log-search-global');
     if (searchInput) searchInput.value = '';
 
+    // Limpa selects do top-bar
+    const selStatus = document.getElementById('filter-log-status');
+    if (selStatus) selStatus.value = '';
+    const selTipo = document.getElementById('filter-log-tipo');
+    if (selTipo) selTipo.value = '';
+
+    // Limpa datas
+    const df = document.getElementById('filter-log-date-from');
+    const dt = document.getElementById('filter-log-date-to');
+    if (df) df.value = '';
+    if (dt) dt.value = '';
+    _dateFilters.from = '';
+    _dateFilters.to   = '';
+
     const clearBtn = document.getElementById('btn-clear-log-filters');
+    const clearDiv = document.getElementById('log-clear-divider');
     if (clearBtn) clearBtn.style.display = 'none';
-    
+    if (clearDiv) clearDiv.style.display = 'none';
+
     document.querySelectorAll('#log-testes-table .btn-filter-column').forEach(btn => btn.classList.remove('active'));
 }
 
