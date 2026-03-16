@@ -198,6 +198,17 @@ function _renderRows(data) {
             ? `<span style="font-size:0.75rem; color:#4a5568; font-style:italic;">— não existia</span>`
             : `<span style="font-size:0.75rem; color:#94a3b8; background:rgba(148,163,184,0.08); border:1px solid rgba(148,163,184,0.15); border-radius:4px; padding:0.15rem 0.5rem;">${_escapeHtml(de)}</span>`;
 
+        // Mapa de mensagens explicativas por área sem nav
+        const NO_NAV_REASON = {
+            'Interface'    : 'Mudanças de interface afetam múltiplas seções do app ao mesmo tempo — não há uma única tela de destino.',
+            'Infraestrutura': 'Alterações de infraestrutura (Railway, deploys, CI) não correspondem a uma seção navegável do produto.',
+            'Back-end / API': 'Mudanças no servidor ou nas rotas da API não têm representação visual direta em uma seção específica.',
+            'Banco de Dados': 'Migrações e alterações de schema afetam os dados de toda a aplicação — sem destino de tela específico.',
+            'Autenticação' : 'Mudanças de autenticação são transversais ao sistema — sem seção de produto dedicada.',
+            'Geral'        : 'Este commit não foi classificado em uma área específica do produto.',
+        };
+        const noNavReason = NO_NAV_REASON[area] || `Área "${area}" não tem uma seção única de destino no produto.`;
+
         // Coluna PARA: clicável — leva para a sessão afetada
         const escapedArea = _escapeHtml(area).replace(/'/g, "\\'");
         const paraHtml = navTarget
@@ -222,7 +233,24 @@ function _renderRows(data) {
                     <i class="ph ${navTarget.icon}"></i> ir
                 </span>
               </button>`
-            : `<span style="font-size:0.82rem; color:var(--text-main); line-height:1.4; word-break:break-word;">${_escapeHtml(para)}</span>`;
+            : `<span style="display:inline-flex; align-items:flex-start; gap:0.5rem; width:100%;">
+                <span style="font-size:0.82rem; color:var(--text-main); line-height:1.4; word-break:break-word; flex:1;">${_escapeHtml(para)}</span>
+                <span
+                    class="th-info-btn"
+                    data-th-title="SEM LINK DE NAVEGAÇÃO"
+                    data-th-tooltip="${_escapeHtml(noNavReason)}"
+                    style="
+                        flex-shrink:0; margin-top:2px; cursor:help;
+                        font-size:0.75rem; color:#4a5568;
+                        display:inline-flex; align-items:center;
+                        opacity:0.6; transition:opacity 0.15s;
+                    "
+                    onmouseover="this.style.opacity=1"
+                    onmouseout="this.style.opacity=0.6"
+                >
+                    <i class="ph ph-info"></i>
+                </span>
+              </span>`;
 
         const statusHtml = `<span style="font-size:0.75rem; background:rgba(16,185,129,0.12); color:#10b981; padding:0.15rem 0.5rem; border-radius:4px; border:1px solid rgba(16,185,129,0.25);">
             <i class="ph ph-check-circle"></i> Concluído
