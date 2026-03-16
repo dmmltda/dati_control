@@ -17,10 +17,14 @@ import { confirmar } from './confirmar.js';
 // ──────────────────────────────────────────────────────────────────────────────
 
 const KANBAN_COLUMNS = [
-    { key: 'A Fazer',       label: 'A Fazer',      color: '#6366f1', icon: 'ph-list-checks' },
-    { key: 'Em Andamento', label: 'Em Andamento',  color: '#f59e0b', icon: 'ph-spinner' },
-    { key: 'Concluída',    label: 'Concluída',     color: '#10b981', icon: 'ph-check-circle' },
-    { key: 'Cancelada',    label: 'Cancelada',     color: '#64748b', icon: 'ph-x-circle' },
+    { key: 'A Fazer',      label: 'A Fazer',      color: '#6366f1', icon: 'ph-list-checks',
+      ttTitle: 'Atividades pendentes',   ttDesc: 'Tarefas criadas aguardando início. Arraste para "Em Andamento" ao começar a trabalhar.', ttColIdx: 0 },
+    { key: 'Em Andamento', label: 'Em Andamento', color: '#f59e0b', icon: 'ph-spinner',
+      ttTitle: 'Em execução agora',      ttDesc: 'Atividades sendo trabalhadas ativamente. Use o cronômetro para registrar o tempo gasto.', ttColIdx: 1 },
+    { key: 'Concluída',   label: 'Concluída',    color: '#10b981', icon: 'ph-check-circle',
+      ttTitle: 'Finalizadas com sucesso',ttDesc: 'Atividades concluídas. Arraste qualquer cartão aqui para marcá-lo como pronto.', ttColIdx: 2 },
+    { key: 'Cancelada',   label: 'Cancelada',    color: '#64748b', icon: 'ph-x-circle',
+      ttTitle: 'Descartadas',            ttDesc: 'Atividades canceladas. Útil para manter o histórico de decisões da equipe.', ttColIdx: 3 },
 ];
 
 const PRIORITY_COLORS = {
@@ -234,20 +238,30 @@ function _renderShell() {
             </div>
 
             <!-- Toggle de View (alinhado à direita) -->
-            <div style="display:flex;background:rgba(255,255,255,0.05);border:1px solid var(--dark-border);border-radius:var(--radius-sm);overflow:hidden;flex-shrink:0; height:32px;">
-                <button class="tb-view-btn active" data-view="kanban" onclick="tasksBoard.switchView('kanban')"
-                    data-th-tooltip="Visualização em colunas por status (A Fazer, Em Andamento, Concluída, Cancelada). Suporta arrastar e soltar para mover atividades."
-                    data-th-title="VISÃO KANBAN"
-                    style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
-                    <i class="ph ph-columns"></i> Kanban
-                </button>
+            <div style="display:flex;background:rgba(255,255,255,0.05);border:1px solid var(--dark-border);border-radius:var(--radius-sm);overflow:visible;flex-shrink:0; height:32px;">
+                <div class="vcw" id="vcw-kb-view-kanban" style="position:relative;display:flex;height:100%;">
+                    <button class="tb-view-btn active" data-view="kanban" onclick="tasksBoard.switchView('kanban')"
+                        style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
+                        <i class="ph ph-columns"></i> Kanban
+                    </button>
+                    <div class="vtt-tooltip" id="vct-kb-view-kanban" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                        <div class="vtt-video-container" id="vcvc-kb-view-kanban"><canvas class="vtt-canvas" id="vcc-kb-view-kanban" width="300" height="169"></canvas></div>
+                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Visão Kanban</div><div class="vtt-desc">Visualização em colunas por status. Suporta arrastar e soltar (drag and drop) para atualizar o andamento das atividades rapidamente.</div><div class="vtt-cta"><span class="vtt-link">Ativar visão Kanban →</span><span class="vtt-time" id="vctm-kb-view-kanban">0:00</span></div></div>
+                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                    </div>
+                </div>
                 <div style="width:1px; background:var(--dark-border); height:100%;"></div>
-                <button class="tb-view-btn" data-view="lista" onclick="tasksBoard.switchView('lista')"
-                    data-th-tooltip="Visualização em tabela com todas as colunas: tipo, empresa, título, status, responsáveis, data, tempo e próximo passo. Suporta ordenação e paginação."
-                    data-th-title="VISÃO LISTA"
-                    style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
-                    <i class="ph ph-list-bullets"></i> Lista
-                </button>
+                <div class="vcw" id="vcw-kb-view-lista" style="position:relative;display:flex;height:100%;">
+                    <button class="tb-view-btn" data-view="lista" onclick="tasksBoard.switchView('lista')"
+                        style="border:none;background:none;padding:0 0.9rem;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;color:var(--text-main); height:100%;">
+                        <i class="ph ph-list-bullets"></i> Lista
+                    </button>
+                    <div class="vtt-tooltip" id="vct-kb-view-lista" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
+                        <div class="vtt-video-container" id="vcvc-kb-view-lista"><canvas class="vtt-canvas" id="vcc-kb-view-lista" width="300" height="169"></canvas></div>
+                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Visão Lista</div><div class="vtt-desc">Visualização em tabela. Ideal para gerenciar grandes volumes de dados, com suporte a ordenação por colunas e paginação.</div><div class="vtt-cta"><span class="vtt-link">Ativar visão Lista →</span><span class="vtt-time" id="vctm-kb-view-lista">0:00</span></div></div>
+                        <div class="vtt-arrow" style="right:25px;left:auto;top:-5px;transform:rotate(45deg);"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -289,6 +303,8 @@ function _renderShell() {
             stickyEl.classList.toggle('is-stuck', contentEl.scrollTop > 4);
         }, { passive: true });
     }
+
+    _initViewToggleTooltips();
 }
 
 async function _loadAndRender() {
@@ -522,6 +538,17 @@ function _renderKanban(tasks) {
                         <div style="display:flex;align-items:center;gap:0.5rem;">
                             <i class="ph ${col.icon}" style="color:${col.color};font-size:1rem;"></i>
                             <span style="font-weight:700;font-size:0.9rem;">${col.label}</span>
+                            <!-- VTT canvas tooltip trigger -->
+                            <span class="vcw" id="vcw-kb-${col.ttColIdx}" style="position:relative;display:inline-flex;">
+                              <span class="th-info-btn" id="vcb-kb-${col.ttColIdx}" style="cursor:help;">
+                                <i class="ph ph-info"></i><span class="th-pulse"></span>
+                              </span>
+                              <div class="vtt-tooltip" id="vct-kb-${col.ttColIdx}" style="top:calc(100% + 8px);bottom:auto;${col.ttColIdx < 2 ? 'left:0;right:auto;transform-origin:top left;' : 'right:0;left:auto;transform-origin:top right;'}z-index:9999;">
+                                <div class="vtt-video-container" id="vcvc-kb-${col.ttColIdx}"><canvas class="vtt-canvas" id="vcc-kb-${col.ttColIdx}" width="300" height="169"></canvas></div>
+                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">${col.ttTitle}</div><div class="vtt-desc">${col.ttDesc}</div><div class="vtt-cta"><span class="vtt-link">Ver documentação →</span><span class="vtt-time" id="vctm-kb-${col.ttColIdx}">0:00</span></div></div>
+                                <div class="vtt-arrow" style="${col.ttColIdx < 2 ? 'left:12px;right:auto;' : 'right:12px;left:auto;'}top:-5px;transform:rotate(45deg);"></div>
+                              </div>
+                            </span>
                         </div>
                         <div style="display:flex;align-items:center;gap:0.5rem;">
                             <span style="background:${col.color}20;color:${col.color};border:1px solid ${col.color}44;border-radius:20px;padding:0.15rem 0.6rem;font-size:0.75rem;font-weight:700;">${colTasks.length}</span>
@@ -554,6 +581,8 @@ function _renderKanban(tasks) {
         </div>`;
 
     content.innerHTML = html;
+    // Wire up canvas tooltips after render
+    requestAnimationFrame(() => _initKanbanColumnTooltips());
 }
 
 function _renderKanbanCard(t) {
@@ -2298,3 +2327,253 @@ window.tasksBoard = {
         _renderDetailDrawer(activity, defaultTab, isCreateMode, onAfterSave);
     },
 };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// KANBAN COLUMN VTT CANVAS TOOLTIPS
+// ──────────────────────────────────────────────────────────────────────────────
+
+function _initKanbanColumnTooltips() {
+    const W=300, H=169;
+    const KB_COLS=[
+        { label:'A Fazer',     color:'#818cf8' },
+        { label:'Em And.',     color:'#f59e0b' },
+        { label:'Concluída',   color:'#10b981' },
+        { label:'Cancelada',   color:'#ef4444' },
+    ];
+    const COL_W=(W-24)/4, COL_GAP=4, COL_X0=12;
+
+    function init(el){ const DPR=window.devicePixelRatio||1; el.width=300*DPR; el.height=169*DPR; el.style.width='300px'; el.style.height='169px'; const ctx=el.getContext('2d'); ctx.scale(DPR,DPR); return ctx; }
+    function lerp(a,b,t){ return a+(b-a)*t; }
+    function prog(f,s,e){ return Math.max(0,Math.min(1,(f-s)/(e-s)||0)); }
+
+    function drawCursor(ctx,x,y,sc,pressing){
+        ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc);
+        ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=2; ctx.shadowOffsetX=1; ctx.shadowOffsetY=1;
+        ctx.fillStyle=pressing?'rgba(200,200,200,0.95)':'rgba(255,255,255,0.97)';
+        ctx.strokeStyle='rgba(0,0,0,0.55)'; ctx.lineWidth=0.7;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6);
+        ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9);
+        ctx.closePath(); ctx.fill(); ctx.shadowColor='transparent'; ctx.stroke(); ctx.restore();
+    }
+
+    function drawBoard(ctx, highlightIdx, movingCard, movingCardX, movingCardY) {
+        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+
+        KB_COLS.forEach((col,i)=>{
+            const cx=COL_X0+i*(COL_W+COL_GAP);
+            const isHL=i===highlightIdx;
+
+            // Column bg
+            ctx.fillStyle=isHL?col.color+'1e':'#141824';
+            ctx.beginPath(); ctx.roundRect(cx,8,COL_W,H-16,5); ctx.fill();
+            ctx.strokeStyle=isHL?col.color+'88':'#252c3d'; ctx.lineWidth=isHL?1:0.5;
+            ctx.beginPath(); ctx.roundRect(cx,8,COL_W,H-16,5); ctx.stroke();
+
+            // Header bar
+            ctx.fillStyle=col.color+(isHL?'33':'1a');
+            ctx.beginPath(); ctx.roundRect(cx,8,COL_W,16,5); ctx.fill();
+            ctx.fillStyle=col.color; ctx.font='bold 4.5px system-ui'; ctx.textAlign='center';
+            ctx.fillText(col.label,cx+COL_W/2,18.5); ctx.textAlign='left';
+
+            // Static cards
+            const cardCounts=[2,1,2,1];
+            for(let j=0;j<cardCounts[i];j++){
+                const cy=28+j*20;
+                // Skip area when moving card
+                if(movingCard && i===highlightIdx && j===cardCounts[i]-1) continue;
+                ctx.fillStyle=isHL?'rgba(255,255,255,0.08)':'#1e2436';
+                ctx.beginPath(); ctx.roundRect(cx+4,cy,COL_W-8,14,3); ctx.fill();
+                ctx.strokeStyle=isHL?col.color+'44':'#252c3d'; ctx.lineWidth=0.5; ctx.stroke();
+                const barW=(COL_W-12)*[0.8,0.6,0.7,0.75,0.5][j*2+i%3]||0.6;
+                ctx.fillStyle=isHL?col.color+'66':'#3e4a5c'; ctx.fillRect(cx+7,cy+4,barW,3.5);
+                ctx.fillStyle='#252c3d'; ctx.fillRect(cx+7,cy+9,barW*0.55,2.5);
+            }
+        });
+
+        // Moving card floating above board
+        if(movingCard){
+            ctx.save();
+            ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=8; ctx.shadowOffsetY=4;
+            ctx.fillStyle=KB_COLS[highlightIdx].color+'22';
+            ctx.beginPath(); ctx.roundRect(movingCardX,movingCardY,COL_W-4,14,3); ctx.fill();
+            ctx.strokeStyle=KB_COLS[highlightIdx].color; ctx.lineWidth=1; ctx.stroke();
+            ctx.shadowColor='transparent';
+            ctx.fillStyle=KB_COLS[highlightIdx].color+'aa'; ctx.fillRect(movingCardX+4,movingCardY+4,(COL_W-16)*0.8,3.5);
+            ctx.restore();
+        }
+    }
+
+    function makeKanbanDrawer(canvasEl, colIdx) {
+        const ctx = init(canvasEl);
+        const targetCX = COL_X0 + colIdx*(COL_W+COL_GAP)+4;
+        const targetCY = 28 + (['A Fazer','Em Andamento'].includes(KB_COLS[colIdx].label)?2:1)*20;
+        // Start card from left column (or right for rightmost)
+        const startCX = colIdx > 0 ? COL_X0+4 : COL_X0+(COL_W+COL_GAP)+4;
+        const startCY = 28;
+
+        return function drawFrame(f) {
+            ctx.clearRect(0,0,W,H);
+            const moving = f >= 60 && f < 360;
+            const landed = f >= 360;
+            let cardX=startCX, cardY=startCY;
+            if(f>=60 && f<300){ const t=prog(f,60,300); cardX=lerp(startCX,targetCX,t); cardY=lerp(startCY,targetCY,t); }
+            else if(f>=300){ cardX=targetCX; cardY=targetCY; }
+            drawBoard(ctx, colIdx, moving||landed, cardX, cardY);
+
+            // Cursor
+            let cx,cy,pressing=false;
+            if(f<40){ cx=startCX+8; cy=startCY+3; }
+            else if(f<60){ const t=prog(f,40,60); cx=lerp(startCX+8,startCX+8,t); cy=lerp(startCY+3,startCY-2,t); pressing=true; }
+            else if(f<300){ cx=lerp(startCX+8,targetCX+8,prog(f,60,300)); cy=lerp(startCY-2,targetCY-2,prog(f,60,300)); }
+            else if(f<360){ cx=targetCX+8; cy=targetCY-2; pressing=false; }
+            else if(f<400){ cx=targetCX+8; cy=targetCY-2+prog(f,360,400)*8; pressing=false; }
+            else{ cx=targetCX+8; cy=targetCY+8; }
+            drawCursor(ctx,cx,cy,pressing?0.85:1,pressing);
+        };
+    }
+
+    // Wire all 4 columns
+    for(let i=0;i<4;i++){
+        const triggerEl = document.getElementById(`vcb-kb-${i}`);
+        const tooltipEl = document.getElementById(`vct-kb-${i}`);
+        const canvasEl  = document.getElementById(`vcc-kb-${i}`);
+        const wrapEl    = document.getElementById(`vcw-kb-${i}`);
+        if(!triggerEl||!tooltipEl||!canvasEl||!wrapEl) continue;
+
+        const drawFrame = makeKanbanDrawer(canvasEl, i);
+        let animId=null, frame=0, visible=false;
+
+        function startAnim(idxCapture){ return function(){ frame=0; if(animId)cancelAnimationFrame(animId); (function tick(){ drawFrame(frame); frame=(frame+1)%540; animId=requestAnimationFrame(tick); })(); }; }
+        function stopAnim(){ if(animId){cancelAnimationFrame(animId);animId=null;} }
+        function show(wt,tt,ca,fi){
+            return function(){ if(visible) return; visible=true;
+                document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
+                tt.classList.add('vtt-visible'); startAnim(fi)()(); };
+        }
+        function hide(tt){ return function(e){ if(!document.getElementById(`vcw-kb-${tt._idx}`).contains(e.relatedTarget)){ visible=false; tt.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); } }; }
+
+        const _show = show(wrapEl,tooltipEl,canvasEl,i);
+        tooltipEl._idx = i;
+        const _hide = hide(tooltipEl);
+
+        wrapEl.addEventListener('mouseenter', _show);
+        wrapEl.addEventListener('mouseleave', (e)=>{ if(!wrapEl.contains(e.relatedTarget)){ visible=false; tooltipEl.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); } });
+        drawFrame(0);
+    }
+}
+
+function _initViewToggleTooltips() {
+    const W=300, H=169;
+    function init(el){ const DPR=window.devicePixelRatio||1; el.width=W*DPR; el.height=H*DPR; el.style.width=W+'px'; el.style.height=H+'px'; const ctx=el.getContext('2d'); ctx.scale(DPR,DPR); return ctx; }
+    function prog(f,s,e){ return Math.max(0,Math.min(1,(f-s)/(e-s)||0)); }
+    function ease(t){ return t<.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+    // Kanban View Toggle Animation
+    function drawKanbanToggle(ctx, f) {
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+        const cw=60, cg=12, y=30, ch=100;
+        const cols = ['#6366f1','#f59e0b','#10b981'];
+        cols.forEach((color, i) => {
+            const x = 50 + i*(cw+cg);
+            ctx.fillStyle='#141824'; ctx.beginPath(); ctx.roundRect(x,y,cw,ch,4); ctx.fill();
+            ctx.strokeStyle=color+'44'; ctx.lineWidth=1; ctx.stroke();
+            ctx.fillStyle=color+'33'; ctx.beginPath(); ctx.roundRect(x,y,cw,12,4); ctx.fill();
+            for(let j=0; j<(i===1?1:2); j++){
+                if(i===0 && j===1 && f>=40 && f<140) continue; // Moving card
+                ctx.fillStyle='rgba(255,255,255,0.06)';
+                ctx.beginPath(); ctx.roundRect(x+4,y+18+j*18,cw-8,14,2); ctx.fill();
+            }
+        });
+
+        // Moving card logic
+        if(f>=40 && f<200){
+            const t = ease(prog(f,40,140));
+            const x = 50 + 4 + t*(cw+cg);
+            const cy = y + 18 + 18;
+            ctx.save();
+            ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=6; ctx.shadowOffsetY=3;
+            ctx.fillStyle='rgba(150,150,200,0.2)';
+            ctx.beginPath(); ctx.roundRect(x,cy,cw-8,14,2); ctx.fill();
+            ctx.strokeStyle='#6366f1'; ctx.lineWidth=1; ctx.stroke();
+            ctx.restore();
+            // Cursor
+            const cx = x + (cw-8)/2; const cy2 = cy + 7;
+            ctx.save(); ctx.translate(cx,cy2); ctx.scale(0.8,0.8);
+            ctx.fillStyle=f<140?'rgba(200,200,200,0.95)':'rgba(255,255,255,0.97)';
+            ctx.strokeStyle='rgba(0,0,0,0.55)'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6); ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    // Lista View Toggle Animation
+    function drawListaToggle(ctx, f) {
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+        const y0=30;
+        // Header
+        ctx.fillStyle='#141824'; ctx.beginPath(); ctx.roundRect(20,y0,W-40,14,3); ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1; ctx.stroke();
+
+        ctx.fillStyle='rgba(255,255,255,0.3)';
+        [25, 70, 150, 230].forEach(tx => ctx.fillRect(tx,y0+5,20,4));
+
+        // Rows
+        for(let i=0; i<4; i++){
+            const y = y0 + 18 + i*16;
+            const highlighted = (i===1 && f>=60 && f<160);
+            ctx.fillStyle=highlighted?'rgba(99,102,241,0.1)':'transparent';
+            ctx.beginPath(); ctx.roundRect(20,y,W-40,14,3); ctx.fill();
+            if(highlighted){ ctx.strokeStyle='#6366f1'; ctx.stroke(); }
+            
+            ctx.fillStyle=highlighted?'#818cf8':'rgba(255,255,255,0.6)';
+            ctx.fillRect(25,y+5, 30+Math.sin(i)*10,4);
+            ctx.fillStyle=highlighted?'#c7d2fe':'rgba(255,255,255,0.4)';
+            ctx.fillRect(70,y+5, 50+Math.cos(i)*20,3);
+            ctx.fillRect(150,y+5, 40,3);
+            ctx.fillRect(230,y+5, 25,3);
+        }
+
+        // Cursor hovers over row 1
+        if(f>=20 && f<200){
+            let cx=150, cy=100;
+            if(f<60){ const t=ease(prog(f,20,60)); cx=lerp(150, W/2, t); cy=lerp(100, y0+18+16+7, t); }
+            else if(f<160){ cx=W/2; cy=y0+18+16+7; }
+            else{ const t=ease(prog(f,160,200)); cx=lerp(W/2,150,t); cy=lerp(y0+18+16+7,100,t); }
+            
+            ctx.save(); ctx.translate(cx,cy); ctx.scale(0.8,0.8);
+            ctx.fillStyle=(f>=60&&f<160)?'rgba(200,200,200,0.95)':'rgba(255,255,255,0.97)';
+            ctx.strokeStyle='rgba(0,0,0,0.55)'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6); ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9); ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.restore();
+        }
+    }
+
+    function setup(id, drawerFunction, maxFrames) {
+        const wrap = document.getElementById(`vcw-kb-view-${id}`);
+        const tooltip = document.getElementById(`vct-kb-view-${id}`);
+        const canvas = document.getElementById(`vcc-kb-view-${id}`);
+        if(!wrap || !tooltip || !canvas) return;
+
+        const ctx = init(canvas);
+        let animId=null, frame=0, visible=false;
+
+        function startAnim() { frame=0; if(animId)cancelAnimationFrame(animId); (function tick(){ drawerFunction(ctx,frame); frame=(frame+1)%maxFrames; animId=requestAnimationFrame(tick); })(); }
+        function stopAnim()  { if(animId){cancelAnimationFrame(animId);animId=null;} }
+
+        wrap.addEventListener('mouseenter', () => {
+            if(visible) return; visible=true;
+            document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
+            tooltip.classList.add('vtt-visible'); startAnim();
+        });
+        wrap.addEventListener('mouseleave', (e) => {
+            if(!wrap.contains(e.relatedTarget)){ visible=false; tooltip.classList.remove('vtt-visible'); stopAnim(); drawerFunction(ctx,0); }
+        });
+        drawerFunction(ctx,0);
+    }
+
+    setup('kanban', drawKanbanToggle, 240);
+    setup('lista', drawListaToggle, 240);
+    function lerp(a,b,t){ return a+(b-a)*t; }
+}
