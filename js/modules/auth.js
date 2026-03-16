@@ -266,7 +266,7 @@ function _aplicarPermissoesNavegacao(me) {
     if (navConfigFlat)  navConfigFlat.style.display   = temPermissaoConfig ? '' : 'none';
 
     // ─ Monitoramento: oculta label + bloco se o usuário não tiver nenhuma permissão de log
-    const logPerms          = ['test_logs.view', 'audit.view'];
+    const logPerms          = ['test_logs.view', 'audit.view', 'deploy.view'];
     const temAlgumaLogPerm  = isMaster || logPerms.some(p => fp.includes(p));
     const navLabelMon       = document.getElementById('nav-label-monitoramento');
     const navGroupMon       = document.getElementById('nav-group-monitoring');

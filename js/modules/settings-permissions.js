@@ -28,6 +28,7 @@ const _PERMISSION_GROUPS = [
             ['reports.view',    'Relatórios',              'ph-chart-bar'],
             ['audit.view',      'Histórico de Alterações', 'ph-clock-counter-clockwise'],
             ['test_logs.view',  'Log de Testes',           'ph-test-tube'],
+            ['deploy.view',     'Deploy Tracker',          'ph-rocket'],
             ['gabi.view',       'Gabi AI',                 'ph-sparkle'],
         ],
     },
