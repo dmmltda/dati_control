@@ -23,17 +23,15 @@ function calcularHealth(empresas) {
 function calcularAderencia(empresas) {
   const s = (e) => (e.status || '').toLowerCase().trim();
   const ativos = empresas.filter(e => s(e) === 'ativo' || s(e) === 'cliente ativo');
-  
+
   const grupos = { ruim: [], medio: [], bom: [], excelente: [] };
   let totalComAderencia = 0;
-  
-  ativos.forEach((e, idx) => {
-    // Busca aderencia no objeto ou gera um mock estático determinístico baseado no index para clientes ativos
-    let val = e.aderencia_geral ?? e.aderencia;
-    if (val === undefined || val === null) {
-      val = (parseInt(e.id || idx, 10) * 17) % 101; 
-    }
-    
+
+  ativos.forEach((e) => {
+    // Usa apenas dados reais de aderência. Se não existir, ignora a empresa.
+    const val = e.aderencia_geral ?? e.aderencia ?? null;
+    if (val === null || val === undefined) return;
+
     totalComAderencia++;
     const eCopia = { ...e, adherenciaScore: val };
 
@@ -42,7 +40,7 @@ function calcularAderencia(empresas) {
     else if (val <= 80) grupos.bom.push(eCopia);
     else grupos.excelente.push(eCopia);
   });
-  
+
   return { grupos, total: totalComAderencia || 1 };
 }
 

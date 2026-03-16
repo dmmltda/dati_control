@@ -284,43 +284,8 @@ router.get('/:companyId', async (req, res) => {
     // TODO: integrar com DATI Import API
     //   GET /api/client-report?company_id=X&month=YYYY-MM
     //   Retorna: { rotinas: [{ nome, total, automatico, percentual }], aderencia_geral }
+    // Retorna lista vazia até a integração ser concluída — sem dados fictícios.
     // ═════════════════════════════════════════════════════════════════════════
-    const ROTINAS_NOMES = [
-      'Previsão de carga pronta na origem',
-      'Confirmação de carga pronta na origem',
-      'Solicitação de invoice e packing',
-      'Confirmação de invoice e packing',
-      'Solicitação dos originais invoice e packing',
-      'Solicitação de booking',
-      'Booking enviado',
-      'Confirmação de saída da origem',
-      'Confirmação de chegada no destino',
-      'Confirmação de presença de carga',
-      'Extração de dados do mercante',
-      'Registro de DI/DUIMP',
-      'Canal da DI/DUIMP',
-      'C.I',
-      'Emissão do espelho de NF',
-      'Data da coleta',
-      'Data da entrega',
-    ];
-
-    // Mock data por rotina — TODO: substituir pela chamada real ao DATI Import API
-    const MOCK_ACESSOS = [12, 12, 10, 10, 8, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 3];
-    const MOCK_AUTO    = [11, 12,  8,  7, 6, 6, 5, 4, 5, 3, 4, 4, 3, 2, 3, 2, 3];
-
-    const rotinasItens = ROTINAS_NOMES.map((nome, i) => {
-      const total      = MOCK_ACESSOS[i] ?? null;
-      const automatico = MOCK_AUTO[i] ?? null;
-      const percentual = (total && automatico !== null)
-        ? Math.round((automatico / total) * 100)
-        : null;
-      return { nome, total, automatico, percentual };
-    });
-
-    const aderenciaGeral = Math.round(
-      rotinasItens.reduce((s, r) => s + (r.percentual ?? 0), 0) / rotinasItens.length
-    );
 
     // ── Resposta final ────────────────────────────────────────────────────────
     res.json({
@@ -333,9 +298,9 @@ router.get('/:companyId', async (req, res) => {
       chamados,
       helpdesk,
       rotinas: {
-        aderencia_geral: aderenciaGeral,
-        fonte:           'pendente_integracao', // TODO: mudar para 'dati_import' após integração
-        itens:           rotinasItens,
+        aderencia_geral: null,
+        fonte:           'pendente_integracao',
+        itens:           [],
       },
     });
 

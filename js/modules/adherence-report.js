@@ -1,62 +1,14 @@
 /**
  * Módulo: Relatório de Aderência — aba "Lista" do Customer Success
- * Exibe todos os indicadores (processos + chamados) de uma empresa
- * usando TableManager 2.0.
+ * Exibe indicadores reais de aderência por empresa.
  *
- * Inclui:
- *  - Coluna Data como primeira coluna
- *  - Filtros em todas as colunas (padrão do sistema)
- *  - 3 gráficos Chart.js vinculados aos filtros:
- *      1. Quantidade de Acessos
- *      2. Quantidade de Usuários que Acessaram
- *      3. % Aderência
+ * INTEGRAÇÃO PENDENTE: os dados virão de /api/monthly-report/:companyId
+ * após a integração com o DATI Import API.
  */
 import { TableManager } from '../core/table-manager.js';
 
 // ── Instância global exposta para os onclicks do HTML ─────────────────────────
 let _tm = null;
-
-// ── Dados base dos indicadores (mock — aguardando integração) ─────────────────
-const INDICADORES = [
-  // Grupo: Processos
-  { grupo: 'Processos', indicador: 'Quantidade de acesso' },
-  { grupo: 'Processos', indicador: 'Quantidade de acesso no BI' },
-  { grupo: 'Processos', indicador: 'Quantidade de processos' },
-  { grupo: 'Processos', indicador: 'Confirmação carga pronta' },
-  { grupo: 'Processos', indicador: 'Solicitação de invoice e packing' },
-  { grupo: 'Processos', indicador: 'Solicitação original invoice e packing' },
-  { grupo: 'Processos', indicador: 'Solicitação de booking' },
-  { grupo: 'Processos', indicador: 'Confirmação de saída' },
-  { grupo: 'Processos', indicador: 'Solicitação de draft para conferência' },
-  { grupo: 'Processos', indicador: 'Extração do mercante' },
-  { grupo: 'Processos', indicador: 'Confirmação de chegada' },
-  { grupo: 'Processos', indicador: 'Confirmação de presença de carga' },
-  { grupo: 'Processos', indicador: 'Obtenção do canal da DI' },
-  { grupo: 'Processos', indicador: 'Liberação do Siscomex' },
-  { grupo: 'Processos', indicador: 'Espelho de NF' },
-  { grupo: 'Processos', indicador: 'Previsão de coleta e entrega' },
-  { grupo: 'Processos', indicador: 'Devolução de container vazio' },
-  // Grupo: Chamados
-  { grupo: 'Chamados', indicador: 'Quantidade de chamados' },
-  { grupo: 'Chamados', indicador: 'Solicitante do chamado' },
-  { grupo: 'Chamados', indicador: 'Tipo de chamado' },
-  { grupo: 'Chamados', indicador: 'Descrição dos chamados' },
-  { grupo: 'Chamados', indicador: 'Prazo de Solução' },
-  { grupo: 'Chamados', indicador: 'Chamados concluídos' },
-];
-
-// Mock de valores: [acessos, usuarios_unicos, realizados, data_iso]
-const MOCK_VALORES = [
-  [50, 12, 47, '2026-03-01'], [30,  8, 28, '2026-03-01'], [22, 7, 22, '2026-03-01'],
-  [18,  5, 16, '2026-03-01'], [15,  5, 13, '2026-03-01'], [15, 4, 12, '2026-03-01'],
-  [12,  4, 12, '2026-03-01'], [12,  3, 10, '2026-03-01'], [10, 3,  8, '2026-03-01'],
-  [ 8,  3,  8, '2026-03-01'], [ 8,  2,  7, '2026-03-01'], [ 8, 2,  6, '2026-03-01'],
-  [ 7,  2,  7, '2026-03-01'], [ 6,  2,  5, '2026-03-01'], [ 6, 2,  6, '2026-03-01'],
-  [ 5,  1,  4, '2026-03-01'], [ 4,  1,  4, '2026-03-01'],
-  // Chamados
-  [24,  6, 24, '2026-03-01'], [24,  5, 20, '2026-03-01'], [24, 5, 22, '2026-03-01'],
-  [24,  4, 18, '2026-03-01'], [24,  4, 21, '2026-03-01'], [24, 3, 23, '2026-03-01'],
-];
 
 // ── Função de status ──────────────────────────────────────────────────────────
 function statusPct(pct) {
@@ -71,30 +23,94 @@ let _chartAcessos   = null;
 let _chartUsuarios  = null;
 let _chartAderencia = null;
 
-// ── Ponto de entrada público ──────────────────────────────────────────────────
-export function initAdherenceReport(companyId) {
-  const tbody    = document.getElementById('adh-table-body');
-  const countEl  = document.getElementById('adh-count');
-  const searchEl = document.getElementById('adh-search');
-  if (!tbody) return;
+// ── Estado "Em desenvolvimento" ──────────────────────────────────────────────
+function _renderEmDesenvolvimento(container) {
+  container.innerHTML = `
+    <div style="
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 3rem 2rem; text-align: center; min-height: 300px;
+    ">
+      <i class="ph ph-chart-line-up" style="font-size: 2.8rem; color: var(--color-primary, #818cf8); opacity: 0.55; margin-bottom: 1rem;"></i>
+      <div style="font-size: 1rem; font-weight: 700; color: var(--text-main, #e2e8f0); margin-bottom: 0.4rem;">
+        Relatório de Aderência
+      </div>
+      <div style="font-size: 0.82rem; color: var(--text-muted, #94a3b8); max-width: 380px; line-height: 1.6;">
+        Esta funcionalidade está aguardando integração com o
+        <strong>DATI Import API</strong>. Os dados reais de acesso e aderência
+        por empresa serão exibidos aqui assim que a integração for concluída.
+      </div>
+      <div style="
+        margin-top: 1.5rem;
+        display: inline-flex; align-items: center; gap: 0.5rem;
+        background: rgba(129,140,248,0.1); border: 1px solid rgba(129,140,248,0.2);
+        border-radius: 999px; padding: 0.4rem 1rem;
+        font-size: 0.75rem; font-weight: 600; color: #818cf8;
+      ">
+        <i class="ph ph-clock" style="font-size: 0.9rem;"></i>
+        Em desenvolvimento
+      </div>
+    </div>
+  `;
+}
 
-  // Monta dados com valores mock
-  const tableData = INDICADORES.map((ind, i) => {
-    const [acessos, usuarios, realizados, data] = MOCK_VALORES[i] ?? [null, null, null, null];
-    const percentual = (acessos && realizados !== null)
-      ? Math.round((realizados / acessos) * 100)
-      : null;
-    return {
-      id:         i,
-      data:       data || '',
-      grupo:      ind.grupo,
-      indicador:  ind.indicador,
-      acessos,
-      usuarios,
-      automatico: realizados,
-      percentual,
-    };
-  });
+// ── Ponto de entrada público ──────────────────────────────────────────────────
+export async function initAdherenceReport(companyId) {
+  const container = document.getElementById('adh-charts-area');
+  const tbody     = document.getElementById('adh-table-body');
+  const countEl   = document.getElementById('adh-count');
+  const searchEl  = document.getElementById('adh-search');
+
+  // Tenta buscar dados reais da API
+  let tableData = [];
+  try {
+    if (companyId) {
+      const mes = new Date().toISOString().slice(0, 7); // YYYY-MM atual
+      const res = await fetch(`/api/monthly-report/${companyId}?month=${mes}`);
+      if (res.ok) {
+        const json = await res.json();
+        const itens = json?.rotinas?.itens || [];
+        // Só usa se tíver dados reais (fonte não pendente e itens com valores)
+        const temDadosReais = json?.rotinas?.fonte !== 'pendente_integracao'
+          && itens.some(r => r.total !== null);
+        if (temDadosReais) {
+          tableData = itens.map((r, i) => ({
+            id: i,
+            data: mes + '-01',
+            grupo: 'Processos',
+            indicador: r.nome,
+            acessos: r.total,
+            usuarios: null,
+            automatico: r.automatico,
+            percentual: r.percentual,
+          }));
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[ADH] Falha ao buscar dados reais:', e);
+  }
+
+  // Se não houver dados reais, exibe estado "Em desenvolvimento"
+  if (tableData.length === 0) {
+    // Oculta área de gráficos e busca
+    if (container) container.innerHTML = '';
+    if (searchEl) searchEl.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    if (tbody) {
+      // Passa pelo tbody para renderizar o estado no lugar correto
+      const wrap = tbody.closest('section') || tbody.closest('div') || tbody.parentElement?.parentElement;
+      if (wrap) {
+        _renderEmDesenvolvimento(wrap);
+      } else {
+        tbody.innerHTML = `<tr><td colspan="8"><div style="text-align:center; padding:3rem; color:var(--text-muted);">Integração pendente com DATI Import API</div></td></tr>`;
+      }
+    }
+    _injectStyles();
+    return;
+  }
+
+  // ── Tem dados reais: renderiza normalmente ───────────────────────────────
+  if (!tbody) return;
 
   // ── Renderiza área dos gráficos ───────────────────────────────────────────
   _renderChartsArea(tableData);

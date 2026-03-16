@@ -1,14 +1,8 @@
 /**
  * Dashboard.js — Página raiz do Journey Dashboard
  * Usa dados reais de state.companies (carregados via api.getCompanies() no auth.js).
- * HelpDesk e Onboarding usam mock temporariamente até endpoints da API serem criados.
+ * HelpDesk e Onboarding exibem estado vazio até integração real com a API.
  */
-
-import {
-  mockChamados,
-  mockOnboardings,
-  mockHelpDeskTimeline,
-} from '../data/mockData.js';
 
 import { state } from '../../js/modules/state.js';
 
@@ -154,10 +148,7 @@ function iniciarPaineis() {
     ? state.companies
     : [];
 
-  // Usuários disponíveis no cache (carregado pelo _dbInicializarMenu)
-  const usuarios = window.__usuariosCache || [];
-
-  // Variações mensais — mock até endpoint /api/stats ser criado
+  // Variações mensais — endpoint /api/stats ainda não criado
   const statsVars = { variacaoMesAnterior: {} };
 
   // Renderiza cada painel na ordem definida pelo departamento.
@@ -171,7 +162,6 @@ function iniciarPaineis() {
     catch (e) { console.error('[Dashboard] KPI Cards:', e); }
   }
 
-
   if (document.getElementById('painel-funil')) {
     try { renderSalesFunnel('painel-funil', empresas); }
     catch (e) { console.error('[Dashboard] Funil de Vendas:', e); }
@@ -182,13 +172,14 @@ function iniciarPaineis() {
     catch (e) { console.error('[Dashboard] Health Score:', e); }
   }
 
+  // Help Desk e Onboarding: passam arrays vazios até integração real com a API
   if (document.getElementById('painel-helpdesk')) {
-    try { renderHelpDesk('painel-helpdesk', mockChamados, mockHelpDeskTimeline); }
+    try { renderHelpDesk('painel-helpdesk', [], []); }
     catch (e) { console.error('[Dashboard] Help Desk:', e); }
   }
 
   if (document.getElementById('painel-onboarding')) {
-    try { renderOnboarding('painel-onboarding', mockOnboardings); }
+    try { renderOnboarding('painel-onboarding', []); }
     catch (e) { console.error('[Dashboard] Onboarding:', e); }
   }
 
@@ -588,7 +579,6 @@ export function initDashboard(containerId = 'journey-dashboard-root') {
 
 /**
  * Atualiza o dashboard com novos dados (ex: após busca de dados reais da API).
- * Por enquanto use apenas com mockData.
  * @param {string} containerId
  */
 export function refreshDashboard(containerId = 'journey-dashboard-root') {
