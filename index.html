@@ -3734,13 +3734,14 @@
 /* ── Pulse Dot — Discoverability Signal ─────────────────────────────── */
 @keyframes vtt-pulse-ring {
   0%   { transform: scale(1);   opacity: 0.8; }
-  70%  { transform: scale(2.4); opacity: 0; }
-  100% { transform: scale(2.4); opacity: 0; }
+  70%  { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
 }
 @keyframes vtt-pulse-core {
-  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(99,102,241,0.5); }
-  50%       { transform: scale(1.15); box-shadow: 0 0 0 4px rgba(99,102,241,0); }
+  0%, 100% { transform: scale(1);    box-shadow: 0 0 0 0 rgba(99,102,241,0.6); }
+  50%       { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(99,102,241,0); }
 }
+/* Estado NOVO — pulsante, vibrante */
 .vtt-pulse-dot {
   position: absolute;
   top: -4px; right: -4px;
@@ -3749,31 +3750,46 @@
   background: #6366f1;
   z-index: 10000;
   pointer-events: none;
-  animation: vtt-pulse-core 2s ease-in-out infinite;
+  animation: vtt-pulse-core 1.8s ease-in-out infinite;
+  transition: background 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
 }
 .vtt-pulse-dot::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgba(99,102,241,0.6);
-  animation: vtt-pulse-ring 2s ease-out infinite;
+  background: rgba(99,102,241,0.65);
+  animation: vtt-pulse-ring 1.8s ease-out infinite;
+  transition: opacity 0.4s ease;
 }
+/* Estado LIDO — estático, opaco */
+.vtt-pulse-dot.vtt-pulse-seen {
+  animation: none;
+  opacity: 0.3;
+  transform: scale(0.85);
+}
+.vtt-pulse-dot.vtt-pulse-seen::before {
+  animation: none;
+  opacity: 0;
+}
+
+/* Variantes de cor */
 .vtt-pulse-dot.vtt-pulse-green { background: #10b981; }
-.vtt-pulse-dot.vtt-pulse-green::before { background: rgba(16,185,129,0.6); }
+.vtt-pulse-dot.vtt-pulse-green::before { background: rgba(16,185,129,0.65); }
 .vtt-pulse-dot.vtt-pulse-amber { background: #f59e0b; }
-.vtt-pulse-dot.vtt-pulse-amber::before { background: rgba(245,158,11,0.6); }
+.vtt-pulse-dot.vtt-pulse-amber::before { background: rgba(245,158,11,0.65); }
 
 </style>
 
 <script>
 /* ── Global VTT Pulse Dot Utility ───────────────────────────────────────────
-   Usado por todos os módulos (reports.js, tasks-board.js, log-testes.js)
-   e pelos tooltips inline neste arquivo.
+   Dois estados permanentes:
+     · NOVO   → pulsante, vibrante (nunca visto ainda)
+     · LIDO   → estático, opaco   (visto, mas sempre visível)
 
    API:
-     window._vttPulse.add(wrapEl, id, color?)  → insere dot se nunca visto
-     window._vttPulse.seen(id)                 → remove dot + salva no localStorage
+     window._vttPulse.add(wrapEl, id, color?)  → insere dot no estado correto
+     window._vttPulse.seen(id)                 → transita para estado LIDO
      window._vttPulse.hasSeen(id)              → boolean
 ────────────────────────────────────────────────────────────────────────────── */
 window._vttPulse = (function() {
@@ -3784,24 +3800,25 @@ window._vttPulse = (function() {
   }
 
   function markSeen(id) {
+    if (hasSeen(id)) return; // já estava lido, nada a fazer
     try { localStorage.setItem(PREFIX + id, '1'); } catch(_){}
-    // Remove visually
+    // Transita visualmente para estado LIDO (não remove, só muda classe)
     document.querySelectorAll(`.vtt-pulse-dot[data-vtt-id="${id}"]`).forEach(el => {
-      el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-      el.style.opacity = '0';
-      el.style.transform = 'scale(0)';
-      setTimeout(() => el.remove(), 320);
+      el.classList.add('vtt-pulse-seen');
     });
   }
 
   function add(wrapEl, id, color) {
-    if (!wrapEl || hasSeen(id)) return;
-    // Avoid duplicates
+    if (!wrapEl) return;
+    // Evita duplicatas
     if (wrapEl.querySelector(`.vtt-pulse-dot[data-vtt-id="${id}"]`)) return;
     const dot = document.createElement('span');
-    dot.className = 'vtt-pulse-dot' + (color ? ' vtt-pulse-' + color : '');
+    const seen = hasSeen(id);
+    dot.className = 'vtt-pulse-dot'
+      + (color ? ' vtt-pulse-' + color : '')
+      + (seen ? ' vtt-pulse-seen' : '');
     dot.setAttribute('data-vtt-id', id);
-    // Ensure parent can host absolute child
+    // Garante que o pai possa hospedar filho absoluto
     const pos = getComputedStyle(wrapEl).position;
     if (pos === 'static') wrapEl.style.position = 'relative';
     wrapEl.appendChild(dot);
