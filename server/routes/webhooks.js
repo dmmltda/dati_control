@@ -17,10 +17,14 @@ router.post('/google-forms', async (req, res) => {
 
         const emailTrimmed = String(email).trim().toLowerCase();
 
-        // Busca where: email + Score Pendente (+ formType se disponível)
+        // Busca where: email + Score Pendente/vazio (+ formType se disponível)
         const whereClause = {
             Destinatario: { equals: emailTrimmed, mode: 'insensitive' },
-            Score: 'Pendente'
+            OR: [
+                { Score: 'Pendente' },
+                { Score: '' },
+                { Score: null }
+            ]
         };
         if (formType) {
             whereClause.Formulario = { equals: formType, mode: 'insensitive' };
@@ -37,7 +41,11 @@ router.post('/google-forms', async (req, res) => {
             pendingNps = await prisma.company_nps.findFirst({
                 where: {
                     Destinatario: { equals: emailTrimmed, mode: 'insensitive' },
-                    Score: 'Pendente'
+                    OR: [
+                        { Score: 'Pendente' },
+                        { Score: '' },
+                        { Score: null }
+                    ]
                 },
                 orderBy: { createdAt: 'desc' }
             });
