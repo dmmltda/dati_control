@@ -274,6 +274,7 @@ function _renderRows(data) {
         // ── Seção: screenshot e vídeo (Playwright) ou Snippet de Código (Unitário) ──
         let mediaSection = '';
         if (row._screenshot || row._video) {
+            // Mostra evidências para qualquer status (aprovado, reprovado, erro)
             mediaSection = `
             <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
                 ${row._screenshot ? `<a href="${row._screenshot}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-image"></i> Screenshot</a>` : ''}

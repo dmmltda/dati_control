@@ -494,17 +494,23 @@
 .nav-group-toggle {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.65rem;
     width: 100%;
     margin-bottom: 0;
     user-select: none;
 }
 
-.nav-caret {
+.nav-group-toggle span {
+    flex: 1;
+}
+
+.nav-caret,
+.nav-group-caret {
     font-size: 0.85rem;
     transition: transform 0.25s ease;
     color: var(--text-muted);
     flex-shrink: 0;
+    margin-left: auto;
 }
 
 .nav-group.open .nav-caret,

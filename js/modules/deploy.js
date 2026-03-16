@@ -6,7 +6,7 @@
 import { TableManager } from '../core/table-manager.js';
 import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
-import { renderTitleWithTooltip, bindTooltip } from '../src/components/dashboard/Tooltip.js';
+import { renderTitleWithTooltip, bindTooltip } from '../../src/components/dashboard/Tooltip.js';
 
 const DEPLOY_COLUMNS = [
     { key: 'date',   label: 'Quando',  type: 'string', sortable: true,  filterable: false, searchable: true  },
