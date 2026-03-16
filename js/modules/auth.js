@@ -308,7 +308,7 @@ function _aplicarPermissoesNavegacao(me) {
             btnImportar.style.opacity = '';
             btnImportar.style.cursor = '';
             btnImportar.removeAttribute('data-th-title');
-            btnImportar.setAttribute('data-th-tooltip', 'Importe empresas e contatos em massa via planilha');
+            btnImportar.removeAttribute('data-th-tooltip'); // canvas tooltip handles this now
         }
     }
 }

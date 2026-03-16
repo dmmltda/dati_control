@@ -331,14 +331,14 @@
 
                             <!-- Importar em Massa + VTT -->
                             <div class="vcw vcw-action" id="vcw-act-import">
-                                <button type="button" id="btn-importar-em-massa" class="bulk-action-btn" title="Importe empresas e contatos em massa via planilha">
+                                <button type="button" id="btn-importar-em-massa" class="bulk-action-btn" >
                                     <i class="ph ph-upload-simple"></i>
                                     <span>Importar em Massa</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-import" style="bottom:100%;top:auto;left:0;right:auto;transform-origin:bottom left;">
+                                <div class="vtt-tooltip" id="vct-act-import" style="top:calc(100% + 6px);bottom:auto;left:0;right:auto;transform-origin:top left;">
                                     <div class="vtt-video-container" id="vcvc-act-import"><canvas class="vtt-canvas" id="vcc-act-import" width="300" height="169"></canvas></div>
                                     <div class="vtt-body"><div class="vtt-label">Tutorial · 0:28</div><div class="vtt-title">Importação em massa</div><div class="vtt-desc">Suba uma planilha Excel ou CSV com múltiplas empresas e contatos de uma só vez, sem digitar linha a linha.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-import">0:00</span></div></div>
-                                    <div class="vtt-arrow vtt-arrow-down" style="left:16px;right:auto;"></div>
+                                    <div class="vtt-arrow" style="left:16px;right:auto;top:-5px;transform:rotate(45deg);"></div>
                                 </div>
                             </div>
 
@@ -346,14 +346,14 @@
 
                             <!-- Editar em massa + VTT -->
                             <div class="vcw vcw-action" id="vcw-act-edit">
-                                <button type="button" id="bulk-edit-btn" class="bulk-action-btn bulk-action-edit" disabled title="Editar campos em todas as empresas selecionadas">
+                                <button type="button" id="bulk-edit-btn" class="bulk-action-btn bulk-action-edit" disabled >
                                     <i class="ph ph-pencil-simple"></i>
                                     <span>Editar em massa</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-edit" style="bottom:100%;top:auto;left:0;right:auto;transform-origin:bottom left;">
+                                <div class="vtt-tooltip" id="vct-act-edit" style="top:calc(100% + 6px);bottom:auto;left:0;right:auto;transform-origin:top left;">
                                     <div class="vtt-video-container" id="vcvc-act-edit"><canvas class="vtt-canvas" id="vcc-act-edit" width="300" height="169"></canvas></div>
                                     <div class="vtt-body"><div class="vtt-label">Tutorial · 0:22</div><div class="vtt-title">Edição em lote</div><div class="vtt-desc">Selecione várias empresas com o checkbox e atualize campos como Status, Segmento ou Saúde de uma só vez.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-edit">0:00</span></div></div>
-                                    <div class="vtt-arrow vtt-arrow-down" style="left:16px;right:auto;"></div>
+                                    <div class="vtt-arrow" style="left:16px;right:auto;top:-5px;transform:rotate(45deg);"></div>
                                 </div>
                             </div>
 
@@ -361,11 +361,11 @@
 
                             <!-- Excluir selecionadas + VTT -->
                             <div class="vcw vcw-action" id="vcw-act-delete">
-                                <button type="button" id="bulk-delete-btn" class="bulk-action-btn bulk-action-danger" disabled title="Selecione empresas para excluir em massa">
+                                <button type="button" id="bulk-delete-btn" class="bulk-action-btn bulk-action-danger" disabled >
                                     <i class="ph ph-trash"></i>
                                     <span>Excluir selecionadas</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-delete" style="bottom:100%;top:auto;left:0;right:auto;transform-origin:bottom left;">
+                                <div class="vtt-tooltip" id="vct-act-delete" style="top:calc(100% + 6px);bottom:auto;right:0;left:auto;transform-origin:top right;">
                                     <div class="vtt-video-container" id="vcvc-act-delete"><canvas class="vtt-canvas" id="vcc-act-delete" width="300" height="169"></canvas></div>
                                     <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Exclusão em lote</div><div class="vtt-desc">Ação irreversível. Selecione as empresas com cuidado antes de excluir. Os dados serão removidos permanentemente.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-delete">0:00</span></div></div>
                                     <div class="vtt-arrow vtt-arrow-down" style="left:16px;right:auto;"></div>
@@ -376,14 +376,14 @@
 
                             <!-- Limpar + VTT -->
                             <div class="vcw vcw-action" id="vcw-act-clear">
-                                <button type="button" id="bulk-clear-btn" class="bulk-action-btn" disabled onclick="ui.clearBulkSelection()" title="Limpar seleção">
+                                <button type="button" id="bulk-clear-btn" class="bulk-action-btn" disabled onclick="ui.clearBulkSelection()" >
                                     <i class="ph ph-x-circle"></i>
                                     <span>Limpar</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-clear" style="bottom:100%;top:auto;right:0;left:auto;transform-origin:bottom right;">
+                                <div class="vtt-tooltip" id="vct-act-clear" style="top:calc(100% + 6px);bottom:auto;right:0;left:auto;transform-origin:top right;">
                                     <div class="vtt-video-container" id="vcvc-act-clear"><canvas class="vtt-canvas" id="vcc-act-clear" width="300" height="169"></canvas></div>
                                     <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Desfazer seleção</div><div class="vtt-desc">Desmarca todas as empresas selecionadas de uma só vez, sem afetar os dados cadastrados.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-clear">0:00</span></div></div>
-                                    <div class="vtt-arrow vtt-arrow-down" style="right:16px;left:auto;"></div>
+                                    <div class="vtt-arrow" style="right:16px;left:auto;top:-5px;transform:rotate(45deg);"></div>
                                 </div>
                             </div>
 
@@ -3608,6 +3608,15 @@
 .vtt-mute-btn { width:26px; height:26px; border-radius:50%; border:0.5px solid #ddd; background:transparent; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#888; }
 .vtt-mute-btn:hover { background:#f5f5f5; }
 .vtt-time { font-size:11px; color:#aaa; font-variant-numeric:tabular-nums; }
+
+/* ── Action button VTT wrappers ─────────────────────────────────────── */
+.vcw-action { position: relative; display: inline-flex; }
+.vtt-arrow-down {
+  position: absolute; bottom: -5px; left: 16px;
+  transform: rotate(225deg); width: 9px; height: 9px;
+  background: #fff; border-left: 0.5px solid #ddd; border-top: 0.5px solid #ddd;
+}
+
 </style>
 
 <script>
@@ -4516,6 +4525,366 @@
 })();
 </script>
 
+
+<script>
+/* ── Action Button Tooltip Canvas System ─────────────────────────────────
+   4 botões da bulk toolbar: Importar, Editar, Excluir, Limpar
+   Trigger: hover no próprio botão (não ícone separado)
+────────────────────────────────────────────────────────────────────────── */
+(function initActTooltips() {
+  const W=300,H=169,SW=40,ROW_Y=38,ROW_H=19,TH_Y=22,TH_H=16;
+  const CX_EMPRESA=SW+16, CX_STATUS=SW+148;
+  const COMPANIES=[
+    {name:'ABC importador',    badge:'PROSPECT',bc:'#7c5c00',btc:'#ffd54f'},
+    {name:'ACE Schmersal El.', badge:'INATIVO', bc:'#5a1010',btc:'#ff8080'},
+    {name:'ADITEX IND.',       badge:'INATIVO', bc:'#5a1010',btc:'#ff8080'},
+    {name:'ALIBRA',            badge:'INATIVO', bc:'#5a1010',btc:'#ff8080'},
+    {name:'ALLIAGE S/A',       badge:'ATIVO',   bc:'#1a4a2e',btc:'#4ade80'},
+  ];
+
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function prog(f,s,e){ return Math.max(0,Math.min(1,(f-s)/(e-s))); }
+
+  function initCanvas(canvas) {
+    const DPR=window.devicePixelRatio||1;
+    canvas.width=300*DPR; canvas.height=169*DPR;
+    canvas.style.width='300px'; canvas.style.height='169px';
+    const ctx=canvas.getContext('2d'); ctx.scale(DPR,DPR);
+    return ctx;
+  }
+
+  function drawCursor(ctx,x,y,sc,pressing){
+    ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc);
+    ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=2; ctx.shadowOffsetX=1; ctx.shadowOffsetY=1;
+    ctx.fillStyle=pressing?'rgba(200,200,200,0.95)':'rgba(255,255,255,0.97)';
+    ctx.strokeStyle='rgba(0,0,0,0.55)'; ctx.lineWidth=0.7;
+    ctx.beginPath();
+    ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6);
+    ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9);
+    ctx.closePath(); ctx.fill(); ctx.shadowColor='transparent'; ctx.stroke(); ctx.restore();
+  }
+
+  function drawTableBg(ctx, companies, checkedIndices) {
+    ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#141824'; ctx.fillRect(0,0,SW,H);
+    ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.arc(SW/2,11,5,0,Math.PI*2); ctx.fill();
+    [false,true,false,false,false].forEach((active,i)=>{
+      const iy=25+i*18;
+      if(active){ ctx.fillStyle='rgba(83,74,183,0.28)'; ctx.beginPath(); ctx.roundRect(3,iy-2,SW-6,13,3); ctx.fill(); ctx.fillStyle='#534AB7'; ctx.fillRect(0,iy-2,2,13); }
+      ctx.fillStyle=active?'#534AB7':'#3e4a5c'; ctx.beginPath(); ctx.arc(10,iy+4,3,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=active?'#d0d8e8':'#3e4a5c'; ctx.fillRect(16,iy+1,active?18:[12,16,10,14,11][i],6);
+    });
+    // Table header
+    ctx.fillStyle='#141824'; ctx.fillRect(SW,0,W-SW,ROW_Y);
+    ctx.font='bold 6px system-ui'; ctx.fillStyle='#7a8898';
+    ctx.fillText('EMPRESA',CX_EMPRESA,TH_Y+10); ctx.fillText('STATUS',CX_STATUS,TH_Y+10);
+    ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(SW,ROW_Y); ctx.lineTo(W,ROW_Y); ctx.stroke();
+    // Rows
+    companies.forEach((c,i)=>{
+      const ry=ROW_Y+i*ROW_H; if(ry+ROW_H>H) return;
+      const isChecked=checkedIndices&&checkedIndices.includes(i);
+      ctx.fillStyle=isChecked?'rgba(83,74,183,0.15)':(i%2===0?'#1e2436':'#1a1f2e');
+      ctx.fillRect(SW,ry,W-SW,ROW_H);
+      // Checkbox
+      if(isChecked){
+        ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.roundRect(SW+4,ry+5,8,8,2); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.font='bold 7px system-ui'; ctx.textAlign='center';
+        ctx.fillText('✓',SW+8,ry+12); ctx.textAlign='left';
+      } else {
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.strokeRect(SW+4,ry+5,8,8);
+      }
+      ctx.fillStyle='#c8d2e0'; ctx.font='6px system-ui'; ctx.fillText(c.name,CX_EMPRESA,ry+11);
+      const bW=c.badge==='PROSPECT'?38:(c.badge==='ATIVO'?28:30);
+      ctx.fillStyle=c.bc; ctx.beginPath(); ctx.roundRect(CX_STATUS-2,ry+4,bW,11,3); ctx.fill();
+      ctx.fillStyle=c.btc; ctx.font='bold 5px system-ui'; ctx.textAlign='center';
+      ctx.fillText(c.badge,CX_STATUS-2+bW/2,ry+11.5); ctx.textAlign='left';
+      ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(SW,ry+ROW_H); ctx.lineTo(W,ry+ROW_H); ctx.stroke();
+    });
+  }
+
+  // ── IMPORTAR ──────────────────────────────────────────────────────────
+  function makeImportDrawer(canvas) {
+    const ctx=initCanvas(canvas);
+    const UX=SW+50, UY=45, UW=190, UH=90; // upload zone
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#141824'; ctx.fillRect(0,0,SW,H);
+      ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.arc(SW/2,11,5,0,Math.PI*2); ctx.fill();
+      [false,true,false,false,false].forEach((active,i)=>{
+        const iy=25+i*18;
+        if(active){ ctx.fillStyle='rgba(83,74,183,0.28)'; ctx.beginPath(); ctx.roundRect(3,iy-2,SW-6,13,3); ctx.fill(); ctx.fillStyle='#534AB7'; ctx.fillRect(0,iy-2,2,13); }
+        ctx.fillStyle=active?'#534AB7':'#3e4a5c'; ctx.beginPath(); ctx.arc(10,iy+4,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=active?'#d0d8e8':'#3e4a5c'; ctx.fillRect(16,iy+1,active?18:[12,16,10,14,11][i],6);
+      });
+
+      // Upload zone
+      const isActive=f>=200&&f<380, isDone=f>=430;
+      ctx.strokeStyle=isDone?'#534AB7':(isActive?'#534AB7':'#3a4558');
+      ctx.lineWidth=isDone?1.5:1;
+      if(isDone){ ctx.fillStyle='rgba(83,74,183,0.1)'; ctx.fillRect(UX,UY,UW,UH); }
+      else { ctx.fillStyle='#1e2436'; ctx.fillRect(UX,UY,UW,UH); }
+      ctx.setLineDash([4,3]); ctx.beginPath(); ctx.roundRect(UX,UY,UW,UH,8); ctx.stroke(); ctx.setLineDash([]);
+
+      if(!isDone){
+        // Cloud upload icon
+        ctx.fillStyle=isActive?'#534AB7':'#3e4a5c';
+        ctx.font='bold 20px system-ui'; ctx.textAlign='center'; ctx.fillText('↑',UX+UW/2,UY+32); ctx.textAlign='left';
+        ctx.fillStyle=isActive?'#a0a8ff':'#64748b'; ctx.font='bold 7px system-ui'; ctx.textAlign='center';
+        ctx.fillText('Arraste o arquivo CSV ou Excel',UX+UW/2,UY+48);
+        ctx.fillStyle='#4a5568'; ctx.font='6px system-ui';
+        ctx.fillText('ou clique para selecionar',UX+UW/2,UY+60);
+        ctx.textAlign='left';
+        // File being dragged
+        if(f>=160&&f<380){
+          const drag=f<240?prog(f,160,240):1;
+          const fx=lerp(W-30,UX+UW/2-15,drag), fy=lerp(10,UY+UH/2-20,drag);
+          const fOpacity=f>=350?1-prog(f,350,380):1;
+          ctx.globalAlpha=fOpacity;
+          ctx.fillStyle='#253550'; ctx.beginPath(); ctx.roundRect(fx,fy,30,22,3); ctx.fill();
+          ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+          ctx.fillStyle='#4ade80'; ctx.font='bold 5px system-ui'; ctx.textAlign='center';
+          ctx.fillText('CSV',fx+15,fy+13); ctx.textAlign='left';
+          ctx.globalAlpha=1;
+        }
+        // Progress bar
+        if(f>=380&&f<430){
+          const pp=prog(f,380,430);
+          ctx.fillStyle='#252c3d'; ctx.fillRect(UX+10,UY+UH/2-4,UW-20,8);
+          ctx.fillStyle='#534AB7'; ctx.fillRect(UX+10,UY+UH/2-4,(UW-20)*pp,8);
+          ctx.fillStyle='#c8d2e0'; ctx.font='5.5px system-ui'; ctx.textAlign='center';
+          ctx.fillText(Math.round(pp*100)+'%', UX+UW/2, UY+UH/2+8); ctx.textAlign='left';
+        }
+      } else {
+        // Success state — rows appearing
+        ctx.fillStyle='#4ade80'; ctx.font='bold 14px system-ui'; ctx.textAlign='center'; ctx.fillText('✓',UX+UW/2,UY+36); ctx.textAlign='left';
+        ctx.fillStyle='#4ade80'; ctx.font='bold 7px system-ui'; ctx.textAlign='center';
+        ctx.fillText('Importação concluída!',UX+UW/2,UY+52);
+        const numRows=Math.min(3,Math.floor((f-430)/15));
+        for(let i=0;i<numRows;i++){
+          const ry=UY+62+i*12;
+          ctx.globalAlpha=Math.min(1,prog(f,430+i*15,430+i*15+10));
+          ctx.fillStyle='#1e3a2e'; ctx.fillRect(UX+10,ry,UW-20,10);
+          ctx.fillStyle='#4ade80'; ctx.font='5px system-ui'; ctx.textAlign='center';
+          ctx.fillText(['ABC Importador','ACE Schmersal El.','ADITEX Industria'][i], UX+UW/2, ry+7);
+          ctx.textAlign='left'; ctx.globalAlpha=1;
+        }
+      }
+
+      // Cursor
+      let cx,cy,pressing=false,csc=1;
+      if(f<80){ cx=W-25; cy=15; }
+      else if(f<160){ cx=W-25; cy=15; }
+      else if(f<240){ const t=prog(f,160,240); cx=lerp(W-25,UX+UW/2-15,t); cy=lerp(15,UY+UH/2-20,t); }
+      else if(f<380){ cx=UX+UW/2-15; cy=UY+UH/2-20; }
+      else if(f<410){ const t=prog(f,380,410); cx=lerp(UX+UW/2-15,UX+UW/2,t); cy=lerp(UY+UH/2-20,UY+UH/2,t); pressing=true; csc=0.9; }
+      else{ cx=UX+UW/2; cy=UY+UH/2; }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+  // ── EDITAR EM MASSA ───────────────────────────────────────────────────
+  function makeEditDrawer(canvas) {
+    const ctx=initCanvas(canvas);
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      // Frames: 0-120 = cursor selects rows, 120-280 = edit panel slides in, 280-400 = field changed, 400+ = result
+      const checked=[];
+      if(f>=80) checked.push(0);
+      if(f>=120) checked.push(1,2);
+      if(f>=150) checked.push(3);
+      const editPanelOpen=f>=200;
+      const fieldChanged=f>=340;
+      drawTableBg(ctx,COMPANIES,checked);
+
+      // Edit panel sliding from right
+      if(editPanelOpen){
+        const sp=Math.min(1,prog(f,200,260));
+        const pW=130, pX=W-pW*sp;
+        ctx.fillStyle='#141824'; ctx.fillRect(pX,0,pW*sp,H);
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(pX,0); ctx.lineTo(pX,H); ctx.stroke();
+
+        if(sp>0.6){
+          ctx.fillStyle='#7a8898'; ctx.font='bold 5.5px system-ui';
+          ctx.fillText('EDITAR EM LOTE',pX+8,14);
+          ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+          ctx.beginPath(); ctx.moveTo(pX,18); ctx.lineTo(W,18); ctx.stroke();
+
+          ['Status','Segmento','Health Score'].forEach((label,i)=>{
+            const ly=28+i*28;
+            ctx.fillStyle='#6b7690'; ctx.font='5px system-ui'; ctx.fillText(label,pX+8,ly);
+            const changed=(i===0&&fieldChanged);
+            ctx.fillStyle=changed?'rgba(83,74,183,0.2)':'#1e2436';
+            ctx.beginPath(); ctx.roundRect(pX+8,ly+3,pW-18,15,3); ctx.fill();
+            ctx.strokeStyle=changed?'#534AB7':'#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+            if(changed){
+              ctx.fillStyle='#1a4a2e'; ctx.beginPath(); ctx.roundRect(pX+10,ly+5,28,10,3); ctx.fill();
+              ctx.fillStyle='#4ade80'; ctx.font='bold 4.5px system-ui'; ctx.textAlign='center';
+              ctx.fillText('ATIVO',pX+24,ly+10.5); ctx.textAlign='left';
+            } else {
+              ctx.fillStyle='#4a5568'; ctx.font='5px system-ui'; ctx.fillText('Selecionar...',pX+12,ly+12);
+            }
+          });
+
+          if(fieldChanged){ const bp=Math.min(1,prog(f,340,390));
+            ctx.fillStyle=bp>0?'#534AB7':'#252c3d'; ctx.beginPath(); ctx.roundRect(pX+8,H-22,pW-18,14,4); ctx.fill();
+            ctx.fillStyle='#fff'; ctx.font='bold 6px system-ui'; ctx.textAlign='center';
+            ctx.fillText('Aplicar alterações',pX+(pW-18)/2+8,H-12); ctx.textAlign='left';
+          }
+        }
+      }
+
+      // Cursor movement
+      let cx,cy,pressing=false,csc=1;
+      const CHBOX_X=SW+8, row0y=ROW_Y+4+ROW_H/2;
+      if(f<60){ cx=CHBOX_X+50; cy=80; }
+      else if(f<100){ const t=prog(f,60,100); cx=lerp(CHBOX_X+50,CHBOX_X,t); cy=lerp(80,row0y,t); }
+      else if(f<120){ cx=CHBOX_X; cy=row0y; pressing=f>=100&&f<112; if(pressing)csc=0.9; }
+      else if(f<160){ const t=prog(f,120,160); cx=lerp(CHBOX_X,CHBOX_X,t); cy=lerp(row0y,row0y+ROW_H*2,t); }
+      else if(f<200){ cx=CHBOX_X; cy=row0y+ROW_H*2; pressing=f>=155&&f<170; if(pressing)csc=0.9; }
+      else if(f<280){ const pW=130; cx=lerp(CHBOX_X,W-pW*0.5+20,prog(f,200,280)); cy=row0y+ROW_H*2; }
+      else if(f<340){ cx=W-130*0.5+20; cy=46; }
+      else{ cx=W-130*0.5+20; cy=46; pressing=f>=340&&f<355; if(pressing)csc=0.9; }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+  // ── EXCLUIR ───────────────────────────────────────────────────────────
+  function makeDeleteDrawer(canvas) {
+    const ctx=initCanvas(canvas);
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      const checked=[0,1,2];
+      const showConfirm=f>=220;
+      const doDelete=f>=400;
+
+      if(!doDelete){
+        drawTableBg(ctx,COMPANIES,checked);
+      } else {
+        // Remaining rows after delete
+        const remaining=COMPANIES.slice(3);
+        drawTableBg(ctx,remaining,[]);
+        const fa=Math.min(1,prog(f,400,430));
+        ctx.globalAlpha=fa; ctx.fillStyle='#534AB7'; ctx.font='bold 5.5px system-ui'; ctx.textAlign='right';
+        ctx.fillText('3 registros removidos',W-6,H-4); ctx.textAlign='left'; ctx.globalAlpha=1;
+      }
+
+      // Confirm dialog
+      if(showConfirm&&!doDelete){
+        const dp=Math.min(1,prog(f,220,280));
+        const DX=SW+20, DY=50, DW=200, DH=75;
+        ctx.globalAlpha=dp*0.7; ctx.fillStyle='#000'; ctx.fillRect(SW,0,W-SW,H); ctx.globalAlpha=1;
+        ctx.globalAlpha=dp;
+        ctx.fillStyle='#1e2436'; ctx.beginPath(); ctx.roundRect(DX,DY,DW,DH,8); ctx.fill();
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+        ctx.fillStyle='#f87171'; ctx.font='bold 8px system-ui'; ctx.textAlign='center';
+        ctx.fillText('⚠ Excluir 3 empresas?',DX+DW/2,DY+20);
+        ctx.fillStyle='#8892a4'; ctx.font='5.5px system-ui';
+        ctx.fillText('Esta ação é irreversível.',DX+DW/2,DY+34);
+        ctx.fillText('Os dados serão apagados permanentemente.',DX+DW/2,DY+44);
+        // Buttons
+        ctx.fillStyle='#252b3b'; ctx.beginPath(); ctx.roundRect(DX+10,DY+DH-20,60,13,4); ctx.fill();
+        ctx.fillStyle='#8892a4'; ctx.font='5.5px system-ui'; ctx.fillText('Cancelar',DX+20,DY+DH-10);
+        const btnHov=f>=360;
+        ctx.fillStyle=btnHov?'#c0392b':'#e53e3e'; ctx.beginPath(); ctx.roundRect(DX+DW-75,DY+DH-20,65,13,4); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.font='bold 5.5px system-ui'; ctx.fillText('Sim, excluir',DX+DW-70,DY+DH-10);
+        ctx.textAlign='left'; ctx.globalAlpha=1;
+      }
+
+      // Cursor
+      let cx,cy,pressing=false,csc=1;
+      const CHBOX_X=SW+8, row0y=ROW_Y+4+ROW_H/2;
+      if(f<60){ cx=CHBOX_X+60; cy=90; }
+      else if(f<100){ const t=prog(f,60,100); cx=lerp(CHBOX_X+60,CHBOX_X,t); cy=lerp(90,row0y,t); }
+      else if(f<160){ cx=CHBOX_X; cy=lerp(row0y,row0y+ROW_H*2,prog(f,100,160)); pressing=f>=100&&f<115; if(pressing)csc=0.9; }
+      else if(f<220){ cx=CHBOX_X; cy=row0y+ROW_H*2; pressing=f>=160&&f<175; if(pressing)csc=0.9; }
+      else{
+        const DX=SW+20, DY=50, DW=200, DH=75;
+        const btnSX=DX+DW-75+32, btnSY=DY+DH-14;
+        const t=prog(f,220,280); cx=lerp(CHBOX_X,btnSX,t); cy=lerp(row0y+ROW_H*2,btnSY,t);
+        pressing=f>=360&&f<380; if(pressing)csc=0.9;
+      }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+  // ── LIMPAR ────────────────────────────────────────────────────────────
+  function makeClearDrawer(canvas) {
+    const ctx=initCanvas(canvas);
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      // Start with all checked, progressively uncheck
+      const numChecked=f<200?3:Math.max(0,3-Math.floor(prog(f,200,380)*3.5));
+      const checked=Array.from({length:numChecked},(_, i)=>i);
+      drawTableBg(ctx,COMPANIES,checked);
+
+      // Ripple effect on each uncheck
+      [200,260,320].forEach((startF,i)=>{
+        if(f>=startF&&f<=startF+30){
+          const cp=prog(f,startF,startF+30);
+          const ry=ROW_Y+(i)*ROW_H+ROW_H/2;
+          ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=0.8;
+          ctx.beginPath(); ctx.arc(SW+8,ry,3+cp*8,0,Math.PI*2); ctx.stroke();
+        }
+      });
+
+      if(f>=400){ const fa=Math.min(1,prog(f,400,430));
+        ctx.globalAlpha=fa; ctx.fillStyle='#64748b'; ctx.font='bold 5.5px system-ui'; ctx.textAlign='center';
+        ctx.fillText('Seleção limpa — 0 empresas',SW+(W-SW)/2,H-8); ctx.textAlign='left'; ctx.globalAlpha=1;
+      }
+
+      // Cursor moves down clicking each checkbox
+      let cx,cy,pressing=false,csc=1;
+      const CHBOX_X=SW+8;
+      if(f<100){ cx=CHBOX_X+60; cy=90; }
+      else if(f<160){ const t=prog(f,100,160); cx=lerp(CHBOX_X+60,CHBOX_X,t); cy=lerp(90,ROW_Y+ROW_H/2+4,t); }
+      else if(f<210){ cx=CHBOX_X; cy=ROW_Y+ROW_H/2+4; pressing=f>=195&&f<208; if(pressing)csc=0.9; }
+      else if(f<270){ const t=prog(f,210,270); cx=CHBOX_X; cy=lerp(ROW_Y+ROW_H/2+4,ROW_Y+ROW_H*1+ROW_H/2+4,t); pressing=f>=255&&f<268; if(pressing)csc=0.9; }
+      else if(f<340){ const t=prog(f,270,340); cx=CHBOX_X; cy=lerp(ROW_Y+ROW_H+ROW_H/2+4,ROW_Y+ROW_H*2+ROW_H/2+4,t); pressing=f>=315&&f<330; if(pressing)csc=0.9; }
+      else{ cx=CHBOX_X; cy=ROW_Y+ROW_H*2+ROW_H/2+4; }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+  // ── Wire up ───────────────────────────────────────────────────────────
+  const ACT_CONFIG = [
+    { btnId:'btn-importar-em-massa', tooltipId:'vct-act-import', canvasId:'vcc-act-import', factory:makeImportDrawer },
+    { btnId:'bulk-edit-btn',         tooltipId:'vct-act-edit',   canvasId:'vcc-act-edit',   factory:makeEditDrawer   },
+    { btnId:'bulk-delete-btn',       tooltipId:'vct-act-delete', canvasId:'vcc-act-delete', factory:makeDeleteDrawer },
+    { btnId:'bulk-clear-btn',        tooltipId:'vct-act-clear',  canvasId:'vcc-act-clear',  factory:makeClearDrawer  },
+  ];
+
+  ACT_CONFIG.forEach(({btnId,tooltipId,canvasId,factory})=>{
+    const btnEl     = document.getElementById(btnId);
+    const tooltipEl = document.getElementById(tooltipId);
+    const canvasEl  = document.getElementById(canvasId);
+    if(!btnEl||!tooltipEl||!canvasEl) return;
+
+    const drawFrame = factory(canvasEl);
+    let animId=null, frame=0, visible=false;
+
+    function startAnim(){ frame=0; if(animId)cancelAnimationFrame(animId); (function tick(){ drawFrame(frame); frame=(frame+1)%540; animId=requestAnimationFrame(tick); })(); }
+    function stopAnim(){ if(animId){ cancelAnimationFrame(animId); animId=null; } }
+    function show(){
+      if(visible)return; visible=true;
+      document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=>t.classList.remove('vtt-visible'));
+      tooltipEl.classList.add('vtt-visible');
+      startAnim();
+    }
+    function hide(){ visible=false; tooltipEl.classList.remove('vtt-visible'); stopAnim(); drawFrame(0); }
+
+    // Hover on the parent wrapper (vcw-action) so both btn and tooltip trigger
+    const wrapEl = btnEl.closest('.vcw-action') || btnEl.parentElement;
+    wrapEl.addEventListener('mouseenter', show);
+    wrapEl.addEventListener('mouseleave', e=>{ if(!wrapEl.contains(e.relatedTarget))hide(); });
+
+    drawFrame(0);
+  });
+})();
+</script>
 </body>
 
 </html>

@@ -498,13 +498,11 @@ export function updateBulkSelectionUI() {
     if (importBtn) {
         if (!canEdit) {
             importBtn.disabled = true;
-            importBtn.title = 'Você não tem permissão para importar empresas.';
+            importBtn.removeAttribute('title');
         } else {
             const moreThanOne = count > 1;
             importBtn.disabled = moreThanOne;
-            importBtn.title = moreThanOne
-                ? 'Desabilite a seleção múltipla para usar a importação em massa'
-                : 'Importe empresas e contatos em massa via planilha';
+            importBtn.removeAttribute('title'); // canvas tooltip handles this now
         }
     }
 
