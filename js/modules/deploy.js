@@ -8,10 +8,10 @@ import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
 
 const DEPLOY_COLUMNS = [
-    { key: 'date',      label: 'Data',       type: 'string', sortable: true,  filterable: false, searchable: true },
+    { key: 'date',      label: 'Quando',     type: 'string', sortable: true,  filterable: false, searchable: true },
+    { key: 'author',    label: 'Quem',       type: 'string', sortable: true,  filterable: true,  searchable: true },
     { key: 'hash',      label: 'Versão',     type: 'string', sortable: false, filterable: false, searchable: true },
-    { key: 'author',    label: 'Autor',      type: 'string', sortable: true,  filterable: true,  searchable: true },
-    { key: 'message',   label: 'Mensagem',   type: 'string', sortable: false, filterable: false, searchable: true },
+    { key: 'message',   label: 'O que foi feito', type: 'string', sortable: false, filterable: false, searchable: true },
     { key: 'status',    label: 'Status',     type: 'string', sortable: true,  filterable: true,  searchable: false },
 ];
 
@@ -64,14 +64,14 @@ function _renderRows(data) {
         return `
             <tr style="cursor:default;">
                 <td style="font-size:0.82rem; white-space:nowrap; color:var(--text-muted);">${_formatDate(row.date)}</td>
-                <td style="font-size:0.85rem; font-family:monospace; color:#a78bfa;">
-                    <i class="ph ph-git-commit" style="margin-right:0.2rem; color:var(--text-muted);"></i>
-                    ${_escapeHtml(row.hash)}
-                </td>
                 <td style="font-size:0.85rem; color:${color};">
                     <span style="display:inline-flex; align-items:center; gap:0.4rem;">
                         <i class="ph ${isRailway ? 'ph-robot' : 'ph-user'}"></i> ${_escapeHtml(row.author)}
                     </span>
+                </td>
+                <td style="font-size:0.85rem; font-family:monospace; color:#a78bfa;">
+                    <i class="ph ph-git-commit" style="margin-right:0.2rem; color:var(--text-muted);"></i>
+                    ${_escapeHtml(row.hash)}
                 </td>
                 <td style="font-size:0.85rem; max-width:400px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     ${_escapeHtml(row.message)}
@@ -192,14 +192,12 @@ export const deployMonitor = {
         // Renderiza apenas se ainda não existir
         if (!document.getElementById('deploy-ui-wrapper')) {
             container.innerHTML = `
-                <div id="deploy-ui-wrapper" style="display:flex; flex-direction:column; height:100%;">
+                <div id="deploy-ui-wrapper" class="flex-view" style="display:flex; flex-direction:column; height:100%;">
                     
                     <div class="top-bar" style="flex-shrink:0;">
                         <div>
                             <h1 style="display:flex; align-items:center; gap:0.571rem;">
-                                <div style="width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#4f46e5,#6366f1); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(99,102,241,0.3);">
-                                    <i class="ph ph-rocket" style="color:#fff; font-size:1.1rem;"></i>
-                                </div>
+                                <i class="ph ph-rocket" style="color:#6366f1;"></i>
                                 Tracker de Deploys
                             </h1>
                             <p>Registro de modificações empurradas para a esteira do Railway em produção.</p>
@@ -209,37 +207,34 @@ export const deployMonitor = {
                         </button>
                     </div>
 
-                    <div class="bulk-toolbar" style="margin: 0 1.5rem 1rem;">
-                        <div style="display:flex; align-items:center; gap:0.5rem; margin-right:auto;">
-                            <span style="font-size:0.8rem; color:#94a3b8; font-weight:600;"><i class="ph ph-git-merge"></i> MAIN BRANCH</span>
-                            <div style="width:1px; height:14px; background:rgba(255,255,255,0.1); margin:0 0.5rem;"></div>
-                            <span id="deploy-count" style="font-size:0.75rem; color:#a78bfa; font-weight:600;">— versões</span>
-                        </div>
-
-                        <div class="bulk-toolbar-actions">
-                            <div class="search-wrapper" style="width: 250px;">
-                                <i class="ph ph-magnifying-glass search-icon"></i>
-                                <input type="text" id="deploy-search-global" class="search-input" placeholder="Buscar por mensagem..." oninput="window._deploySearch(this.value)">
+                    <div class="glass-panel" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+                        
+                        <div class="rpt-filters">
+                            <div class="rpt-filter-search" style="flex:1; min-width:220px;">
+                                <i class="ph ph-magnifying-glass"></i>
+                                <input type="text" id="deploy-search-global" placeholder="Pesquisar em todas as colunas..." oninput="window._deploySearch(this.value)">
                             </div>
                         </div>
-                    </div>
 
-                    <div style="padding: 0 1.5rem 1.5rem; flex:1; overflow-y:auto; position:relative;">
-                        <div class="table-container" style="border: 1px solid rgba(255,255,255,0.06);">
-                            <table class="data-table" id="deploy-tracker-table">
+                        <div class="rpt-info-bar">
+                            <span id="deploy-count" class="rpt-count-badge">Carregando...</span>
+                        </div>
+
+                        <div class="company-table-container">
+                            <table class="company-table" id="deploy-tracker-table">
                                 <thead>
                                     <tr>
                                         <th class="sortable-header" data-key="date" style="width:140px;">
-                                            <div class="header-content"><span onclick="window._deploySort('date')">Data</span></div>
+                                            <div class="header-content"><span onclick="window._deploySort('date')">Quando</span></div>
+                                        </th>
+                                        <th class="sortable-header" data-key="author" style="width:180px;">
+                                            <div class="header-content"><span onclick="window._deploySort('author')">Quem</span></div>
                                         </th>
                                         <th class="sortable-header" data-key="hash" style="width:100px;">
                                             <div class="header-content"><span onclick="window._deploySort('hash')">Versão</span></div>
                                         </th>
-                                        <th class="sortable-header" data-key="author" style="width:180px;">
-                                            <div class="header-content"><span onclick="window._deploySort('author')">Autor</span></div>
-                                        </th>
                                         <th class="sortable-header" data-key="message">
-                                            <div class="header-content"><span onclick="window._deploySort('message')">Mensagem de Commits</span></div>
+                                            <div class="header-content"><span onclick="window._deploySort('message')">O que foi feito</span></div>
                                         </th>
                                         <th class="sortable-header" data-key="status" style="width:120px;">
                                             <div class="header-content"><span onclick="window._deploySort('status')">Status</span></div>
@@ -250,9 +245,8 @@ export const deployMonitor = {
                                 </tbody>
                             </table>
                         </div>
-                        <div id="pagination-deploy" class="pagination-container" style="margin-top:0.75rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;"></div>
+                        <div id="pagination-deploy" class="pagination-container" style="padding:1rem;"></div>
                     </div>
-
                 </div>
             `;
         }
