@@ -395,6 +395,21 @@ async function _load() {
     }
 }
 
+function _bindTooltips() {
+    try {
+        if (typeof bindTooltip === 'function') {
+            document.querySelectorAll('[id^="vcw-dep-"]').forEach(wrap => {
+                if (!wrap._vttBound) {
+                    bindTooltip(wrap);
+                    wrap._vttBound = true;
+                }
+            });
+        }
+    } catch (e) {
+        // ignora erros de tooltip — não crítico
+    }
+}
+
 function _exposeGlobals() {
     window._deployGoPage = (page) => {
         if (_manager) _manager.goToPage(page);
