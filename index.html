@@ -3744,7 +3744,7 @@
   z-index: 10000;
   pointer-events: none;
   animation: vtt-pulse-core 1.8s ease-in-out infinite;
-  transition: background 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
+  transition: opacity 0.5s ease;
 }
 .vtt-pulse-dot::before {
   content: '';
@@ -3755,14 +3755,11 @@
   animation: vtt-pulse-ring 1.8s ease-out infinite;
   transition: opacity 0.4s ease;
 }
-/* Estado LIDO — estático, opaco */
+/* Estado LIDO — estático, opaco (sem transform pois conflita com animation) */
 .vtt-pulse-dot.vtt-pulse-seen {
-  animation: none;
-  opacity: 0.3;
-  transform: scale(0.85);
+  opacity: 0.25 !important;
 }
 .vtt-pulse-dot.vtt-pulse-seen::before {
-  animation: none;
   opacity: 0;
 }
 
@@ -3771,6 +3768,16 @@
 .vtt-pulse-dot.vtt-pulse-green::before { background: rgba(16,185,129,0.65); }
 .vtt-pulse-dot.vtt-pulse-amber { background: #f59e0b; }
 .vtt-pulse-dot.vtt-pulse-amber::before { background: rgba(245,158,11,0.65); }
+
+/* Âncora mínima: containers vazios que hospedam apenas o dot precisam de tamanho */
+.th-info-btn:empty, span.vcw:empty,
+.th-info-btn:not(:has(*:not(.vtt-pulse-dot):not(.vtt-tooltip))),
+span[id^="vcb-"]:empty {
+  display: inline-block;
+  width: 10px; height: 10px;
+  position: relative;
+  vertical-align: middle;
+}
 
 </style>
 
@@ -3793,11 +3800,19 @@ window._vttPulse = (function() {
   }
 
   function markSeen(id) {
-    if (hasSeen(id)) return; // já estava lido, nada a fazer
+    if (hasSeen(id)) return;
     try { localStorage.setItem(PREFIX + id, '1'); } catch(_){}
-    // Transita visualmente para estado LIDO (não remove, só muda classe)
     document.querySelectorAll(`.vtt-pulse-dot[data-vtt-id="${id}"]`).forEach(el => {
-      el.classList.add('vtt-pulse-seen');
+      // Parar animação via inline style ANTES de adicionar a classe
+      // (sem isso, a animation CSS sobrescreve o transition de opacity)
+      el.style.animation = 'none';
+      if (el._beforeStyleEl) el._beforeStyleEl.remove();
+      // Esperar 1 frame para o browser processar animation:none
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.classList.add('vtt-pulse-seen');
+        });
+      });
     });
   }
 
@@ -3811,9 +3826,22 @@ window._vttPulse = (function() {
       + (color ? ' vtt-pulse-' + color : '')
       + (seen ? ' vtt-pulse-seen' : '');
     dot.setAttribute('data-vtt-id', id);
+    if (seen) {
+      // Dot já visto: sem animação desde o início
+      dot.style.animation = 'none';
+    }
     // Garante que o pai possa hospedar filho absoluto
     const pos = getComputedStyle(wrapEl).position;
     if (pos === 'static') wrapEl.style.position = 'relative';
+    // Garante tamanho mínimo para âncora do dot
+    const cs = getComputedStyle(wrapEl);
+    const w = parseFloat(cs.width), h = parseFloat(cs.height);
+    if (w < 4 || h < 4) {
+      wrapEl.style.display = 'inline-block';
+      wrapEl.style.minWidth = '10px';
+      wrapEl.style.minHeight = '10px';
+      wrapEl.style.verticalAlign = 'middle';
+    }
     wrapEl.appendChild(dot);
   }
 
