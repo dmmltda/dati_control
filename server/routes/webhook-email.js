@@ -12,12 +12,18 @@ router.post('/incoming', async (req, res) => {
         console.log('[Webhook Email] Requisição recebida:', JSON.stringify(req.body).substring(0, 200));
 
         // Resend envia um formato específico, ajuste conforme o provedor real
-        // Geralmente: req.body.from, req.body.to, req.body.subject, req.body.text
-        const { from, to, subject, text, html } = req.body;
+        // Webhooks do Resend chegam encapsulados em "req.body.data"
+        const payloadData = req.body.data || req.body;
+        const { from, to, subject, text, html } = payloadData;
         
         let recipientRaw = '';
         if (Array.isArray(to)) recipientRaw = to.join(',');
         else if (typeof to === 'string') recipientRaw = to;
+
+        if (!from) {
+            console.warn('[Webhook Email] Abortando: payload inválido (sem field.from)');
+            return res.status(400).json({ error: 'Parâmetro "from" é obrigatório.' });
+        }
 
         // Extrair o dedup_key original do endereço de envio (ex: reply+abc12345@dominio.com.br)
         const match = recipientRaw.match(/reply\+([^@]+)@/i);
@@ -32,22 +38,17 @@ router.post('/incoming', async (req, res) => {
             parentEmailLog = await prisma.email_send_log.findUnique({
                 where: { dedup_key: parentDedupKey }
             });
+        }
 
-            // Tentar descobrir a empresa a partir do email de origem/destino
-            if (parentEmailLog) {
-                // Aqui seria possível ter uma lógica para buscar o author da action original,
-                // ou vincular à atividade baseada no template enviado.
-                // Como não sabemos a priori, podemos buscar pelo email do remetente (cliente) nos contatos
-                const cleanEmail = from.match(/<([^>]+)>/)?.[1] || from;
-                const contato = await prisma.contacts.findFirst({
-                    where: { Email_1: cleanEmail },
-                    include: { companies: true }
-                });
-                
-                if (contato) {
-                    companyId = contato.companyId;
-                }
-            }
+        // Tentar descobrir a empresa a partir do email de origem/destino (remetente = cliente)
+        const cleanEmail = from.match(/<([^>]+)>/)?.[1] || from;
+        const contato = await prisma.contacts.findFirst({
+            where: { Email_1: cleanEmail },
+            include: { companies: true }
+        });
+        
+        if (contato) {
+            companyId = contato.companyId;
         }
 
         // 1. Salvar o email na tabela de logs como inbound
@@ -79,16 +80,72 @@ router.post('/incoming', async (req, res) => {
         });
 
         // 2. Chamar a IA (Gabi) para classificar o email
-        // Em um sistema real, isso chamaria a API do Gemini aqui, passando o texto do email.
-        // Simulando a decisão da IA com base no tamanho do texto (transbordo)
+        let intent = 'resposta_simples';
+        let action = 'auto_replied';
+        let summary = 'Não foi possível gerar um resumo pela IA. Cliente confirmou ou respondeu de forma breve.';
+        let isComplex = false;
         
-        const isComplex = (text || html || '').length > 200 || /cancelar|problema|erro|ajuda|socorro/i.test(text || '');
-        
-        let intent = isComplex ? 'suporte_complexo' : 'resposta_simples';
-        let action = isComplex ? 'escalated_to_human' : 'auto_replied';
-        let summary = isComplex 
-            ? 'O cliente respondeu com dúvidas ou problemas detalhados. Necessário intervenção humana.'
-            : 'O cliente respondeu de forma objetiva / confirmando.';
+        // Chamada real ao Gemini
+        try {
+            // Helper local para não depender de refatoração do gabi.js no momento
+            async function getApiKey() {
+                const setting = await prisma.app_settings.findUnique({ where: { key: 'gemini_api_key' } });
+                return setting?.value || process.env.GEMINI_API_KEY || null;
+            }
+            const apiKey = await getApiKey();
+            
+            if (apiKey) {
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                const prompt = `Você é especialista em Customer Success. Analise o e-mail recebido e responda SOMENTE com JSON válido.
+Responda APENAS com este formato JSON:
+{
+  "intent": "suporte_complexo|resposta_simples",
+  "action": "escalated_to_human|auto_replied",
+  "summary": "Resumo de 1 a 2 frases do que o cliente precisa."
+}
+Critérios:
+- "suporte_complexo" / "escalated_to_human": cliente relatou um problema, quer cancelar, ou precisa de ajuda específica (ex: faturamento falhou).
+- "resposta_simples" / "auto_replied": cliente deu um ok, respondeu NPS brevemente, só confirmou.
+
+E-mail:
+"${text || html || '(sem texto)'}"`;
+
+                const resp = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+                    })
+                });
+
+                if (resp.ok) {
+                    const data = await resp.json();
+                    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                    const cleaned = rawText.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+                    const parsed  = JSON.parse(cleaned);
+                    
+                    intent = parsed.intent || intent;
+                    action = parsed.action || action;
+                    summary = parsed.summary || summary;
+                    isComplex = action === 'escalated_to_human';
+                    console.log(`[Webhook Email] 🧠 Análise Gabi: Intenção=${intent}, Transbordo=${isComplex}`);
+                } else {
+                    console.warn(`[Webhook Email] Falha na API Gemini: ${resp.status}`);
+                }
+            } else {
+                console.warn(`[Webhook Email] Sem API Key, usando fallback simulado.`);
+                throw new Error("No API key");
+            }
+        } catch (err) {
+            // Fallback simulado se IA falhar
+            isComplex = (text || html || '').length > 200 || /cancelar|problema|erro|ajuda|socorro/i.test(text || '');
+            intent = isComplex ? 'suporte_complexo' : 'resposta_simples';
+            action = isComplex ? 'escalated_to_human' : 'auto_replied';
+            summary = isComplex 
+                ? 'O cliente respondeu com dúvidas ou problemas detalhados. Necessário intervenção humana.'
+                : 'O cliente respondeu de forma objetiva / confirmando.';
+        }
             
         let generatedReply = null;
         if (action === 'auto_replied') {
