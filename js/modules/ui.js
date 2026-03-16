@@ -749,13 +749,12 @@ function _openNpsDetailsModal(npsItem) {
             }
         }
 
-        // Abre o modal
-        modal.style.display = 'flex';
-        console.log('[NPS Modal] Modal aberto! display:', modal.style.display);
+        // Abre o modal com a classe CSS correta (como os outros modais da app)
+        modal.classList.add('visible');
+        console.log('[NPS Modal] Modal aberto com .visible!');
     } catch(err) {
         console.error('[NPS Modal] ERRO ao preencher modal:', err);
-        // Ainda tenta abrir
-        modal.style.display = 'flex';
+        modal.classList.add('visible');
     }
 }
 

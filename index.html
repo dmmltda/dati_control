@@ -3558,13 +3558,13 @@
     </div><!-- /#run-tests-modal-overlay -->
 
     <!-- Modal Detalhes NPS -->
-    <div id="nps-details-modal-overlay" class="produto-modal-overlay" onclick="if(event.target===this) this.style.display='none'">
+    <div id="nps-details-modal-overlay" class="produto-modal-overlay" onclick="if(event.target===this) this.classList.remove('visible')">
         <div class="produto-modal" role="dialog" aria-modal="true" aria-labelledby="nps-details-title" style="max-width:600px; width:95%;">
             <div class="produto-modal-header">
                 <h2 id="nps-details-title" class="produto-modal-title">
                     <i class="ph ph-chat-centered-text" style="color:var(--accent);"></i> Respostas da Pesquisa
                 </h2>
-                <button type="button" class="btn-modal-close" title="Fechar" onclick="document.getElementById('nps-details-modal-overlay').style.display='none'">
+                <button type="button" class="btn-modal-close" title="Fechar" onclick="document.getElementById('nps-details-modal-overlay').classList.remove('visible')">
                     <i class="ph ph-x"></i>
                 </button>
             </div>
@@ -3589,7 +3589,7 @@
             <!-- Footer -->
             <div class="produto-modal-footer" style="padding:1rem;">
                 <div class="produto-modal-footer-right" style="width:100%; display:flex; justify-content:flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('nps-details-modal-overlay').style.display='none'">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('nps-details-modal-overlay').classList.remove('visible')">
                         Fechar
                     </button>
                 </div>
