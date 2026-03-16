@@ -332,21 +332,10 @@
 /* Filtros e toolbar — altura fixa */
 #view-reports .filters,
 #view-reports .bulk-toolbar,
+#view-reports .rpt-filters,
+#view-reports .rpt-info-bar,
 #view-reports #rpt-active-chips {
     flex-shrink: 0;
-}
-
-/* Remove o box do .filters dentro do painel de relatórios */
-#rpt-panel-empresas .filters {
-    background: transparent;
-    border: none;
-    padding: 0 0 0.5rem 0;
-    margin-bottom: 0.5rem;
-}
-
-/* Força ocultação dos selects legados — nunca devem aparecer */
-#rpt-panel-empresas select[id^="rpt-filter-"] {
-    display: none !important;
 }
 
 
@@ -482,6 +471,8 @@
 .rpt-info-bar {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     padding: 6px 24px;
     border-bottom: 1px solid var(--dark-border);
     flex-shrink: 0;

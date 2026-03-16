@@ -261,30 +261,6 @@ function bindFilterEvents() {
     });
   }
 
-  // Date range
-  const dateFrom = document.getElementById('rpt-filter-date-from');
-  if (dateFrom) {
-    dateFrom.addEventListener('change', () => {
-      filters.dateFrom = dateFrom.value;
-      applyFilters();
-      renderTable();
-      renderActiveChips();
-    });
-  }
-  const dateTo = document.getElementById('rpt-filter-date-to');
-  if (dateTo) {
-    dateTo.addEventListener('change', () => {
-      filters.dateTo = dateTo.value;
-      applyFilters();
-      renderTable();
-      renderActiveChips();
-    });
-  }
-
-  // Limpar (via onclick no HTML, mas mantemos o listener também)
-  const btnClear = document.getElementById('btn-rpt-clear');
-  if (btnClear) btnClear.addEventListener('click', clearFilters);
-
   const btnExportCsv = document.getElementById('btn-rpt-export-csv');
   if (btnExportCsv) btnExportCsv.addEventListener('click', exportCSV);
 
@@ -297,108 +273,25 @@ function bindFilterEvents() {
     initReports();
   });
 
-  // Fecha popovers ao clicar fora
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('[id^="rpt-popover-"]') && !e.target.closest('[id^="rpt-btn-filter-"]')) {
-      document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
-    }
-  });
-
-  // Expõe helper global para o onclick do HTML
+  // Expõe helpers globais para os onchange/onclick inline no HTML
   window._rptClearFilters = clearFilters;
+
+  // Filtro por data — chamado via onchange inline nos inputs
+  window._rptSetDateFilter = function(field, value) {
+    filters[field] = value;
+    applyFilters();
+    renderTable();
+    renderActiveChips();
+  };
 }
 
-// ── Popover de filtro (chamado pelo onclick no HTML) ──────────────────────────
-window._rptToggleFilterDropdown = function(filterKey, btnEl, event) {
-  event.stopPropagation();
-  const popover = document.getElementById(`rpt-popover-${filterKey}`);
-  if (!popover) return;
-
-  const isOpen = popover.classList.contains('show');
-
-  // Fecha todos os outros
-  document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
-
-  if (isOpen) return;
-
-  // Reconstrói o conteúdo do popover
-  const values   = filterOptions[filterKey] || [];
-  const current  = filters[filterKey] || '';
-  const labelKey = FILTER_LABELS[filterKey] || filterKey;
-
-  popover.innerHTML = `
-    <div class="filter-group">
-      <span class="filter-label">Filtrar por ${labelKey}</span>
-      <div class="filter-list">
-        <div class="filter-option ${!current ? 'selected' : ''}" onclick="window._rptSetFilter('${filterKey}', '')">(Tudo)</div>
-        ${values.map(v => `
-          <div class="filter-option ${current === String(v) ? 'selected' : ''}" onclick="window._rptSetFilter('${filterKey}', '${String(v).replace(/'/g, "\\'")}')"
-          >${escHtml(String(v))}</div>
-        `).join('')}
-      </div>
-    </div>
-    <div class="filter-actions">
-      <button class="btn-clear-filter" onclick="window._rptSetFilter('${filterKey}', '')">
-        <i class="ph ph-x-circle"></i> Limpar Filtro
-      </button>
-    </div>
-  `;
-
-  popover.classList.add('show');
-
-  // Posicionamento inteligente
-  popover.classList.remove('align-right');
-  popover.style.top = '100%';
-  popover.style.bottom = 'auto';
-  requestAnimationFrame(() => {
-    const rect = popover.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 20) popover.classList.add('align-right');
-    if (rect.bottom > window.innerHeight - 20) {
-      popover.style.top = 'auto';
-      popover.style.bottom = '100%';
-    }
-  });
-};
-
+// ── Filtro via select nativo (onchange inline no HTML) ────────────────────────
 window._rptSetFilter = function(filterKey, value) {
   filters[filterKey] = value;
-  // Fecha popover
-  document.querySelectorAll('[id^="rpt-popover-"]').forEach(p => p.classList.remove('show'));
   applyFilters();
   renderTable();
-  updateFilterButtonLabels();
   renderActiveChips();
 };
-
-// Atualiza o texto dos botões de filtro para refletir a seleção atual
-function updateFilterButtonLabels() {
-  const mapping = [
-    ['status',   'rpt-label-status',   'Status'],
-    ['tipo',     'rpt-label-tipo',     'Tipo'],
-    ['segmento', 'rpt-label-segmento', 'Segmento'],
-    ['health',   'rpt-label-health',   'Health Score'],
-    ['cs',       'rpt-label-cs',       'Responsável'],
-  ];
-  mapping.forEach(([key, labelId, defaultLabel]) => {
-    const el = document.getElementById(labelId);
-    if (!el) return;
-    const active = filters[key];
-    el.textContent = active ? active : defaultLabel;
-    // Destaca o botão se estiver ativo
-    const btn = el.closest('button');
-    if (btn) {
-      if (active) {
-        btn.style.background = 'rgba(91,82,246,0.18)';
-        btn.style.borderColor = 'var(--primary)';
-        btn.style.color = 'var(--text-main)';
-      } else {
-        btn.style.background = '';
-        btn.style.borderColor = '';
-        btn.style.color = '';
-      }
-    }
-  });
-}
 
 // Renderiza chips de filtros ativos
 function renderActiveChips() {
@@ -442,10 +335,15 @@ window._rptRemoveFilter = function(key) {
     if (f) f.value = ''; if (t) t.value = '';
   } else {
     filters[key] = '';
+    const elMap = {
+      status: 'rpt-filter-status', tipo: 'rpt-filter-tipo',
+      segmento: 'rpt-filter-segmento', health: 'rpt-filter-health', cs: 'rpt-filter-cs',
+    };
+    const el = document.getElementById(elMap[key]);
+    if (el) el.value = '';
   }
   applyFilters();
   renderTable();
-  updateFilterButtonLabels();
   renderActiveChips();
 };
 
@@ -457,26 +355,25 @@ function clearFilters() {
   if (dateFrom) dateFrom.value = '';
   const dateTo = document.getElementById('rpt-filter-date-to');
   if (dateTo) dateTo.value = '';
-  // Limpa selects ocultos
+  // Limpa selects nativos
   ['rpt-filter-status','rpt-filter-tipo','rpt-filter-segmento','rpt-filter-health','rpt-filter-cs'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   applyFilters();
   renderTable();
-  updateFilterButtonLabels();
   renderActiveChips();
 }
 
 function populateFilterOptions(opts) {
-  // Armazena para uso nos popovers
+  // Armazena para uso futuro
   filterOptions.status   = opts.status       || [];
   filterOptions.tipo     = opts.tipo         || [];
   filterOptions.segmento = opts.segmento     || [];
   filterOptions.health   = opts.health_score || [];
   filterOptions.cs       = opts.cs           || [];
 
-  // Popula também os selects ocultos para manter compat
+  // Popula os selects nativos
   const pairs = [
     ['rpt-filter-status',   filterOptions.status,   'Status'],
     ['rpt-filter-tipo',     filterOptions.tipo,     'Tipo'],
@@ -487,7 +384,7 @@ function populateFilterOptions(opts) {
   pairs.forEach(([id, values, placeholder]) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const current = el.value;
+    const current = filters[id.replace('rpt-filter-', '')] || '';
     el.innerHTML = `<option value="">${placeholder}</option>` +
       values.map(v => `<option value="${escHtml(v)}"${v === current ? ' selected' : ''}>${escHtml(v)}</option>`).join('');
   });
@@ -739,6 +636,11 @@ function setLoadingState(loading) {
 function updateCountBadge() {
   const el = document.getElementById('rpt-count');
   if (el) el.textContent = `${state.filtered.length} empresa${state.filtered.length !== 1 ? 's' : ''}`;
+
+  // Mostra/oculta botão Limpar filtros
+  const hasFilters = Object.values(filters).some(v => v !== '');
+  const btnClear = document.getElementById('btn-rpt-clear');
+  if (btnClear) btnClear.style.display = hasFilters ? '' : 'none';
 }
 
 function showError(msg) {

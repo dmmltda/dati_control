@@ -524,6 +524,52 @@ const GABI_TOOLS = [{
             }
         },
 
+        // ── TOOL DE ATUALIZAÇÃO EM MASSA ─────────────────────────────────────
+        {
+            name: 'bulk_update_companies',
+            description: `Atualiza um CAMPO em MÚLTIPLAS empresas de uma só vez, em uma única operação no banco. Use SEMPRE que o usuário pedir para atualizar todas as empresas (ou um grupo) com o mesmo valor — ex: "coloque NPS X em todos os clientes", "marque todos como Saudável", "defina status Ativo para todos". É muito mais eficiente que chamar update_company individualmente para cada empresa.
+
+Filtros disponíveis para selecionar o grupo:
+- status: filtra pelo status atual (ex: "Ativo")
+- health: filtra pelo health score atual (ex: "Risco")
+- segmento: filtra pelo segmento
+- ids: lista de IDs específicos de empresas
+- all: true para atualizar TODAS as empresas (use com cuidado)
+
+Campos atualizáveis em massa: status, health, nps, segmento, cidade, estado, site, cnpj, erp, tipo, lead.
+Se o usuário pedir notas NPS diferentes por empresa, use uma lista de atualizações via updates[].`,
+            parameters: {
+                type: 'object',
+                properties: {
+                    // Filtros de seleção
+                    filter_status:   { type: 'string', description: 'Aplica apenas às empresas com este status (ex: "Ativo")' },
+                    filter_health:   { type: 'string', description: 'Aplica apenas às empresas com este health score (ex: "Risco")' },
+                    filter_segmento: { type: 'string', description: 'Aplica apenas às empresas deste segmento' },
+                    filter_ids:      { type: 'array', items: { type: 'string' }, description: 'Lista de IDs de empresas a atualizar' },
+                    all:             { type: 'boolean', description: 'true = aplica a TODAS as empresas. Use apenas quando o usuário pedir "todos os clientes" sem filtro.' },
+                    // Campos a definir em todas as empresas selecionadas
+                    status:   { type: 'string', description: 'Novo status a definir em todas' },
+                    health:   { type: 'string', description: 'Novo health score a definir em todas (Saudável | Atenção | Risco)' },
+                    nps:      { type: 'string', description: 'Nota NPS a definir em todas (ex: "9", "7", "6")' },
+                    segmento: { type: 'string', description: 'Segmento a definir em todas' },
+                    // Atualizações individuais (quando cada empresa tem um valor diferente)
+                    updates: {
+                        type: 'array',
+                        description: 'Lista de atualizações individuais quando cada empresa tem um valor diferente. Cada item: { company_id, nps?, status?, health? }',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                company_id: { type: 'string' },
+                                nps:        { type: 'string' },
+                                status:     { type: 'string' },
+                                health:     { type: 'string' },
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
         // ── TOOL DE ACESSO GENÉRICO AO BANCO ────────────────────────────────
         {
             name: 'query_database',
@@ -917,6 +963,76 @@ async function execTool(name, args = {}) {
             meta:        { ...diffMeta, via: 'gabi' },
         });
         return { success: true, id: updated.id, nome: updated.Nome_da_empresa, message: `Empresa "${updated.Nome_da_empresa}" atualizada com sucesso!` };
+    }
+
+    // ── bulk_update_companies ─────────────────────────────────────────────────
+    if (name === 'bulk_update_companies') {
+        if (!isMaster) {
+            return { error: 'permission_denied', message: 'Apenas usuários Master podem atualizar empresas em massa.' };
+        }
+
+        // Monta o filtro WHERE para selecionar quais empresas atualizar
+        const where = {};
+        if (args.filter_ids?.length)    where.id                 = { in: args.filter_ids };
+        if (args.filter_status)         where.Status             = { contains: args.filter_status, mode: 'insensitive' };
+        if (args.filter_health)         where.Health_Score       = { contains: args.filter_health, mode: 'insensitive' };
+        if (args.filter_segmento)       where.Segmento_da_empresa= { contains: args.filter_segmento, mode: 'insensitive' };
+
+        // Requer pelo menos um filtro ou all:true para evitar updates acidentais
+        const hasFilter = args.all === true || Object.keys(where).length > 0;
+        if (!hasFilter) {
+            return { error: 'Informe ao menos um filtro (filter_status, filter_health, filter_ids, filter_segmento) ou use all:true para atualizar todas as empresas.' };
+        }
+
+        // ── Modo 1: updates individuais (cada empresa com valor diferente) ────────
+        if (args.updates?.length > 0) {
+            const results = await Promise.all(args.updates.map(async u => {
+                if (!u.company_id) return { error: 'company_id obrigatório em cada item de updates' };
+                const data = { updatedAt: new Date() };
+                if (u.nps    !== undefined) data.NPS         = u.nps;
+                if (u.status !== undefined) data.Status      = u.status;
+                if (u.health !== undefined) data.Health_Score= u.health;
+                try {
+                    const updated = await prisma.companies.update({ where: { id: u.company_id }, data });
+                    audit.log(prisma, {
+                        actor: _currentUser, action: 'UPDATE',
+                        entity_type: 'company', entity_id: updated.id, entity_name: updated.Nome_da_empresa,
+                        description: `Gabi (bulk): atualizou campos de "${updated.Nome_da_empresa}" — ${JSON.stringify(data)}`,
+                        meta: { ...data, via: 'gabi_bulk' },
+                    });
+                    return { id: u.company_id, ok: true };
+                } catch (e) {
+                    return { id: u.company_id, ok: false, error: e.message };
+                }
+            }));
+            const ok  = results.filter(r => r.ok).length;
+            const err = results.filter(r => !r.ok).length;
+            return { success: true, total_updated: ok, errors: err, message: `${ok} empresa(s) atualizadas individualmente${err > 0 ? `, ${err} com erro` : ''}.` };
+        }
+
+        // ── Modo 2: mesmo valor para todas (updateMany) ───────────────────────────
+        const data = { updatedAt: new Date() };
+        if (args.status   !== undefined) data.Status             = args.status;
+        if (args.health   !== undefined) data.Health_Score       = args.health;
+        if (args.nps      !== undefined) data.NPS                = args.nps;
+        if (args.segmento !== undefined) data.Segmento_da_empresa= args.segmento;
+
+        if (Object.keys(data).length <= 1) { // só tem updatedAt
+            return { error: 'Informe ao menos um campo para atualizar (status, health, nps, segmento).' };
+        }
+
+        const result = await prisma.companies.updateMany({ where, data });
+
+        // Audit log único para a operação em massa
+        audit.log(prisma, {
+            actor: _currentUser, action: 'UPDATE',
+            entity_type: 'company', entity_id: 'bulk',
+            entity_name: `${result.count} empresa(s)`,
+            description: `Gabi (bulk): atualizou ${result.count} empresa(s) em massa — campos: ${JSON.stringify(data)}`,
+            meta: { ...data, filter: { filter_status: args.filter_status, filter_health: args.filter_health, filter_segmento: args.filter_segmento, all: args.all }, count: result.count, via: 'gabi_bulk' },
+        });
+
+        return { success: true, total_updated: result.count, message: `${result.count} empresa(s) atualizadas com sucesso!` };
     }
 
     // ── create_activity ───────────────────────────────────────────────────────
@@ -1657,7 +1773,7 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
 
         // ── CAMINHO NORMAL: texto apenas (com tool-use) ───────────────────────────────
         // Loop de reasoning + tool-use (máx 100 iterações)
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 200; i++) {
             const data = await geminiGenerate({
                 system_instruction: { parts: [{ text: systemPrompt }] },
                 contents: allMessages,
@@ -1692,7 +1808,7 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
                         try { result = await execTool(toolName, part.functionCall.args || {}); }
                         catch (e) { result = { error: e.message }; }
                         // Rastreia ações de escrita bem-sucedidas
-                        const isWriteAction = ['create_activity','update_activity','create_company','update_company','create_contact','update_contact','delete_activity','delete_company','delete_contact'].includes(toolName);
+                        const isWriteAction = ['create_activity','update_activity','create_company','update_company','bulk_update_companies','create_contact','update_contact','delete_activity','delete_company','delete_contact'].includes(toolName);
                         if (isWriteAction && result?.success) {
                             actionsPerformed.push({ tool: toolName, id: result.id });
                         }
@@ -1705,7 +1821,7 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
             break;
         }
 
-        if (!finalText) finalText = 'Desculpe, não consegui processar sua mensagem. Tente novamente.';
+        if (!finalText) finalText = 'Desculpe, não consegui processar sua mensagem. A tarefa pode ser muito complexa ou envolver muitas operações em sequência. Tente dividir o pedido em partes menores, ou reformule com mais detalhes.';
 
         // Log de uso (silencioso se tabela não existir)
         const costUsd = (inputTok * PRICE_INPUT) + (outputTok * PRICE_OUTPUT);
@@ -1724,7 +1840,7 @@ Estes links permitirão ao usuário abrir o item diretamente no sistema com um c
 
         // Determina se o frontend deve recarregar dados de empresas
         const companyChanged = actionsPerformed.some(a =>
-            ['create_company','update_company','delete_company'].includes(a.tool)
+            ['create_company','update_company','bulk_update_companies','delete_company'].includes(a.tool)
         );
         const companiesAffected = actionsPerformed
             .filter(a => ['create_company','update_company','delete_company'].includes(a.tool) && a.id)

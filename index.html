@@ -280,40 +280,6 @@
                         <p>Gerencie todas as empresas cadastradas no sistema.</p>
                     </div>
                     <div style="display: flex; gap: 1rem; align-items: center;">
-                        <!-- ── Video Tooltip "Como funciona" ─────────────────── -->
-                        <div class="vtt-wrap" id="vttWrap">
-                            <button class="vtt-trigger-btn" id="vttTriggerBtn">
-                                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" width="15" height="15"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8"/><circle cx="8" cy="10.5" r="0.75" fill="currentColor" stroke="none"/></svg>
-                                Como funciona
-                                <span class="vtt-hint-badge">?</span>
-                            </button>
-                            <div class="vtt-tooltip" id="vttTooltip">
-                                <div class="vtt-video-container" id="vttVideoWrap">
-                                    <canvas class="vtt-canvas" id="vttCanvas" width="300" height="169"></canvas>
-                                    <div class="vtt-play-overlay" id="vttPlayOverlay">
-                                        <div class="vtt-play-circle" id="vttPlayCircle">
-                                            <div class="vtt-play-tri"></div>
-                                        </div>
-                                    </div>
-                                    <div class="vtt-progress-wrap"><div class="vtt-progress-fill" id="vttProgressFill"></div></div>
-                                </div>
-                                <div class="vtt-body">
-                                    <div class="vtt-label">Tutorial · 0:18</div>
-                                    <div class="vtt-title">Filtrando empresas na tabela</div>
-                                    <div class="vtt-desc">Veja como usar o filtro por coluna para encontrar qualquer empresa em segundos.</div>
-                                    <div class="vtt-cta">
-                                        <span class="vtt-link">Ver documentação completa →</span>
-                                        <div style="display:flex;align-items:center;gap:8px">
-                                            <span class="vtt-time" id="vttTime">0:00</span>
-                                            <button class="vtt-mute-btn" id="vttMuteBtn" title="Mudo">
-                                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 6H1v4h2l4 3V3L3 6z"/><path d="M11.5 5.5a3 3 0 0 1 0 5M13.5 3.5a6 6 0 0 1 0 9" id="vttSoundWaves"/></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="vtt-arrow"></div>
-                            </div>
-                        </div>
                         <!-- ─────────────────────────────────────────────────── -->
                         <button class="btn btn-primary btn-new-company">
                             <i class="ph ph-plus"></i> Nova Empresa
@@ -4077,17 +4043,455 @@
     };
   }
 
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SAÚDE animation — mostra filtro de Health Score com indicadores coloridos
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeSaudeDrawer(canvas) {
+    const DPR=window.devicePixelRatio||1;
+    canvas.width=300*DPR; canvas.height=169*DPR;
+    canvas.style.width='300px'; canvas.style.height='169px';
+    const ctx=canvas.getContext('2d'); ctx.scale(DPR,DPR);
+
+    const CX_SAUDE=CX_STATUS; // mesmo alinhamento x da coluna
+    const FI_X=CX_SAUDE+32, FI_Y=TH_Y+TH_H/2; // ícone filtro SAÚDE ~x=220
+    const DD_X=152, DD_Y=ROW_Y, DD_W=142, DD_H=110;
+    const ITEM_LIST_Y=DD_Y+20, ITEM_H=16;
+
+    const SAUDE_ITEMS=[
+      {label:'(TUDO)',    dot:null},
+      {label:'Saudável',  dot:'#4ade80', bg:'#1a4a2e'},
+      {label:'Atenção',   dot:'#fbbf24', bg:'#7c5a00'},
+      {label:'Risco',     dot:'#f87171', bg:'#5a1418'},
+    ];
+
+    const COMP_FULL=[
+      {name:'ABC importador',    dot:'#4ade80'},
+      {name:'ACE Schmersal El.', dot:'#fbbf24'},
+      {name:'ADITEX IND.',       dot:'#f87171'},
+      {name:'ALIBRA',            dot:'#fbbf24'},
+      {name:'ALIBRA ING.',       dot:'#4ade80'},
+    ];
+    const COMP_FILT=[
+      {name:'ABC importador',    dot:'#4ade80'},
+      {name:'ALIBRA ING.',       dot:'#4ade80'},
+    ];
+
+    function drawSaudeBg(companies){
+      ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#141824'; ctx.fillRect(0,0,SW,H);
+      ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.arc(SW/2,11,5,0,Math.PI*2); ctx.fill();
+      [false,true,false,false,false].forEach((active,i)=>{
+        const iy=25+i*18;
+        if(active){ ctx.fillStyle='rgba(83,74,183,0.28)'; ctx.beginPath(); ctx.roundRect(3,iy-2,SW-6,13,3); ctx.fill(); ctx.fillStyle='#534AB7'; ctx.fillRect(0,iy-2,2,13); }
+        ctx.fillStyle=active?'#534AB7':'#3e4a5c'; ctx.beginPath(); ctx.arc(10,iy+4,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=active?'#d0d8e8':'#3e4a5c'; ctx.fillRect(16,iy+1,active?18:[12,16,10,14,11][i],6);
+      });
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,0,W-SW,TH_Y);
+      ctx.fillStyle='#1e2436'; ctx.beginPath(); ctx.roundRect(SW+5,4,W-SW-10,14,4); ctx.fill();
+      ctx.fillStyle='#3e4a5c'; ctx.font='6px system-ui'; ctx.fillText('Buscar por empresa, segmento ou status...',SW+12,13);
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,TH_Y,W-SW,TH_H);
+      ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(SW,ROW_Y); ctx.lineTo(W,ROW_Y); ctx.stroke();
+      ctx.font='bold 6px system-ui'; ctx.fillStyle='#7a8898';
+      ctx.fillText('EMPRESA',CX_EMPRESA,TH_Y+10);
+      ctx.fillText('SAÚDE',CX_SAUDE,TH_Y+10);
+      companies.forEach((c,i)=>{
+        const ry=ROW_Y+i*ROW_H; if(ry+ROW_H>H) return;
+        ctx.fillStyle=i%2===0?'#1e2436':'#1a1f2e'; ctx.fillRect(SW,ry,W-SW,ROW_H);
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.strokeRect(SW+4,ry+5,8,8);
+        ctx.fillStyle='#c8d2e0'; ctx.font='6px system-ui'; ctx.fillText(c.name,CX_EMPRESA,ry+11);
+        // Health dot indicator
+        ctx.fillStyle=c.dot; ctx.beginPath(); ctx.arc(CX_SAUDE+4,ry+9,4,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(SW,ry+ROW_H); ctx.lineTo(W,ry+ROW_H); ctx.stroke();
+      });
+    }
+
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      const isFiltered=f>=470;
+      drawSaudeBg(isFiltered?COMP_FILT:COMP_FULL);
+
+      const filterActive=f>=160&&f<470;
+      ctx.fillStyle=filterActive?'#534AB7':'#5a6a82';
+      ctx.beginPath(); ctx.moveTo(FI_X,FI_Y-4); ctx.lineTo(FI_X+7,FI_Y-4); ctx.lineTo(FI_X+5,FI_Y-1); ctx.lineTo(FI_X+5,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y-1); ctx.closePath(); ctx.fill();
+
+      if(isFiltered){ const fa=Math.min(1,(f-470)/25); ctx.globalAlpha=fa; ctx.fillStyle='#534AB7'; ctx.font='bold 5.5px system-ui'; ctx.textAlign='right'; ctx.fillText('2 de 5 registros',W-6,H-4); ctx.textAlign='left'; ctx.globalAlpha=1; }
+
+      if(f>=170&&f<470){
+        const openP=f<250?prog(f,170,250):1, closeP=f>=430?prog(f,430,470):0; const scY=openP*(1-closeP);
+        ctx.save(); ctx.globalAlpha=scY; ctx.translate(DD_X+DD_W/2,DD_Y); ctx.scale(1,scY); ctx.translate(-(DD_X+DD_W/2),-DD_Y);
+        ctx.fillStyle='#1e2436'; ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+        ctx.beginPath(); ctx.roundRect(DD_X,DD_Y,DD_W,DD_H,6); ctx.fill(); ctx.shadowColor='transparent';
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+        ctx.fillStyle='#6b7690'; ctx.font='bold 5.5px system-ui'; ctx.fillText('FILTRAR POR SAÚDE',DD_X+8,DD_Y+13);
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(DD_X+1,ITEM_LIST_Y-2); ctx.lineTo(DD_X+DD_W-1,ITEM_LIST_Y-2); ctx.stroke();
+
+        SAUDE_ITEMS.forEach((item,i)=>{
+          const iy=ITEM_LIST_Y+i*ITEM_H;
+          const isHov=i===1&&f>=350&&f<430, isSel=i===1&&f>=430, isTudo=i===0&&f<430;
+          if(isTudo||isSel){ ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          else if(isHov){ ctx.fillStyle='#252b3b'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          if(item.dot){
+            // Colored dot indicator
+            ctx.fillStyle=item.dot; ctx.beginPath(); ctx.arc(DD_X+12,iy+7,4,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle=(isHov||isSel)?'#fff':'#c8d2e0';
+            ctx.font='5.5px system-ui'; ctx.fillText(item.label,DD_X+20,iy+10);
+          } else {
+            ctx.fillStyle=(isTudo||isSel)?'#fff':'#8a96a8';
+            ctx.font='bold 5.5px system-ui'; ctx.fillText(item.label,DD_X+9,iy+10);
+          }
+        });
+        ctx.fillStyle='#ff6b6b'; ctx.font='5px system-ui'; ctx.fillText('Limpar Filtro',DD_X+9,DD_Y+DD_H-6);
+        ctx.restore();
+      }
+
+      // Ripples
+      if(f>=175&&f<=195){ const cp=prog(f,175,195); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(FI_X+3.5,FI_Y,4+cp*8,0,Math.PI*2); ctx.stroke(); }
+      if(f>=415&&f<=435){ const cp=prog(f,415,435); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(DD_X+12,ITEM_LIST_Y+ITEM_H+8,3+cp*10,0,Math.PI*2); ctx.stroke(); }
+
+      // Cursor
+      let cx,cy,pressing=false,csc=1;
+      if(f<55){ cx=80; cy=140; }
+      else if(f<160){ const t=prog(f,55,160); cx=lerp(80,FI_X-1,t); cy=lerp(140,FI_Y-1,t); }
+      else if(f<200){ cx=FI_X-1; cy=FI_Y-1; pressing=f>=175&&f<185; if(pressing)csc=0.88; }
+      else if(f<260){ cx=FI_X-1; cy=FI_Y-1; }
+      else if(f<360){ const t=prog(f,260,360); cx=lerp(FI_X-1,DD_X+12,t); cy=lerp(FI_Y-1,ITEM_LIST_Y+ITEM_H+5,t); }
+      else if(f<470){ cx=DD_X+12; cy=ITEM_LIST_Y+ITEM_H+5; pressing=f>=415&&f<430; if(pressing)csc=0.88; }
+      else{ const t=prog(f,470,510); cx=lerp(DD_X+12,CX_SAUDE+4,t); cy=lerp(ITEM_LIST_Y+ITEM_H+5,ROW_Y+ROW_H/2,t); }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // Helper: generic right-column drawer factory
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeGenericColDrawer(canvas, config) {
+    // config: { colLabel, filterIconX, ddX, ddY, ddW, ddH, ddTitle,
+    //           items:[{label,tag?:{text,bg,tc},dot?}],
+    //           compFull:[{name,tagText?,tagBg?,tagTc?,dot?,text?}],
+    //           compFiltered:[...],
+    //           filteredLabel }
+    const DPR=window.devicePixelRatio||1;
+    canvas.width=300*DPR; canvas.height=169*DPR;
+    canvas.style.width='300px'; canvas.style.height='169px';
+    const ctx=canvas.getContext('2d'); ctx.scale(DPR,DPR);
+    const FI_X=config.filterIconX, FI_Y=TH_Y+TH_H/2;
+    const {ddX:DD_X,ddY:DD_Y,ddW:DD_W,ddH:DD_H}=config;
+    const ITEM_LIST_Y=DD_Y+20, ITEM_H=15;
+
+    function drawBgCustom(companies){
+      ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#141824'; ctx.fillRect(0,0,SW,H);
+      ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.arc(SW/2,11,5,0,Math.PI*2); ctx.fill();
+      [false,true,false,false,false].forEach((active,i)=>{
+        const iy=25+i*18;
+        if(active){ ctx.fillStyle='rgba(83,74,183,0.28)'; ctx.beginPath(); ctx.roundRect(3,iy-2,SW-6,13,3); ctx.fill(); ctx.fillStyle='#534AB7'; ctx.fillRect(0,iy-2,2,13); }
+        ctx.fillStyle=active?'#534AB7':'#3e4a5c'; ctx.beginPath(); ctx.arc(10,iy+4,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=active?'#d0d8e8':'#3e4a5c'; ctx.fillRect(16,iy+1,active?18:[12,16,10,14,11][i],6);
+      });
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,0,W-SW,TH_Y);
+      ctx.fillStyle='#1e2436'; ctx.beginPath(); ctx.roundRect(SW+5,4,W-SW-10,14,4); ctx.fill();
+      ctx.fillStyle='#3e4a5c'; ctx.font='6px system-ui'; ctx.fillText('Buscar por empresa, segmento ou status...',SW+12,13);
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,TH_Y,W-SW,TH_H);
+      ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(SW,ROW_Y); ctx.lineTo(W,ROW_Y); ctx.stroke();
+      ctx.font='bold 6px system-ui'; ctx.fillStyle='#7a8898';
+      ctx.fillText('EMPRESA',CX_EMPRESA,TH_Y+10);
+      ctx.fillText(config.colLabel,CX_STATUS,TH_Y+10);
+      companies.forEach((c,i)=>{
+        const ry=ROW_Y+i*ROW_H; if(ry+ROW_H>H) return;
+        ctx.fillStyle=i%2===0?'#1e2436':'#1a1f2e'; ctx.fillRect(SW,ry,W-SW,ROW_H);
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.strokeRect(SW+4,ry+5,8,8);
+        ctx.fillStyle='#c8d2e0'; ctx.font='6px system-ui'; ctx.fillText(c.name,CX_EMPRESA,ry+11);
+        if(c.dot){
+          ctx.fillStyle=c.dot; ctx.beginPath(); ctx.arc(CX_STATUS+4,ry+9,4,0,Math.PI*2); ctx.fill();
+        } else if(c.tagText){
+          const tW=c.tagText.length*3.8+6;
+          ctx.fillStyle=c.tagBg; ctx.beginPath(); ctx.roundRect(CX_STATUS-2,ry+4,tW,10,3); ctx.fill();
+          ctx.fillStyle=c.tagTc; ctx.font='bold 4.5px system-ui'; ctx.textAlign='center';
+          ctx.fillText(c.tagText,CX_STATUS-2+tW/2,ry+10.5); ctx.textAlign='left';
+        } else if(c.text){
+          ctx.fillStyle='#64748b'; ctx.font='5.5px system-ui'; ctx.fillText(c.text,CX_STATUS,ry+11);
+        }
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(SW,ry+ROW_H); ctx.lineTo(W,ry+ROW_H); ctx.stroke();
+      });
+    }
+
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      const isFiltered=f>=470;
+      drawBgCustom(isFiltered?config.compFiltered:config.compFull);
+      const filterActive=f>=160&&f<470;
+      ctx.fillStyle=filterActive?'#534AB7':'#5a6a82';
+      ctx.beginPath(); ctx.moveTo(FI_X,FI_Y-4); ctx.lineTo(FI_X+7,FI_Y-4); ctx.lineTo(FI_X+5,FI_Y-1); ctx.lineTo(FI_X+5,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y-1); ctx.closePath(); ctx.fill();
+
+      if(isFiltered){ const fa=Math.min(1,(f-470)/25); ctx.globalAlpha=fa; ctx.fillStyle='#534AB7'; ctx.font='bold 5.5px system-ui'; ctx.textAlign='right'; ctx.fillText(config.filteredLabel,W-6,H-4); ctx.textAlign='left'; ctx.globalAlpha=1; }
+
+      if(f>=170&&f<470){
+        const openP=f<250?prog(f,170,250):1, closeP=f>=430?prog(f,430,470):0; const scY=openP*(1-closeP);
+        ctx.save(); ctx.globalAlpha=scY; ctx.translate(DD_X+DD_W/2,DD_Y); ctx.scale(1,scY); ctx.translate(-(DD_X+DD_W/2),-DD_Y);
+        ctx.fillStyle='#1e2436'; ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+        ctx.beginPath(); ctx.roundRect(DD_X,DD_Y,DD_W,DD_H,6); ctx.fill(); ctx.shadowColor='transparent';
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+        ctx.fillStyle='#6b7690'; ctx.font='bold 5px system-ui'; ctx.fillText(config.ddTitle,DD_X+8,DD_Y+13);
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(DD_X+1,ITEM_LIST_Y-2); ctx.lineTo(DD_X+DD_W-1,ITEM_LIST_Y-2); ctx.stroke();
+        config.items.forEach((item,i)=>{
+          const iy=ITEM_LIST_Y+i*ITEM_H;
+          const isHov=i===1&&f>=350&&f<430, isSel=i===1&&f>=430, isTudo=i===0&&f<430;
+          if(isTudo||isSel){ ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          else if(isHov){ ctx.fillStyle='#252b3b'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          if(item.tag){
+            const tW=item.tag.text.length*3.8+6;
+            ctx.fillStyle=item.tag.bg; ctx.beginPath(); ctx.roundRect(DD_X+8,iy+2,tW,10,3); ctx.fill();
+            ctx.fillStyle=item.tag.tc; ctx.font='bold 4.5px system-ui'; ctx.textAlign='center';
+            ctx.fillText(item.tag.text,DD_X+8+tW/2,iy+8.5); ctx.textAlign='left';
+          } else if(item.dot){
+            ctx.fillStyle=item.dot; ctx.beginPath(); ctx.arc(DD_X+12,iy+7,4,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle=(isHov||isSel)?'#fff':'#c8d2e0';
+            ctx.font='5.5px system-ui'; ctx.fillText(item.label,DD_X+20,iy+10);
+          } else {
+            ctx.fillStyle=(isTudo||isSel)?'#fff':'#8a96a8';
+            ctx.font=i===0?'bold 5.5px system-ui':'5.5px system-ui';
+            ctx.fillText(item.label,DD_X+9,iy+9);
+          }
+        });
+        ctx.fillStyle='#ff6b6b'; ctx.font='5px system-ui'; ctx.fillText('Limpar Filtro',DD_X+9,DD_Y+DD_H-6);
+        ctx.restore();
+      }
+      if(f>=175&&f<=195){ const cp=prog(f,175,195); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(FI_X+3.5,FI_Y,4+cp*8,0,Math.PI*2); ctx.stroke(); }
+      if(f>=415&&f<=435){ const cp=prog(f,415,435); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(DD_X+14,ITEM_LIST_Y+ITEM_H+7,3+cp*10,0,Math.PI*2); ctx.stroke(); }
+      let cx,cy,pressing=false,csc=1;
+      if(f<55){ cx=80; cy=140; }
+      else if(f<160){ const t=prog(f,55,160); cx=lerp(80,FI_X-1,t); cy=lerp(140,FI_Y-1,t); }
+      else if(f<200){ cx=FI_X-1; cy=FI_Y-1; pressing=f>=175&&f<185; if(pressing)csc=0.88; }
+      else if(f<260){ cx=FI_X-1; cy=FI_Y-1; }
+      else if(f<360){ const t=prog(f,260,360); cx=lerp(FI_X-1,DD_X+12,t); cy=lerp(FI_Y-1,ITEM_LIST_Y+ITEM_H+5,t); }
+      else if(f<470){ cx=DD_X+12; cy=ITEM_LIST_Y+ITEM_H+5; pressing=f>=415&&f<430; if(pressing)csc=0.88; }
+      else{ const t=prog(f,470,510); cx=lerp(DD_X+12,CX_STATUS+8,t); cy=lerp(ITEM_LIST_Y+ITEM_H+5,ROW_Y+ROW_H/2,t); }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
+  // ━━ Próximo Passo ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeProximoDrawer(canvas){
+    return makeGenericColDrawer(canvas,{
+      colLabel:'PRÓX. PASSO', filterIconX: 258, ddX:142, ddY:ROW_Y, ddW:152, ddH:112, ddTitle:'FILTRAR PRÓXIMO PASSO',
+      items:[
+        {label:'(TUDO)'},
+        {label:'Enviar proposta'},
+        {label:'Reunião agendada'},
+        {label:'Follow-up'},
+        {label:'Renovação'},
+      ],
+      compFull:[
+        {name:'ABC importador',    text:'Enviar proposta'},
+        {name:'ACE Schmersal El.', text:'—'},
+        {name:'ADITEX IND.',       text:'Follow-up'},
+        {name:'ALIBRA',            text:'—'},
+        {name:'ALIBRA ING.',       text:'Enviar proposta'},
+      ],
+      compFiltered:[
+        {name:'ABC importador',    text:'Enviar proposta'},
+        {name:'ALIBRA ING.',       text:'Enviar proposta'},
+      ],
+      filteredLabel:'2 de 5 registros',
+    });
+  }
+
+  // ━━ Produtos DATI ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeProdutosDrawer(canvas){
+    return makeGenericColDrawer(canvas,{
+      colLabel:'PRODUTOS', filterIconX:254, ddX:142, ddY:ROW_Y, ddW:152, ddH:114, ddTitle:'FILTRAR PRODUTO DATI',
+      items:[
+        {label:'(TUDO)'},
+        {label:'DATI Export',  tag:{text:'DATI Export',  bg:'#1a2a4a',tc:'#7dd3fc'}},
+        {label:'DATI Import',  tag:{text:'DATI Import',  bg:'#1a3a2a',tc:'#6ee7b7'}},
+        {label:'Smart Read',   tag:{text:'Smart Read',   bg:'#3a1a4a',tc:'#d8b4fe'}},
+        {label:'DATI Analytics',tag:{text:'DATI Analytics',bg:'#3a2a1a',tc:'#fcd34d'}},
+      ],
+      compFull:[
+        {name:'AAAA3777',          tagText:'DATI Export',   tagBg:'#1a2a4a',tagTc:'#7dd3fc'},
+        {name:'ABC importador',    tagText:'Smart Read',    tagBg:'#3a1a4a',tagTc:'#d8b4fe'},
+        {name:'ACE Schmersal El.', text:'—'},
+        {name:'ADITEX IND.',       tagText:'DATI Import',   tagBg:'#1a3a2a',tagTc:'#6ee7b7'},
+        {name:'ALIBRA',            text:'—'},
+      ],
+      compFiltered:[
+        {name:'AAAA3777',    tagText:'DATI Export',tagBg:'#1a2a4a',tagTc:'#7dd3fc'},
+      ],
+      filteredLabel:'1 de 5 registros',
+    });
+  }
+
+  // ━━ Segmento ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeSegmentoDrawer(canvas){
+    return makeGenericColDrawer(canvas,{
+      colLabel:'SEGMENTO', filterIconX:256, ddX:142, ddY:ROW_Y, ddW:152, ddH:114, ddTitle:'FILTRAR SEGMENTO',
+      items:[
+        {label:'(TUDO)'},
+        {label:'Logística'},
+        {label:'Agronegócio'},
+        {label:'C. Exterior'},
+        {label:'Farmacêutico'},
+      ],
+      compFull:[
+        {name:'ABC importador',    text:'C. Exterior'},
+        {name:'ACE Schmersal El.', text:'Indústria'},
+        {name:'ADITEX IND.',       text:'Agronegócio'},
+        {name:'ALIBRA',            text:'Logística'},
+        {name:'ALIBRA ING.',       text:'C. Exterior'},
+      ],
+      compFiltered:[
+        {name:'ALIBRA',    text:'Logística'},
+      ],
+      filteredLabel:'1 de 5 registros',
+    });
+  }
+
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // NPS animation — filtra por categoria Promotor / Neutro / Detrator
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  function makeNpsDrawer(canvas) {
+    const DPR=window.devicePixelRatio||1;
+    canvas.width=300*DPR; canvas.height=169*DPR;
+    canvas.style.width='300px'; canvas.style.height='169px';
+    const ctx=canvas.getContext('2d'); ctx.scale(DPR,DPR);
+
+    const CX_NPS=CX_STATUS;
+    const FI_X=CX_NPS+22, FI_Y=TH_Y+TH_H/2; // x ~210
+    const DD_X=150, DD_Y=ROW_Y, DD_W=144, DD_H=110;
+    const ITEM_LIST_Y=DD_Y+20, ITEM_H=16;
+
+    // NPS categories
+    const NPS_ITEMS=[
+      {label:'(TUDO)',   score:null},
+      {label:'Promotor', score:'9-10', dot:'#4ade80', emoji:'😍'},
+      {label:'Neutro',   score:'7-8',  dot:'#fbbf24', emoji:'😐'},
+      {label:'Detrator', score:'0-6',  dot:'#f87171', emoji:'😠'},
+    ];
+
+    // Companies with NPS scores displayed as colored number bubbles
+    const COMP_FULL=[
+      {name:'AAAA3777',          nps:9,  dot:'#4ade80'},
+      {name:'ABC importador',    nps:8,  dot:'#fbbf24'},
+      {name:'ACE Schmersal El.', nps:5,  dot:'#f87171'},
+      {name:'ADITEX IND.',       nps:null, dot:null},
+      {name:'ALIBRA',            nps:10, dot:'#4ade80'},
+    ];
+    const COMP_FILT=[
+      {name:'AAAA3777',    nps:9,  dot:'#4ade80'},
+      {name:'ALIBRA',      nps:10, dot:'#4ade80'},
+    ];
+
+    function drawNpsBg(companies){
+      ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#141824'; ctx.fillRect(0,0,SW,H);
+      ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.arc(SW/2,11,5,0,Math.PI*2); ctx.fill();
+      [false,true,false,false,false].forEach((active,i)=>{
+        const iy=25+i*18;
+        if(active){ ctx.fillStyle='rgba(83,74,183,0.28)'; ctx.beginPath(); ctx.roundRect(3,iy-2,SW-6,13,3); ctx.fill(); ctx.fillStyle='#534AB7'; ctx.fillRect(0,iy-2,2,13); }
+        ctx.fillStyle=active?'#534AB7':'#3e4a5c'; ctx.beginPath(); ctx.arc(10,iy+4,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=active?'#d0d8e8':'#3e4a5c'; ctx.fillRect(16,iy+1,active?18:[12,16,10,14,11][i],6);
+      });
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,0,W-SW,TH_Y);
+      ctx.fillStyle='#1e2436'; ctx.beginPath(); ctx.roundRect(SW+5,4,W-SW-10,14,4); ctx.fill();
+      ctx.fillStyle='#3e4a5c'; ctx.font='6px system-ui'; ctx.fillText('Buscar por empresa, segmento ou status...',SW+12,13);
+      ctx.fillStyle='#141824'; ctx.fillRect(SW,TH_Y,W-SW,TH_H);
+      ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(SW,ROW_Y); ctx.lineTo(W,ROW_Y); ctx.stroke();
+      ctx.font='bold 6px system-ui'; ctx.fillStyle='#7a8898';
+      ctx.fillText('EMPRESA',CX_EMPRESA,TH_Y+10);
+      ctx.fillText('NPS',CX_NPS,TH_Y+10);
+      companies.forEach((c,i)=>{
+        const ry=ROW_Y+i*ROW_H; if(ry+ROW_H>H) return;
+        ctx.fillStyle=i%2===0?'#1e2436':'#1a1f2e'; ctx.fillRect(SW,ry,W-SW,ROW_H);
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.strokeRect(SW+4,ry+5,8,8);
+        ctx.fillStyle='#c8d2e0'; ctx.font='6px system-ui'; ctx.fillText(c.name,CX_EMPRESA,ry+11);
+        if(c.nps !== null && c.dot){
+          // Colored score bubble
+          ctx.fillStyle=c.dot+'33'; ctx.beginPath(); ctx.arc(CX_NPS+6,ry+9,7,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle=c.dot; ctx.font='bold 6px system-ui'; ctx.textAlign='center';
+          ctx.fillText(c.nps,CX_NPS+6,ry+12); ctx.textAlign='left';
+        } else {
+          ctx.fillStyle='#3e4a5c'; ctx.font='5.5px system-ui'; ctx.fillText('—',CX_NPS+4,ry+11);
+        }
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5;
+        ctx.beginPath(); ctx.moveTo(SW,ry+ROW_H); ctx.lineTo(W,ry+ROW_H); ctx.stroke();
+      });
+    }
+
+    return function drawFrame(f){
+      ctx.clearRect(0,0,W,H);
+      const isFiltered=f>=470;
+      drawNpsBg(isFiltered?COMP_FILT:COMP_FULL);
+
+      const filterActive=f>=160&&f<470;
+      ctx.fillStyle=filterActive?'#534AB7':'#5a6a82';
+      ctx.beginPath(); ctx.moveTo(FI_X,FI_Y-4); ctx.lineTo(FI_X+7,FI_Y-4); ctx.lineTo(FI_X+5,FI_Y-1); ctx.lineTo(FI_X+5,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y+3); ctx.lineTo(FI_X+2,FI_Y-1); ctx.closePath(); ctx.fill();
+
+      if(isFiltered){ const fa=Math.min(1,(f-470)/25); ctx.globalAlpha=fa; ctx.fillStyle='#534AB7'; ctx.font='bold 5.5px system-ui'; ctx.textAlign='right'; ctx.fillText('2 Promotores',W-6,H-4); ctx.textAlign='left'; ctx.globalAlpha=1; }
+
+      if(f>=170&&f<470){
+        const openP=f<250?prog(f,170,250):1, closeP=f>=430?prog(f,430,470):0; const scY=openP*(1-closeP);
+        ctx.save(); ctx.globalAlpha=scY; ctx.translate(DD_X+DD_W/2,DD_Y); ctx.scale(1,scY); ctx.translate(-(DD_X+DD_W/2),-DD_Y);
+        ctx.fillStyle='#1e2436'; ctx.shadowColor='rgba(0,0,0,0.4)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+        ctx.beginPath(); ctx.roundRect(DD_X,DD_Y,DD_W,DD_H,6); ctx.fill(); ctx.shadowColor='transparent';
+        ctx.strokeStyle='#3a4558'; ctx.lineWidth=0.5; ctx.stroke();
+        ctx.fillStyle='#6b7690'; ctx.font='bold 5px system-ui'; ctx.fillText('FILTRAR POR NPS',DD_X+8,DD_Y+13);
+        ctx.strokeStyle='#252c3d'; ctx.lineWidth=0.5; ctx.beginPath(); ctx.moveTo(DD_X+1,ITEM_LIST_Y-2); ctx.lineTo(DD_X+DD_W-1,ITEM_LIST_Y-2); ctx.stroke();
+
+        NPS_ITEMS.forEach((item,i)=>{
+          const iy=ITEM_LIST_Y+i*ITEM_H;
+          const isHov=i===1&&f>=350&&f<430, isSel=i===1&&f>=430, isTudo=i===0&&f<430;
+          if(isTudo||isSel){ ctx.fillStyle='#534AB7'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          else if(isHov){ ctx.fillStyle='#252b3b'; ctx.beginPath(); ctx.roundRect(DD_X+4,iy-1,DD_W-8,ITEM_H-1,3); ctx.fill(); }
+          if(item.dot){
+            // Colored dot + score range + label
+            ctx.fillStyle=item.dot; ctx.beginPath(); ctx.arc(DD_X+11,iy+7,4,0,Math.PI*2); ctx.fill();
+            ctx.fillStyle=(isHov||isSel)?'#fff':'#c8d2e0';
+            ctx.font='5.5px system-ui'; ctx.fillText(item.label,DD_X+19,iy+9);
+            ctx.fillStyle=(isHov||isSel)?'rgba(255,255,255,0.6)':'#64748b';
+            ctx.font='4.5px system-ui'; ctx.fillText(item.score,DD_X+19+item.label.length*3.4,iy+9);
+          } else {
+            ctx.fillStyle=(isTudo||isSel)?'#fff':'#8a96a8';
+            ctx.font='bold 5.5px system-ui'; ctx.fillText(item.label,DD_X+9,iy+9);
+          }
+        });
+        ctx.fillStyle='#ff6b6b'; ctx.font='5px system-ui'; ctx.fillText('Limpar Filtro',DD_X+9,DD_Y+DD_H-6);
+        ctx.restore();
+      }
+      // Ripples
+      if(f>=175&&f<=195){ const cp=prog(f,175,195); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(FI_X+3.5,FI_Y,4+cp*8,0,Math.PI*2); ctx.stroke(); }
+      if(f>=415&&f<=435){ const cp=prog(f,415,435); ctx.strokeStyle='rgba(83,74,183,'+(1-cp)+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(DD_X+11,ITEM_LIST_Y+ITEM_H+8,3+cp*10,0,Math.PI*2); ctx.stroke(); }
+      // Cursor
+      let cx,cy,pressing=false,csc=1;
+      if(f<55){ cx=80; cy=140; }
+      else if(f<160){ const t=prog(f,55,160); cx=lerp(80,FI_X-1,t); cy=lerp(140,FI_Y-1,t); }
+      else if(f<200){ cx=FI_X-1; cy=FI_Y-1; pressing=f>=175&&f<185; if(pressing)csc=0.88; }
+      else if(f<260){ cx=FI_X-1; cy=FI_Y-1; }
+      else if(f<360){ const t=prog(f,260,360); cx=lerp(FI_X-1,DD_X+11,t); cy=lerp(FI_Y-1,ITEM_LIST_Y+ITEM_H+5,t); }
+      else if(f<470){ cx=DD_X+11; cy=ITEM_LIST_Y+ITEM_H+5; pressing=f>=415&&f<430; if(pressing)csc=0.88; }
+      else{ const t=prog(f,470,510); cx=lerp(DD_X+11,CX_NPS+6,t); cy=lerp(ITEM_LIST_Y+ITEM_H+5,ROW_Y+ROW_H/2,t); }
+      drawCursor(ctx,cx,cy,csc,pressing);
+    };
+  }
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // Wire up each column
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const drawerFactories = {
     nome:     makeEmpresaDrawer,
     status:   makeStatusDrawer,
-    saude:    makeEmpresaDrawer,
-    nps:      makeEmpresaDrawer,
-    proximo:  makeEmpresaDrawer,
-    produtos: makeEmpresaDrawer,
-    segmento: makeEmpresaDrawer,
+    saude:    makeSaudeDrawer,
+    nps:      makeNpsDrawer,
+    proximo:  makeProximoDrawer,
+    produtos: makeProdutosDrawer,
+    segmento: makeSegmentoDrawer,
   };
 
   Object.entries(drawerFactories).forEach(([key, factory]) => {
