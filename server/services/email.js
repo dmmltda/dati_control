@@ -137,6 +137,7 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
                 subject,
                 template:  template || null,
                 tag:       tag     || null,
+                content:   html    // Salva o corpo para renderizar no modal de Cadeia de E-mails
             },
         });
     } catch (dedupErr) {
