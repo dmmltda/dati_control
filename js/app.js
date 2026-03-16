@@ -37,11 +37,13 @@ import { initMonthlyReport } from './modules/monthly-report.js';
 import { initAdherenceReport } from './modules/adherence-report.js';
 import * as auditLog from './modules/audit-log.js';
 import { initNotifications } from './modules/notifications.js';
+import { initSettingsWhatsApp } from './modules/settings-whatsapp.js';
 
 
 
 // ─── Journey Dashboard (novo módulo) ────────────────────────────────────────
 import { initDashboard } from '../src/pages/Dashboard.js';
+import { bindTooltip as bindRichTooltip } from '../src/components/dashboard/Tooltip.js';
 // mockUsuarios removido — substituiído por /api/usuarios (Clerk-sincronizado)
 
 // Controla se o dashboard já foi inicializado
@@ -271,7 +273,8 @@ window.toggleSidebar = function() {
     if (isCollapsed) {
         document.querySelectorAll('.nav-group').forEach(g => {
             g.classList.remove('open');
-            g.querySelector('.nav-sub-menu').style.maxHeight = null;
+            const oldKid = g.querySelector('.nav-sub-menu');
+            if (oldKid) oldKid.style.maxHeight = null;
         });
     }
 };
@@ -315,6 +318,7 @@ function handleNavigation(target) {
 
             if (view === 'config-usuarios') initSettingsUsers();
             if (view === 'config-gabi')     initSettingsGabi();
+            if (view === 'settings-whatsapp') initSettingsWhatsApp();
 
             if (view === 'company-list') {
 
@@ -645,6 +649,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Register global click delegation
     document.addEventListener('click', handleGlobalClick);
+
+    // ─── Bind Rich Tooltips (Sidebar/Global) ──────────────────────────────────
+    const navAudit = document.getElementById('nav-item-audit-log');
+    if (navAudit) {
+        bindRichTooltip(navAudit, {
+            titulo: 'Histórico de Alterações',
+            desc: 'Acompanhe em tempo real quem criou, editou ou excluiu dados na plataforma Journey. Pixel-perfect Audit Log.',
+            video: true,
+            type: 'auditLog'
+        });
+    }
 
     // --- Static Form Listeners ---
     // login-form removido — o Clerk gerencia o submit da tela de login

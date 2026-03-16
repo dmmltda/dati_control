@@ -389,6 +389,14 @@ model activities {
   next_step_reminder_email        Boolean                          @default(false)
   next_step_reminder_sent         Boolean                          @default(false)
   notify_on_assign                Boolean                          @default(false)
+
+  // ── WHATSAPP COMPLEMENTAR ──
+  send_invite_whatsapp            Boolean                          @default(false)
+  invite_wa_sent                  Boolean                          @default(false)
+  send_summary_whatsapp           Boolean                          @default(false)
+  summary_wa_sent                 Boolean                          @default(false)
+  send_recording_whatsapp         Boolean                          @default(false)
+  recording_wa_sent               Boolean                          @default(false)
   // ── RELAÇÕES ──
   companies                       companies?                       @relation(fields: [company_id], references: [id], onDelete: Cascade)
   activity_assignees              activity_assignees[]
@@ -441,6 +449,11 @@ model activity_time_logs {
   subject          String?                        // assunto — editável pelo usuário
   created_by       String?                        // user_id de quem registrou
   created_at       DateTime   @default(now())
+
+  // ── DESNORMALIZAÇÃO PARA "PASTA TEMPO" ──
+  contact_nome     String?                        // Solicitante (ex: "Daniel Martins")
+  activity_type    String?                        // Tipo (ex: "Chamados HD" | "Chamados CS")
+
   activity         activities @relation(fields: [activity_id], references: [id], onDelete: Cascade)
 }
 
@@ -689,6 +702,7 @@ model whatsapp_conversations {
   gabi_temperatura_score Int?      // 1–5
   gabi_resumo            String?   // resumo gerado pela Gabi
   gabi_acoes_sugeridas   String?   // JSON array de ações sugeridas
+  ai_enabled             Boolean   @default(false) // se a Gabi responde automaticamente
 
   contact_nome    String?                         // nome desnormalizado — preservado mesmo se contato deletado
   company_nome    String?                         // nome desnormalizado — preservado mesmo se empresa deletada

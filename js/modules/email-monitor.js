@@ -1,4 +1,5 @@
 import { TableManager } from '../core/table-manager.js';
+import { bindTooltip, initTooltipSystem } from '../../src/components/dashboard/Tooltip.js';
 
 const emailMonitor = (() => {
     let _tm = null;
@@ -11,13 +12,57 @@ const emailMonitor = (() => {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     function _statusBadge(status) {
+        if (!status) return '<span style="color:var(--text-muted);">—</span>';
+        
         const map = {
-            sent:    '<span style="background:rgba(16,185,129,0.15);color:#10b981;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;">✅ Enviado</span>',
-            failed:  '<span style="background:rgba(239,68,68,0.15);color:#ef4444;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;">❌ Falha</span>',
-            blocked: '<span style="background:rgba(245,158,11,0.15);color:#f59e0b;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;">⛔ Bloqueado</span>',
-            pending: '<span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;">⏳ Pendente</span>',
+            sent: { 
+                label: 'ENVIADO', 
+                icon: 'ph-check', 
+                bg: 'rgba(16,185,129,0.1)', 
+                color: '#10b981', 
+                border: 'rgba(16,185,129,0.2)' 
+            },
+            received: { 
+                label: 'RECEBIDO', 
+                icon: 'ph-arrow-u-up-left', 
+                bg: 'rgba(59,130,246,0.1)', 
+                color: '#3b82f6', 
+                border: 'rgba(59,130,246,0.2)' 
+            },
+            failed: { 
+                label: 'FALHA', 
+                icon: 'ph-x', 
+                bg: 'rgba(239,68,68,0.1)', 
+                color: '#ef4444', 
+                border: 'rgba(239,68,68,0.2)' 
+            },
+            blocked: { 
+                label: 'BLOQUEADO', 
+                icon: 'ph-prohibit', 
+                bg: 'rgba(245,158,11,0.1)', 
+                color: '#f59e0b', 
+                border: 'rgba(245,158,11,0.2)' 
+            },
+            pending: { 
+                label: 'PENDENTE', 
+                icon: 'ph-clock', 
+                bg: 'rgba(99,102,241,0.1)', 
+                color: '#818cf8', 
+                border: 'rgba(99,102,241,0.2)' 
+            }
         };
-        return map[status] || `<span style="color:var(--text-muted);">${status || '—'}</span>`;
+
+        const config = map[status];
+        if (!config) {
+            return `<span style="color:var(--text-muted); font-size:0.75rem;">${status}</span>`;
+        }
+
+        return `
+            <div style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:10px; font-size:9.5px; font-weight:900; background:${config.bg}; color:${config.color}; border:1px solid ${config.border}; letter-spacing:0.3px;">
+                <i class="ph ${config.icon}" style="font-size:11px;"></i>
+                ${config.label}
+            </div>
+        `;
     }
 
     function _fmt(iso) {
@@ -330,174 +375,302 @@ const emailMonitor = (() => {
     }
 
     async function showDetails(id) {
-        // Remove modal antigo se existir para garantir que o novo design e o conteúdo sejam aplicados
-        document.getElementById('email-details-modal')?.remove();
-
         const modal = document.createElement('div');
         modal.id = 'email-details-modal';
-        modal.style.cssText = 'display:flex; position:fixed; inset:0; z-index:99999; background:rgba(2, 6, 23, 0.85); backdrop-filter:blur(10px); align-items:center; justify-content:center; animation: fadeIn 0.3s ease;';
+        modal.className = 'email-monitor-modal';
+        modal.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(2,6,23,0.95); backdrop-filter:blur(12px); z-index:9999; display:flex; align-items:center; justify-content:center;`;
+        
         modal.innerHTML = `
-            <div style="background:#0f172a; width:850px; max-width:92%; border-radius:16px; display:flex; flex-direction:column; max-height:88vh; border: 1px solid rgba(99,102,241,0.3); box-shadow: 0 0 40px rgba(99,102,241,0.1), 0 25px 50px -12px rgba(0,0,0,0.8); overflow:hidden;">
-                <div style="padding:1.25rem 1.75rem; border-bottom:1px solid rgba(255,255,255,0.08); background: linear-gradient(90deg, rgba(99,102,241,0.15) 0%, rgba(2,6,23,0) 100%); display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; flex-direction:column; gap:0.25rem;">
-                        <span style="font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; color:var(--primary-color); font-weight:700;">Histórico de Interação</span>
-                        <h3 style="margin:0; font-size:1.25rem; color:#f8fafc; display:flex; align-items:center; gap:0.75rem;">
-                             <i class="ph ph-envelope-open" style="color:var(--primary-color); filter: drop-shadow(0 0 8px var(--primary-color));"></i> 
-                             Cadeia de E-mails (Thread)
-                        </h3>
+            <div style="width:96%; max-width:1100px; height:94%; background:#0b1120; border-radius:24px; border:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; box-shadow:0 10px 100px rgba(0,0,0,0.8); overflow:hidden;">
+                <!-- Header -->
+                <div style="padding:1.4rem 2rem; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; background:#0f172a;">
+                    <div style="display:flex; align-items:center; gap:1.2rem;">
+                         <div style="width:40px; height:40px; border-radius:12px; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.2); display:flex; align-items:center; justify-content:center; color:#818cf8;">
+                            <i class="ph ph-envelope-simple" style="font-size:1.4rem;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase; letter-spacing:1.5px;">HISTÓRICO DE INTERAÇÃO</div>
+                            <h3 style="margin: 0; font-size: 1.4rem; color: #ffffff; font-weight:900; letter-spacing:-0.01em;">
+                                Cadeia de E-mails (Thread)
+                            </h3>
+                        </div>
                     </div>
-                    <button onclick="document.getElementById('email-details-modal').remove()" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#94a3b8; cursor:pointer; font-size:1.25rem; width:36px; height:36px; display:flex; align-items:center; justify-content:center; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'; this.style.color='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8';">
-                        <i class="ph ph-x"></i>
+                    <button onclick="document.getElementById('email-details-modal').remove()" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; width: 38px; height: 38px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;">
+                        <i class="ph ph-x" style="font-size:1.2rem;"></i>
                     </button>
                 </div>
-                <div id="email-details-body" style="padding:2rem; overflow-y:auto; font-size:0.95rem; line-height:1.6; color:#cbd5e1; display:flex; flex-direction:column; background:#020617;">
+
+                <div id="email-details-body" style="padding:0; overflow-y:auto; flex:1; background:#020617; display:flex; flex-direction:column;">
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
         
-        modal.style.display = 'flex';
         const bodyEl = document.getElementById('email-details-body');
-        bodyEl.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:3rem;"><i class="ph ph-spinner ph-spin" style="font-size:2rem; margin-bottom:1rem;"></i><br>Buscando histórico de conversas...</div>`;
+        bodyEl.innerHTML = `<div style="text-align:center; color:#64748b; padding:5rem;"><i class="ph ph-spinner ph-spin" style="font-size:2.5rem; color:#6366f1; margin-bottom:1.5rem;"></i><br><span style="font-weight:600; font-size:1.1rem; color:#94a3b8;">Sincronizando métricas e histórico...</span></div>`;
 
         try {
             const r = await fetch(`/api/email-logs/${id}/thread`);
-            if (!r.ok) throw new Error('Falha ao buscar linha do tempo do e-mail');
+            if (!r.ok) throw new Error('Falha ao buscar linha do tempo');
             const { data } = await r.json();
 
             if (!data || data.length === 0) {
-                bodyEl.innerHTML = `<em style="color:var(--text-muted)">Nenhum e-mail encontrado.</em>`;
+                bodyEl.innerHTML = `<div style="text-align:center; padding:5rem; color:#64748b;">Nenhum e-mail encontrado na thread.</div>`;
                 return;
             }
 
-            let html = '';
+            // ── Métricas e Critérios ──
+            const SENTIMENTS = {
+                very_positive: { label: 'Muito Positivo', color: '#1a9e6e', icon: 'ph-heart-straight' },
+                positive:      { label: 'Positivo',      color: '#34d399', icon: 'ph-chat-circle-dots' },
+                neutral:       { label: 'Neutro',        color: '#d4911a', icon: 'ph-minus-circle' },
+                negative:      { label: 'Negativo',      color: '#f97316', icon: 'ph-warning-circle' },
+                very_negative: { label: 'Muito Negativo', color: '#e05454', icon: 'ph-seal-warning' }
+            };
+
+            const formatDur = (ms) => {
+                if (!ms || ms < 0) return '---';
+                const mins = Math.floor(ms / 60000);
+                if (mins < 1) return '< 1 min';
+                if (mins < 60) return `${mins} min`;
+                const hrs = Math.floor(mins / 60);
+                if (hrs < 24) return `${hrs}h${mins % 60 > 0 ? ` ${mins % 60}m` : ''}`;
+                return `${Math.floor(hrs / 24)} dias`;
+            };
+
+            // Cálculos Avançados
+            let gabiTimes = [], teamTimes = [], clientTimes = [];
+            let counts = { pos: 0, neu: 0, neg: 0 };
+            let totalPoints = 0;
+
+            data.forEach((row, i) => {
+                const s = row.gabi_analysis?.sentiment?.level || 'neutral';
+                if (s.includes('positive')) { counts.pos++; totalPoints += (s==='very_positive'?100:75); }
+                else if (s === 'neutral') { counts.neu++; totalPoints += 50; }
+                else { counts.neg++; totalPoints += (s==='very_negative'?0:25); }
+
+                if (i > 0) {
+                    const diff = new Date(row.sent_at) - new Date(data[i-1].sent_at);
+                    if (row.direction === 'outbound') {
+                        if (row.gabi_analysis?.processed_by_ai) gabiTimes.push(diff);
+                        else teamTimes.push(diff);
+                    } else {
+                        clientTimes.push(diff);
+                    }
+                }
+            });
+
+            const avgP = totalPoints / data.length;
+            const avgS = avgP >= 80 ? 'very_positive' : (avgP >= 60 ? 'positive' : (avgP >= 35 ? 'neutral' : (avgP >= 15 ? 'negative' : 'very_negative')));
+            const sDataG = SENTIMENTS[avgS];
+
+            const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+            const resTimes = [
+                { label: 'GABI', color: '#10b981', val: avg(gabiTimes), limit: 120000 },
+                { label: 'Usuário', color: '#6366f1', val: avg(teamTimes), limit: 7200000 },
+                { label: 'Cliente', color: '#f59e0b', val: avg(clientTimes), limit: 86400000 }
+            ];
+
+            // ── Renderização das Métricas (Top Cards) ──
+            let html = `
+                <div style="padding:2.5rem; background:linear-gradient(180deg, #0f172a 0%, #020617 100%); border-bottom:1px solid rgba(255,255,255,0.06); display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+                    <!-- Sentimento Médio -->
+                    <div id="eml-summary-sentiment" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:20px; padding:2rem; display:flex; flex-direction:column; gap:1.2rem; cursor:help;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:1px;">SENTIMENTO MÉDIO</div>
+                            <i class="ph ph-thermometer" style="color:${sDataG.color}; font-size:1.4rem;"></i>
+                        </div>
+                        <div style="font-size:2.4rem; font-weight:950; color:#fff; letter-spacing:-0.03em;">${sDataG.label}</div>
+                        <div style="height:6px; background:rgba(255,255,255,0.05); border-radius:3px; position:relative;">
+                            <div style="position:absolute; left:0; top:0; height:100%; width:${avgP}%; background:${sDataG.color}; border-radius:3px; box-shadow:0 0 15px ${sDataG.color}44;"></div>
+                        </div>
+                        <div style="display:flex; gap:1.2rem; font-size:11px; font-weight:800;">
+                            <span style="color:#10b981; display:flex; align-items:center; gap:5px;"><i class="ph-fill ph-circle"></i> Pos ×${counts.pos}</span>
+                            <span style="color:#f59e0b; display:flex; align-items:center; gap:5px;"><i class="ph-fill ph-circle"></i> Neu ×${counts.neu}</span>
+                            <span style="color:#ef4444; display:flex; align-items:center; gap:5px;"><i class="ph-fill ph-circle"></i> Neg ×${counts.neg}</span>
+                        </div>
+                    </div>
+
+                    <!-- Tempo de Resposta -->
+                    <div id="eml-summary-team" style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:20px; padding:2rem; display:flex; flex-direction:column; gap:1rem; cursor:help;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:1px;">TEMPO DE RESPOSTA</div>
+                            <i class="ph ph-timer" style="color:#818cf8; font-size:1.4rem;"></i>
+                        </div>
+                        <div style="display:grid; gap:0.8rem;">
+                            ${resTimes.map(t => `
+                                <div style="display:grid; grid-template-columns: 80px 1fr 65px; align-items:center; gap:1rem;">
+                                    <div style="font-size:11px; font-weight:800; color:#94a3b8; display:flex; align-items:center; gap:6px;">
+                                        <div style="width:7px; height:7px; border-radius:50%; background:${t.color};"></div> ${t.label}
+                                    </div>
+                                    <div style="height:4px; background:rgba(255,255,255,0.05); border-radius:2px; position:relative;">
+                                        ${t.val !== null ? `<div style="position:absolute; left:0; top:0; height:100%; width:${Math.min(100, (t.val/t.limit)*100)}%; background:${t.color}; border-radius:3px;"></div>` : ''}
+                                    </div>
+                                    <div style="font-size:11px; font-weight:900; color:#ffffff; text-align:right;">${t.val !== null ? (t.val < 60000 ? '<1 min' : formatDur(t.val)) : '---'}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div style="font-size:9.5px; color:#475569; font-weight:700; margin-top:5px; border-top:1px solid rgba(255,255,255,0.03); padding-top:8px;">
+                            Ref. email: GABI ≤2min · Equipe ≤2h · Cliente ≤24h
+                        </div>
+                    </div>
+                </div>
+
+                <div style="padding:2.5rem 4rem; background:#020617;">
+                    <!-- Timeline -->
+                    <div style="border-left: 2px solid rgba(255,255,255,0.06); position: relative; display:flex; flex-direction:column;">
+            `;
+
+            // ── Loop Principal da Timeline ──
             data.forEach((row, idx) => {
-                const isLast = idx === data.length - 1;
                 const isInbound = row.direction === 'inbound';
-                const count = idx + 1;
+                const isGabi = row.gabi_analysis?.processed_by_ai;
+                const s = row.gabi_analysis?.sentiment?.level || 'neutral';
+                const sData = SENTIMENTS[s];
+                const senderColor = isInbound ? '#10b981' : (isGabi ? '#8b5cf6' : '#3b82f6');
                 
-                // Padrão de Cores e Ícones
-                const color = isInbound ? '#3b82f6' : '#10b981'; // Azul Royal vs Verde Esmeralda
-                const badgeLabel = isInbound ? 'Recebido' : 'Enviado';
-                const badgeIcon = isInbound ? 'ph-arrow-arc-left' : 'ph-paper-plane-tilt';
-                
-                // Formata nomes
-                const fromStr = isInbound ? row.recipient : 'Gabi (Journey)';
-                const toStr = isInbound ? 'Gabi (Journey)' : row.recipient;
+                const prev = idx > 0 ? data[idx-1] : null;
+                const tDiff = prev ? new Date(row.sent_at) - new Date(prev.sent_at) : 0;
 
-                const gabi = row.gabi_analysis || {};
-                let analysisHtml = '';
-                
-                if (gabi && gabi.processed_by_ai) {
-                    analysisHtml = `
-                        <div style="background:rgba(99,102,241,0.05); border:1px solid rgba(99,102,241,0.15); padding:1rem; border-radius:12px; margin-top:2rem; border-left:4px solid var(--primary-color);">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                                <strong style="color:var(--primary-color); display:flex; align-items:center; gap:0.5rem; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;">
-                                    <i class="ph ph-brain" style="font-size:1.2rem;"></i> Gabi: Triagem & Raciocínio (Interno)
-                                </strong>
-                                <span style="font-size:0.7rem; color:#64748b; background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:20px;">IA Model: Gemini v1</span>
-                            </div>
-                            
-                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                <div>
-                                    <span style="font-size:11.5px; color:#cbd5e1; display:block; margin-bottom:0.25rem; text-transform:uppercase; font-weight:700;">INTENÇÃO DETECTADA:</span>
-                                    <strong style="color:#ffffff; font-size:0.9rem;">${gabi.intent}</strong>
-                                </div>
-                                <div>
-                                    <span style="font-size:11.5px; color:#cbd5e1; display:block; margin-bottom:0.25rem; text-transform:uppercase; font-weight:700;">AÇÃO EXECUTADA:</span>
-                                    <strong style="color:#10b981; font-size:0.9rem;">${gabi.action_taken === 'auto_replied' ? '✅ Resposta Automática' : '👤 Transbordo Humano'}</strong>
-                                </div>
-                            </div>
-
-                            <div style="font-size:0.85rem; color:#cbd5e1; line-height:1.6;">
-                                <span style="font-size:0.75rem; color:#94a3b8; display:block; margin-bottom:0.4rem; font-weight:700;">PROCESSO DE PENSAMENTO DA IA:</span>
-                                ${gabi.summary}
-                            </div>
-
-                            ${gabi.generated_reply ? `
-                                <div style="margin-top:1.25rem; background:rgba(0,0,0,0.2); padding:0.75rem; border-radius:8px; border:1px dashed rgba(99,102,241,0.2);">
-                                    <span style="font-size:0.7rem; color:var(--primary-color); display:block; margin-bottom:0.4rem; font-weight:700;">PROPOSTA DE RESPOSTA (ENVIADA EM SEGUIDA):</span>
-                                    <div style="font-size:0.8rem; color:#94a3b8; font-style:italic; line-height:1.4;">"${_esc(gabi.generated_reply.substring(0, 100))}..."</div>
-                                </div>
-                            ` : ''}
+                // Banner de Eficiência (Entre Cards)
+                if (idx > 0 && row.direction === 'outbound') {
+                    const isExc = tDiff < (isGabi ? 120000 : 7200000);
+                    html += `
+                        <div style="margin:0.5rem 0 1.5rem 2.8rem; display:flex; align-items:center; gap:0.6rem; background:${isExc?'rgba(16,185,129,0.08)':'rgba(245,158,11,0.08)'}; padding:6px 14px; border-radius:30px; border:1px solid ${isExc?'rgba(16,185,129,0.15)':'rgba(245,158,11,0.15)'}; width:fit-content;">
+                            <span style="font-size:11px; font-weight:900; color:${isExc?'#10b981':'#f59e0b'}; text-transform:uppercase; letter-spacing:0.5px;">
+                                » ${isGabi?'GABI':'EQUIPE'} respondeu em ${tDiff<60000?'<1 min':formatDur(tDiff)} — ${isExc?'excelente':'aceitável'}
+                                <span style="opacity:0.6; font-weight:700;"> (limite: ${isGabi?'2 min':'2h'})</span>
+                            </span>
                         </div>
                     `;
                 }
 
-                let contentHtml = '';
-                if (row.content) {
-                    const isHtml = row.direction === 'outbound' || /<body|<html/i.test(row.content);
-                    if (isHtml) {
-                        const safeSrcDoc = String(row.content)
-                            .replace(/&/g, '&amp;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#39;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;');
-                        contentHtml = `
-                            <div style="margin-top:1rem; border:1px solid rgba(255,255,255,0.1); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-                                <div style="background:#f8fafc; padding:0.5rem 1rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-size:0.7rem; color:#64748b; font-weight:600; text-transform:uppercase;">Visualização do E-mail Enviado</span>
-                                    <i class="ph ph-monitor" style="color:#94a3b8;"></i>
-                                </div>
-                                <iframe srcdoc="${safeSrcDoc}" style="width:100%; height:420px; border:none; display:block;"></iframe>
-                            </div>
-                        `;
-                    } else {
-                        contentHtml = `
-                            <div style="white-space:pre-wrap; background:rgba(255,255,255,0.03); padding:1.25rem; border-radius:10px; font-size:0.9rem; max-height:350px; overflow-y:auto; line-height:1.6; color:#e2e8f0; margin-top:1rem; border:1px solid rgba(255,255,255,0.08);">
-                                ${_esc(row.content)}
-                            </div>
-                        `;
-                    }
-                } else {
-                    contentHtml = `<div style="padding:2rem; text-align:center; background:rgba(255,255,255,0.02); border-radius:10px; margin-top:1rem; border:1px dashed rgba(255,255,255,0.1); color:#64748b; font-style:italic;">Conteúdo da mensagem não capturado no log histórico.</div>`;
-                }
-
                 html += `
-                    <div style="position:relative; padding-left:3.5rem; padding-bottom:${isLast ? '0' : '3.5rem'};">
-                        <!-- Timeline Lane -->
-                        <div style="position:absolute; left:0.9rem; top:2.5rem; bottom:0; width:2px; background:linear-gradient(to bottom, ${color} 0%, rgba(255,255,255,0.05) 100%); display:${isLast ? 'none' : 'block'}; opacity:0.3;"></div>
-                        
-                        <!-- Timeline Node (#) -->
-                        <div style="position:absolute; left:0; top:0; width:2rem; height:2rem; border-radius:8px; background:${color}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:0.8rem; box-shadow:0 0 15px ${color}44; z-index:2;">
-                            #${count}
+                    <div style="position:relative; margin-bottom:3rem; padding-left:3.5rem;">
+                        <!-- Node Circle -->
+                        <div style="position:absolute; left:-1.25rem; top:0; width:2.5rem; height:2.5rem; border-radius:10px; background:${senderColor}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:0.95rem; z-index:2; border:2px solid #020617; box-shadow:0 0 15px ${senderColor}44;">
+                            #${idx+1}
                         </div>
 
-                        <!-- Badge Status -->
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
-                            <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
-                                <div style="display:flex; flex-direction:column; gap:0.2rem;">
-                                    <span style="font-size:11.5px; color:#cbd5e1; text-transform:uppercase; font-weight:700;">De: <span style="color:#ffffff; text-transform:none; font-weight:600;">${_esc(fromStr)}</span></span>
-                                    <span style="font-size:11.5px; color:#cbd5e1; text-transform:uppercase; font-weight:700;">Para: <span style="color:#ffffff; text-transform:none; font-weight:600;">${_esc(toStr)}</span></span>
-                                </div>
-                            </div>
+                        <!-- Card de Mensagem -->
+                        <div style="background:#0f172a; border:1px solid rgba(255,255,255,0.06); border-radius:20px; box-shadow:0 20px 40px rgba(0,0,0,0.3); overflow:hidden;">
                             
-                            <div style="display:flex; align-items:center; gap:1rem;">
-                                <div style="font-size:0.75rem; color:#64748b; display:flex; align-items:center; gap:0.3rem;"><i class="ph ph-calendar"></i> ${_fmt(row.sent_at)}</div>
-                                <div style="background:${color}15; color:${color}; border:1px solid ${color}33; display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.8rem; border-radius:8px; font-weight:700; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px;">
-                                    <i class="ph ${badgeIcon}"></i> ${badgeLabel}
+                            <!-- Header do Card -->
+                            <div style="padding:1.4rem 2rem; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.015);">
+                                <div style="display:flex; align-items:center; gap:2rem;">
+                                    <div style="font-size:12px; line-height:1.5;">
+                                        <div style="color:#ffffff; font-weight:800;"><span style="color:#475569; text-transform:uppercase; font-size:9.5px;">DE:</span> ${row.direction==='outbound'?'Gabi (Journey)':_esc(row.recipient)}</div>
+                                        <div style="color:#94a3b8; font-weight:600;"><span style="color:#475569; text-transform:uppercase; font-size:9.5px;">PARA:</span> ${row.direction==='inbound'?'Gabi (Journey)':_esc(row.recipient)}</div>
+                                    </div>
+                                    <div style="height:28px; width:1px; background:rgba(255,255,255,0.06);"></div>
+                                    <div style="font-size:11.5px; color:#ffffff; font-weight:850; display:flex; align-items:center; gap:8px;">
+                                        ${_fmtShort(row.sent_at)}
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; gap:0.6rem; align-items:center;">
+                                    <div style="padding:5px 12px; border-radius:10px; font-size:10px; font-weight:900; background:${sData.color}15; color:${sData.color}; border:1px solid ${sData.color}25; display:flex; align-items:center; gap:6px;">
+                                        <i class="ph-fill ${sData.icon}"></i> ${sData.label.toUpperCase()}
+                                    </div>
+                                    ${idx > 0 && row.direction === 'outbound' ? `
+                                        <div style="padding:5px 12px; border-radius:10px; font-size:10px; font-weight:900; background:rgba(99,102,241,0.1); color:#818cf8; border:1px solid rgba(99,102,241,0.2); display:flex; align-items:center; gap:6px;">
+                                            <i class="ph ph-timer"></i> ${tDiff<60000?'<1 min':formatDur(tDiff)}
+                                        </div>
+                                    ` : ''}
+                                    ${isGabi ? `<span style="padding:5px 10px; border-radius:8px; background:rgba(139,92,246,0.15); color:#a78bfa; font-weight:900; font-size:10px; border:1px solid rgba(139,92,246,0.3);">IA</span>` : ''}
+                                    <div style="padding:5px 12px; border-radius:10px; font-size:10px; font-weight:900; background:${isInbound?'rgba(59,130,246,0.1)':'rgba(16,185,129,0.1)'}; color:${isInbound?'#3b82f6':'#10b981'}; border:1px solid ${isInbound?'rgba(59,130,246,0.2)':'rgba(16,185,129,0.2)'}; display:flex; align-items:center; gap:6px;">
+                                        <i class="ph ${isInbound ? 'ph-arrow-u-up-left' : 'ph-check'}"></i> ${isInbound ? 'RECEBIDO' : 'ENVIADO'}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Card Content -->
-                        <div style="background:#0f172a; border-radius:16px; border:1px solid rgba(255,255,255,0.06); padding:1.5rem; box-shadow:0 10px 25px rgba(0,0,0,0.3);">
-                            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
-                                <span style="font-size:0.7rem; color:#64748b; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">Mensagem Original:</span>
-                                <div style="flex:1; height:1px; background:rgba(255,255,255,0.05);"></div>
+                            <div style="padding:2rem; background:#020617;">
+                                <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; margin-bottom:1rem; display:flex; align-items:center; gap:6px;">
+                                    <i class="ph ph-text-align-left"></i> MENSAGEM ORIGINAL
+                                </div>
+                                <h4 style="margin:0 0 1.5rem; color:#ffffff; font-size:1.4rem; font-weight:900; letter-spacing:-0.02em;">${_esc(row.subject)}</h4>
+
+                                ${row.content ? `
+                                    <div style="background:#ffffff; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+                                        <div style="background:#f8fafc; padding:0.6rem 1.4rem; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                            <span style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Visualização do E-mail</span>
+                                            <i class="ph ph-monitor" style="color:#cbd5e1;"></i>
+                                        </div>
+                                        <div style="padding:1.5rem; overflow-x:auto;">
+                                            ${(/<body|<html/i.test(row.content)) 
+                                                ? `<iframe srcdoc="${_esc(row.content).replace(/"/g, '&quot;')}" style="width:100%; height:450px; border:none;"></iframe>`
+                                                : `<div style="color:#1e293b; font-size:1rem; line-height:1.7; white-space:pre-wrap;">${_esc(row.content)}</div>`
+                                            }
+                                        </div>
+                                    </div>
+                                ` : `<div style="padding:4rem; text-align:center; color:#475569; font-style:italic; border:1px dashed rgba(255,255,255,0.1); border-radius:14px;">Conteúdo indisponível.</div>`}
+
+                                ${isGabi ? `
+                                    <div style="margin-top:2rem; background:rgba(99,102,241,0.04); border:1px solid rgba(99,102,241,0.15); border-radius:18px; padding:1.8rem;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.8rem;">
+                                            <div style="display:flex; align-items:center; gap:0.6rem; color:#818cf8; font-size:11.5px; font-weight:900; text-transform:uppercase; letter-spacing:1px;">
+                                                <i class="ph ph-brain" style="font-size:1.5rem;"></i> GABI: TRIAGEM & RACIOCÍNIO (INTERNO)
+                                            </div>
+                                            <div style="padding:4px 12px; background:rgba(99,102,241,0.1); border-radius:8px; font-size:9.5px; color:#818cf8; font-weight:800;">IA MODEL: GEMINI v1</div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:2.5rem; margin-bottom:1.8rem;">
+                                            <div>
+                                                <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; margin-bottom:0.6rem;">INTENÇÃO DETECTADA</div>
+                                                <div style="color:#ffffff; font-weight:900; font-size:1.15rem;">${_esc(row.gabi_analysis.intent)}</div>
+                                            </div>
+                                            <div>
+                                                <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; margin-bottom:0.6rem;">AÇÃO EXECUTADA</div>
+                                                <div style="color:#34d399; font-weight:900; font-size:1.15rem; display:flex; align-items:center; gap:0.5rem;">
+                                                    <i class="ph ph-check-circle"></i> Resposta Automática
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-bottom:1.8rem;">
+                                            <div style="font-size:10px; color:#475569; font-weight:800; text-transform:uppercase; margin-bottom:0.6rem;">PROCESSO DE PENSAMENTO DA IA:</div>
+                                            <div style="color:#cbd5e1; font-size:0.95rem; line-height:1.7;">${_esc(row.gabi_analysis.summary || 'A IA processou o e-mail de forma objetiva.')}</div>
+                                        </div>
+                                         <div style="background:rgba(0,0,0,0.3); border-radius:14px; border:1px solid rgba(255,255,255,0.03); padding:1.2rem;">
+                                            <div style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase; margin-bottom:0.8rem;">PROPOSTA DE RESPOSTA (ENVIADA EM SEGUIDA):</div>
+                                            <div style="color:#818cf8; font-size:0.95rem; line-height:1.6; font-style:italic;">"${_esc(row.gabi_analysis.summary || 'Veja card seguinte.')}"</div>
+                                        </div>
+                                    </div>
+                                ` : ''}
                             </div>
-                            <h4 style="margin:0 0 0.5rem 0; font-size:1.05rem; color:#f8fafc; font-weight:700;">${_esc(row.subject)}</h4>
-                            ${contentHtml}
-                            ${analysisHtml}
                         </div>
                     </div>
                 `;
             });
+
+            html += `
+                    </div> <!-- End of Timeline -->
+                </div> <!-- End of Content Container -->
+            `;
+
             bodyEl.innerHTML = html;
+
+            // ── Tooltips ──
+            initTooltipSystem();
+            bindTooltip(document.getElementById('eml-summary-sentiment'), {
+                titulo: 'Tom de Comunicação',
+                desc: 'Média de todas as interações. Ajuda a identificar o humor dos clientes ao longo da thread.',
+                video: true, type: 'status'
+            });
+            bindTooltip(document.getElementById('eml-summary-team'), {
+                titulo: 'Métricas de Agilidade',
+                desc: 'Monitoramento de SLA por tipo de agente. GABI responde instantaneamente para filtrar demandas.',
+                video: true, type: 'proximoPasso'
+            });
+
         } catch(e) {
-            bodyEl.innerHTML = `<div style="color:#ef4444; padding:1rem; text-align:center;">Erro ao carregar thread: ${e.message}</div>`;
+            bodyEl.innerHTML = `<div style="color:#ef4444; padding:5rem; text-align:center;"><i class="ph ph-warning-circle" style="font-size:2.5rem; margin-bottom:1rem;"></i><br>Erro ao carregar thread: ${e.message}</div>`;
         }
+    }
+
+
+    function _fmtShort(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
     }
 
     return { init, refresh, setSearch, setStatus, setTemplate, setDateFrom, setDateTo, clearFilters, handleSort, showDetails };

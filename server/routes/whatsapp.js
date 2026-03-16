@@ -126,6 +126,7 @@ async function geminiGenerate(body) {
 
 // ── Helper: busca ou cria conversa open para um número ───────────────────────
 async function findOrCreateConversation(waPhoneNumber) {
+    const { randomUUID } = await import('crypto');
     const normalized = normalizePhone(waPhoneNumber);
 
     // Busca conversa aberta
@@ -141,18 +142,73 @@ async function findOrCreateConversation(waPhoneNumber) {
     if (conv) return conv;
 
     // Tenta vincular a um contato pelo número
-    const allContacts = await prisma.contacts.findMany({
-        where: { WhatsApp: { not: null } },
-        select: { id: true, companyId: true, WhatsApp: true },
-    });
-    const matched = allContacts.find(c => normalizePhone(c.WhatsApp) === normalized);
+    // Para o Brasil, lidamos com variações de 12 e 13 dígitos (9º dígito)
+    let matched = null;
+    let baseDigits = normalized;
+    if (normalized.startsWith('55') && normalized.length === 13) {
+        // Tenta achar com e sem o 9 logo após o DDD
+        const ddd = normalized.substring(2, 4);
+        const semOito = normalized.substring(0, 4) + normalized.substring(5); // sem o 9
+        const variacoes = [normalized, semOito];
+        
+        matched = await prisma.contacts.findFirst({
+            where: {
+                OR: [
+                    { WhatsApp: { in: variacoes } },
+                    { WhatsApp: { in: variacoes.map(v => `+${v}`) } },
+                    { WhatsApp: { in: variacoes.map(v => `${v.substring(0,2)} (${v.substring(2,4)}) ${v.substring(4,8)}-${v.substring(8)}`) } }
+                ]
+            },
+            select: { id: true, companyId: true, Nome_do_contato: true }
+        });
+    } else {
+        matched = await prisma.contacts.findFirst({
+            where: {
+                OR: [
+                    { WhatsApp: normalized },
+                    { WhatsApp: `+${normalized}` },
+                ]
+            },
+            select: { id: true, companyId: true, Nome_do_contato: true }
+        });
+    }
+
+    // Busca empresa se matched
+    let company = null;
+    if (matched?.companyId) {
+        company = await prisma.companies.findUnique({
+            where: { id: matched.companyId },
+            select: { id: true, Nome_da_empresa: true }
+        });
+    }
+
+    // Se identificou empresa, cria atividade automaticamente (Requisito 4)
+    let activityId = null;
+    if (company) {
+        const activity = await prisma.activities.create({
+            data: {
+                id: randomUUID(),
+                company_id: company.id,
+                activity_type: 'Chamados HD',
+                title: `Atendimento WhatsApp: ${matched.Nome_do_contato || 'Contato'}`,
+                description: `Chamado iniciado via WhatsApp (${normalized}). Aguardando encerramento para resumo Gabi.`,
+                status: 'Em Andamento',
+                activity_datetime: new Date(),
+            }
+        });
+        activityId = activity.id;
+        console.log(`[WhatsApp] ⚡ Atividade autogerada: ${activity.id} para empresa ${company.Nome_da_empresa}`);
+    }
 
     conv = await prisma.whatsapp_conversations.create({
         data: {
             wa_phone_number: normalized,
             contact_id:      matched?.id     || null,
             company_id:      matched?.companyId || null,
+            contact_nome:    matched?.Nome_do_contato || null,
+            company_nome:    company?.Nome_da_empresa || null,
             status:          'open',
+            activity_id:     activityId,
         },
         include: { contacts: true, companies: true },
     });
@@ -244,6 +300,62 @@ router.post('/webhook', async (req, res) => {
                 });
 
                 console.log(`[WhatsApp] 📩 Mensagem recebida de +${evt.from} (conv: ${conv.id})`);
+
+                // ── MODO GABI: Auto-reply se configurado (Requisito 6/7) ──────────
+                if (conv.ai_enabled) {
+                    console.log(`[WhatsApp] 🤖 Modo Gabi ativo na conversa ${conv.id}. Gerando resposta...`);
+                    
+                    try {
+                        const history = await prisma.whatsapp_messages.findMany({
+                            where: { conversation_id: conv.id },
+                            orderBy: { created_at: 'desc' },
+                            take: 10
+                        });
+                        const reversedHistory = history.reverse();
+                        const promptMessages = reversedHistory.map(m => ({
+                            role: m.direction === 'inbound' ? 'user' : 'model',
+                            parts: [{ text: m.content }]
+                        }));
+                        const systemPrompt = `Você é a Gabi, assistente inteligente da DATI no sistema Journey. 
+Responda de forma curta, profissional e amigável via WhatsApp.
+Você ajuda clientes da empresa ${conv.company_nome || 'DATI'}.
+Se não souber algo, peça para aguardar um atendente.
+Pule linhas para facilitar a leitura.`;
+                        const gabiBody = {
+                            contents: [{ role: 'user', parts: [{ text: systemPrompt }] }, ...promptMessages],
+                            generationConfig: { temperature: 0.2, maxOutputTokens: 500 }
+                        };
+                        const gabiResp = await geminiGenerate(gabiBody);
+                        const aiResponse = gabiResp?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        
+                        if (aiResponse) {
+                            const result = await sendTextMessage(`+${conv.wa_phone_number}`, aiResponse, {
+                                origin: 'gabi',
+                                conversation_id: conv.id,
+                                company_id: conv.company_id
+                            });
+                            if (result.sent) {
+                                const gabiMsg = await prisma.whatsapp_messages.create({
+                                    data: {
+                                        conversation_id: conv.id,
+                                        wa_message_id: result.wa_message_id || null,
+                                        direction: 'outbound',
+                                        content_type: 'text',
+                                        content: aiResponse,
+                                        origin: 'gabi',
+                                        status: 'sent'
+                                    }
+                                });
+                                emitToAgents('new_message', {
+                                    conversationId: conv.id,
+                                    message: { ...gabiMsg, created_at: gabiMsg.created_at?.toISOString() }
+                                });
+                            }
+                        }
+                    } catch (aiErr) {
+                        console.error(`[WhatsApp] Erro na resposta da Gabi:`, aiErr.message);
+                    }
+                }
 
                 // ── Emite SSE para agentes conectados ──────────────────────────────
                 emitToAgents('new_message', {
@@ -404,6 +516,23 @@ router.post('/start', requireAuth(), extractUser, async (req, res) => {
         // Cria conversa no banco
         const { randomUUID } = await import('crypto');
         const convId = randomUUID();
+        // Se identificou empresa, cria atividade automaticamente (Requisito 4)
+        let activityId = null;
+        if (company) {
+            const activity = await prisma.activities.create({
+                data: {
+                    id: randomUUID(),
+                    company_id: company.id,
+                    activity_type: 'Chamados HD',
+                    title: `Atendimento WhatsApp: ${contactName || contact?.Nome_do_contato || 'Contato'}`,
+                    description: `Chamado iniciado via sistema Journey para o número ${cleanPhone}.`,
+                    status: 'Em Andamento',
+                    activity_datetime: new Date(),
+                }
+            });
+            activityId = activity.id;
+        }
+
         const conv = await prisma.whatsapp_conversations.create({
             data: {
                 id:              convId,
@@ -414,6 +543,7 @@ router.post('/start', requireAuth(), extractUser, async (req, res) => {
                 contact_nome:    contactName || contact?.Nome_do_contato || null,
                 company_id:      company?.id || null,
                 company_nome:    company?.Nome_da_empresa || null,
+                activity_id:     activityId,
             },
         });
 
@@ -425,9 +555,11 @@ router.post('/start', requireAuth(), extractUser, async (req, res) => {
         });
 
         if (!result.sent) {
-            // Apaga a conversa se não foi possível enviar
-            await prisma.whatsapp_conversations.delete({ where: { id: convId } });
-            return res.status(502).json({ error: result.error || 'Falha ao enviar mensagem. Verifique se o número está na lista de destinatários autorizados.' });
+            let errorMsg = result.error || 'Falha ao enviar mensagem.';
+            if (errorMsg.includes('access token') || errorMsg.includes('expired')) {
+                errorMsg = 'O Token do WhatsApp expirou ou é inválido. A meta exige um "System User Access Token" PERMANENTE para produção. Gere um novo nas configurações de usuários do Business Manager.';
+            }
+            return res.status(502).json({ error: errorMsg });
         }
 
         // Registra mensagem outbound
@@ -471,6 +603,14 @@ router.post('/conversations/:id/close', requireAuth(), extractUser, async (req, 
         });
         if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
         if (conv.status === 'closed') return res.status(400).json({ error: 'Conversa já encerrada' });
+
+        // Regra de Obrigatoriedade: a conversa DEVE estar vinculada a uma empresa para fechar e gerar log
+        if (!conv.company_id) {
+            return res.status(400).json({ 
+                error: 'Vínculo empresa obrigatório', 
+                message: 'Vincule este número a uma empresa antes de encerrar para garantir o log de atendimento.' 
+            });
+        }
 
         const messages = await prisma.whatsapp_messages.findMany({
             where:   { conversation_id: convId },
@@ -518,7 +658,7 @@ Critérios de temperatura:
 - positivo (4): cliente satisfeito, problema resolvido, tom amigável
 - encantado (5): cliente muito satisfeito, elogios, promotor
 
-Baseie em: linguagem do cliente, resolução do problema, sinais de churn ou upsell.
+Baseie em: linguagem do cliente, resolução do problema, sinais de churn ou upsell. Se o assunto for vago, tente identificar a intenção principal. Nunca retorne apenas "Atendimento WhatsApp" se houver conteúdo na conversa.
 
 Transcript:
 ${transcript || '(sem mensagens)'}`
@@ -545,34 +685,56 @@ ${transcript || '(sem mensagens)'}`
             console.warn('[WhatsApp] Gabi análise falhou, usando padrão neutro:', gabiErr.message);
         }
 
-        // 5. Cria activity "Chamados HD"
-        const { randomUUID } = await import('crypto');
+        // 5. Atualiza ou cria activity "Chamados HD"
         const activityTitle = `WA: ${analise.resumo.substring(0, 80)}`;
         const activityDesc  = `${analise.resumo}\n\nAções sugeridas:\n${analise.acoes_sugeridas.map(a => `• ${a}`).join('\n')}`;
 
-        const activity = await prisma.activities.create({
-            data: {
-                id:              randomUUID(),
-                activity_type:   'Chamados HD',
-                title:           activityTitle,
-                description:     activityDesc,
-                company_id:      conv.company_id || null,
-                status:          'Concluído',
-                time_spent_minutes: durationMinutes,
-                created_by_user_id: userId,
-                updated_at:      closedAt,
-            },
-        });
+        let resultActivity = null;
+        let activityId = conv.activity_id;
+        if (activityId) {
+            // Atualiza atividade existente
+            resultActivity = await prisma.activities.update({
+                where: { id: activityId },
+                data: {
+                    title:              activityTitle,
+                    description:        activityDesc,
+                    status:             'Concluído',
+                    time_spent_minutes: durationMinutes,
+                    updated_at:         closedAt,
+                }
+            });
+        } else {
+            // Cria nova se não foi criada ao abrir (fallback)
+            const { randomUUID } = await import('crypto');
+            resultActivity = await prisma.activities.create({
+                data: {
+                    id:              randomUUID(),
+                    activity_type:   'Chamados HD',
+                    title:           activityTitle,
+                    description:     activityDesc,
+                    company_id:      conv.company_id || null,
+                    status:          'Concluído',
+                    time_spent_minutes: durationMinutes,
+                    created_by_user_id: userId,
+                    updated_at:      closedAt,
+                },
+            });
+            activityId = resultActivity.id;
+        }
 
         // 6. Cria activity_time_logs
+        const { randomUUID: uuidLog } = await import('crypto');
         await prisma.activity_time_logs.create({
             data: {
-                id:               randomUUID(),
-                activity_id:      activity.id,
+                id:               uuidLog(),
+                activity_id:      activityId,
                 started_at:       openedAt,
                 duration_minutes: durationMinutes,
-                subject:          'Atendimento WhatsApp',
+                subject:          `Atendimento WhatsApp: ${analise.resumo.substring(0, 50)}...`,
                 created_by:       userId,
+                // ── NOVOS CAMPOS PARA "PASTA TEMPO" ──
+                contact_nome:     conv.contact_nome || `+${conv.wa_phone_number}` || 'Contato',
+                activity_type:    'Chamados HD', // padrão para WhatsApp Inbox
             },
         });
 
@@ -582,7 +744,7 @@ ${transcript || '(sem mensagens)'}`
             data: {
                 status:                'closed',
                 closed_at:             closedAt,
-                activity_id:           activity.id,
+                activity_id:           activityId,
                 gabi_temperatura:      analise.temperatura,
                 gabi_temperatura_score: analise.temperatura_score,
                 gabi_resumo:           analise.resumo,
@@ -609,25 +771,131 @@ ${transcript || '(sem mensagens)'}`
             entity_id:   convId,
             entity_name: `Conversa WA +${conv.wa_phone_number}`,
             description: `Encerrou conversa WhatsApp (${durationMinutes}min) — temperatura: ${analise.temperatura} — Atividade criada: ${activityTitle}`,
-            meta:        { duracao_minutos: durationMinutes, temperatura: analise.temperatura, activity_id: activity.id },
+            meta:        { duracao_minutos: durationMinutes, temperatura: analise.temperatura, activity_id: resultActivity.id },
             company_id:  conv.company_id || null,
         });
 
         // 10. Emite SSE
         emitToAgents('conversation_closed', {
             conversationId: convId,
-            activityId:     activity.id,
+            activityId:     resultActivity.id,
             analise,
         });
 
         return res.json({
             ok:       true,
-            activity: { id: activity.id, title: activity.title },
+            activity: { id: resultActivity.id, title: resultActivity.title },
             analise,
         });
 
     } catch (err) {
         console.error('[WhatsApp POST /close]', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── POST /api/whatsapp/conversations/:id/link ── Vínculo manual ──────────────
+router.post('/conversations/:id/link', requireAuth(), extractUser, async (req, res) => {
+    try {
+        const convId = req.params.id;
+        const { contact_id, company_id, contact_nome: manual_nome } = req.body;
+
+        if (!contact_id && !company_id && !manual_nome) {
+            return res.status(400).json({ error: 'Informe um contato, empresa ou nome para vincular.' });
+        }
+
+        const conv = await prisma.whatsapp_conversations.findUnique({ where: { id: convId } });
+        if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+
+        let contactId   = contact_id || conv.contact_id;
+        let companyId   = company_id || conv.company_id;
+        let contactNome = manual_nome || conv.contact_nome;
+        let companyNome = conv.company_nome;
+
+        // 1. Resolve Contato
+        if (contact_id) {
+            const contact = await prisma.contacts.findUnique({ where: { id: contact_id } });
+            if (contact) {
+                contactNome = contact.Nome_do_contato;
+                if (!companyId) companyId = contact.companyId;
+            }
+        }
+
+        // 2. Resolve Empresa
+        if (companyId) {
+            const company = await prisma.companies.findUnique({ where: { id: company_id } });
+            if (company) companyNome = company.Nome_da_empresa;
+        }
+
+        // 3. Auto-criação de Contato no CRM se tiver Empresa + Nome + Telefone
+        if (companyId && contactNome && !contactId && conv.wa_phone_number) {
+            try {
+                const { randomUUID } = await import('crypto');
+                const newContact = await prisma.contacts.create({
+                    data: {
+                        id: randomUUID(),
+                        companyId: companyId,
+                        Nome_do_contato: contactNome,
+                        WhatsApp: conv.wa_phone_number,
+                    }
+                });
+                contactId = newContact.id;
+                console.log(`[WhatsApp] 👤 Contato criado via vínculo: ${contactNome} (id: ${contactId})`);
+            } catch (err) {
+                console.warn('[WhatsApp] Falha ao criar contato no CRM:', err.message);
+                // Segue sem ID de contato, mas com nome
+            }
+        }
+
+        const updated = await prisma.whatsapp_conversations.update({
+            where: { id: convId },
+            data: {
+                contact_id:   contactId || null,
+                company_id:   companyId || null,
+                contact_nome: contactNome,
+                company_nome: companyNome,
+                updated_at:   new Date()
+            },
+            include: { contacts: true, companies: true }
+        });
+
+        // Se já existe uma atividade vinculada, sincroniza a empresa nela
+        if (updated.activity_id && updated.company_id) {
+            await prisma.activities.update({
+                where: { id: updated.activity_id },
+                data: { company_id: updated.company_id }
+            }).catch(() => {});
+        }
+
+        return res.json({ 
+            ok: true, 
+            contact_nome: updated.contact_nome, 
+            company_nome: updated.company_nome 
+        });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── POST /api/whatsapp/conversations/:id/ai ── Toggle modo Gabi ───────────────
+router.post('/conversations/:id/ai', requireAuth(), extractUser, async (req, res) => {
+    try {
+        const convId = req.params.id;
+        const { enabled } = req.body;
+
+        const conv = await prisma.whatsapp_conversations.findUnique({ where: { id: convId } });
+        if (!conv) return res.status(404).json({ error: 'Conversa não encontrada' });
+
+        await prisma.whatsapp_conversations.update({
+            where: { id: convId },
+            data: { ai_enabled: !!enabled, updated_at: new Date() }
+        });
+
+        const statusLabel = !!enabled ? 'ativado' : 'desativado';
+        console.log(`[WhatsApp] 🤖 Modo Gabi ${statusLabel} para conversa ${convId}`);
+        
+        return res.json({ ok: true, ai_enabled: !!enabled });
+    } catch (err) {
         return res.status(500).json({ error: err.message });
     }
 });
@@ -780,6 +1048,118 @@ router.get('/stats', requireAuth(), async (req, res) => {
     } catch (err) {
         console.error('[WhatsApp GET /stats]', err.message);
         return res.status(500).json({ error: err.message });
+    }
+});
+
+// ── HELPER: app_settings ─────────────────────────────────────────────────────
+async function _getSetting(key, fallback = null) {
+    try {
+        const row = await prisma.app_settings.findUnique({ where: { key } });
+        return row?.value || fallback;
+    } catch {
+        return fallback;
+    }
+}
+
+// ── GET /api/whatsapp/usage ───────────────────────────────────────────────────
+router.get('/usage', requireAuth(), async (req, res) => {
+    try {
+        const now   = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        
+        const logs = await prisma.whatsapp_usage_logs.findMany({
+            where: { created_at: { gte: start, lt: end } },
+            orderBy: { created_at: 'desc' },
+            take: 200
+        });
+
+        const monthly = {
+            cost:   logs.reduce((s, l) => s + (l.cost_usd || 0), 0),
+            sessions: logs.length, // Cada log é uma sessão ou disparo cobrado
+        };
+
+        const byDay = {};
+        logs.forEach(l => {
+            const day = new Date(l.created_at).toLocaleDateString('pt-BR');
+            if (!byDay[day]) byDay[day] = { cost: 0, sessions: 0 };
+            byDay[day].cost  += (l.cost_usd || 0);
+            byDay[day].sessions += 1;
+        });
+        const daily = Object.entries(byDay).map(([date, v]) => ({ date, ...v }));
+
+        res.json({
+            monthly, 
+            daily,
+            token_configured: !!(await _getSetting('whatsapp_access_token')) || !!process.env.WHATSAPP_ACCESS_TOKEN,
+            phone_id_configured: !!(await _getSetting('whatsapp_phone_number_id')) || !!process.env.WHATSAPP_PHONE_NUMBER_ID,
+            phone_id: (await _getSetting('whatsapp_phone_number_id')) || process.env.WHATSAPP_PHONE_NUMBER_ID || '',
+            limit: parseFloat(await _getSetting('whatsapp_monthly_limit_usd', process.env.WHATSAPP_MONTHLY_LIMIT_USD || '20')),
+            alert_pct: parseFloat(await _getSetting('whatsapp_alert_pct', process.env.WHATSAPP_ALERT_PCT || '80')),
+            alert_email: await _getSetting('whatsapp_alert_email', process.env.WHATSAPP_ALERT_EMAIL || ''),
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ── PATCH /api/whatsapp/settings ──────────────────────────────────────────────
+router.patch('/settings', requireAuth(), async (req, res) => {
+    const { userId } = getAuth(req);
+    const { whatsapp_access_token, whatsapp_phone_number_id, monthly_limit_usd, alert_pct, alert_email } = req.body;
+
+    try {
+        // Check if user is master
+        const user = await prisma.users.findUnique({ where: { id: userId } });
+        if (user?.user_type !== 'master') {
+            return res.status(403).json({ error: 'Apenas administradores podem alterar estas configurações.' });
+        }
+
+        const upsertSetting = async (key, value) => {
+            await prisma.app_settings.upsert({
+                where: { key },
+                update: { value: String(value), updated_by: userId },
+                create: { key, value: String(value), updated_by: userId },
+            });
+        };
+
+        const changes = [];
+        if (whatsapp_access_token !== undefined && String(whatsapp_access_token).trim() !== '') {
+            await upsertSetting('whatsapp_access_token', whatsapp_access_token.trim());
+            changes.push('Token atualizado');
+        }
+        if (whatsapp_phone_number_id !== undefined && String(whatsapp_phone_number_id).trim() !== '') {
+            await upsertSetting('whatsapp_phone_number_id', whatsapp_phone_number_id.trim());
+            changes.push('Phone ID atualizado');
+        }
+        if (monthly_limit_usd !== undefined) {
+            await upsertSetting('whatsapp_monthly_limit_usd', monthly_limit_usd);
+            changes.push(`Limite: $${monthly_limit_usd}`);
+        }
+        if (alert_pct !== undefined) {
+            await upsertSetting('whatsapp_alert_pct', alert_pct);
+            changes.push(`Alerta: ${alert_pct}%`);
+        }
+        if (alert_email !== undefined) {
+            await upsertSetting('whatsapp_alert_email', alert_email);
+            changes.push(`E-mail alerta: ${alert_email}`);
+        }
+
+        if (changes.length > 0) {
+            audit.log(prisma, {
+                actor: user,
+                action: 'UPDATE',
+                entity_type: 'whatsapp_settings',
+                entity_id: 'whatsapp',
+                entity_name: 'Configurações WhatsApp',
+                description: `Alterou configurações do WhatsApp: ${changes.join(', ')}`,
+                meta: { changes }
+            });
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

@@ -10,6 +10,7 @@
 
 import { colors, card } from '../../theme/tokens.js';
 import { TableManager } from '../../../js/core/table-manager.js';
+import { renderTitleWithTooltip, bindTooltip, initTooltipSystem } from './Tooltip.js';
 
 // ─── Estado interno do painel ────────────────────────────────────────────────
 let _container   = null;
@@ -285,10 +286,15 @@ function renderSummary() {
 
     el.innerHTML = `
         <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;">
-          ${badge('rgba(239,68,68,0.1)',  colors.danger,   `🔴 ${atrasadas} Atrasada${atrasadas !== 1 ? 's' : ''}`)}
-          ${badge('rgba(245,158,11,0.1)', colors.warning,  `🟡 ${hoje} Vencem Hoje`)}
-          ${badge('rgba(91,82,246,0.1)',  colors.primary,  `📅 ${semana} Esta Semana`)}
+          <div id="ma-summary-atrasadas">${badge('rgba(239,68,68,0.1)',  colors.danger,   `🔴 ${atrasadas} Atrasada${atrasadas !== 1 ? 's' : ''}`)}</div>
+          <div id="ma-summary-hoje">${badge('rgba(245,158,11,0.1)', colors.warning,  `🟡 ${hoje} Vencem Hoje`)}</div>
+          <div id="ma-summary-semana">${badge('rgba(91,82,246,0.1)',  colors.primary,  `📅 ${semana} Esta Semana`)}</div>
         </div>`;
+
+    // Bind Tooltips to summary items
+    bindTooltip(document.getElementById('ma-summary-atrasadas'), { titulo: 'Atrasadas', simples: true, emoji: '🔴' });
+    bindTooltip(document.getElementById('ma-summary-hoje'), { titulo: 'Vencem Hoje', simples: true, emoji: '🟡' });
+    bindTooltip(document.getElementById('ma-summary-semana'), { titulo: 'Esta Semana', simples: true, emoji: '📅' });
 }
 
 // ─── Estrutura HTML do painel ────────────────────────────────────────────────
@@ -337,7 +343,7 @@ function buildHTML() {
                 Atividades atribuídas a você — criadas aqui ou vinculadas a um cliente.
               </p>
             </div>
-            <button onclick="document.querySelector('[data-view=minhas-tarefas]')?.click()"
+            <button id="ma-btn-ver-tudo" onclick="document.querySelector('[data-view=minhas-tarefas]')?.click()"
               style="display:inline-flex;align-items:center;gap:0.4rem;padding:0.5rem 1rem;
                      border-radius:8px;background:${colors.primary}18;color:${colors.primary};
                      border:1px solid ${colors.primary}30;font-size:0.8rem;font-weight:600;
@@ -391,20 +397,20 @@ function buildHTML() {
             <table id="${IDS.table}" style="width:100%;border-collapse:collapse;font-family:inherit;">
               <thead>
                 <tr style="border-bottom:1px solid ${colors.border};background:${colors.bgSubtle};">
-                  <th data-key="title" style="${thStyle}" onclick="window._maTable?.setSort('title')">
-                    Atividade <span class="sort-icon">⇅</span>
+                  <th id="ma-th-title" data-key="title" style="${thStyle}" onclick="window._maTable?.setSort('title')">
+                    ${renderTitleWithTooltip('Atividade')}
                   </th>
-                  <th data-key="company_name" style="${thStyle}" onclick="window._maTable?.setSort('company_name')">
-                    Empresa <span class="sort-icon">⇅</span>
+                  <th id="ma-th-company" data-key="company_name" style="${thStyle}" onclick="window._maTable?.setSort('company_name')">
+                    ${renderTitleWithTooltip('Empresa')}
                   </th>
-                  <th data-key="activity_date" style="${thStyle}" onclick="window._maTable?.setSort('activity_date')">
-                    Data <span class="sort-icon">⇅</span>
+                  <th id="ma-th-date" data-key="activity_date" style="${thStyle}" onclick="window._maTable?.setSort('activity_date')">
+                    ${renderTitleWithTooltip('Data')}
                   </th>
-                  <th data-key="displayStatus" style="${thStyle}" onclick="window._maTable?.setSort('displayStatus')">
-                    Prazo <span class="sort-icon">⇅</span>
+                  <th id="ma-th-prazo" data-key="displayStatus" style="${thStyle}" onclick="window._maTable?.setSort('displayStatus')">
+                    ${renderTitleWithTooltip('Prazo')}
                   </th>
-                  <th data-key="status" style="${thStyle}" onclick="window._maTable?.setSort('status')">
-                    Situação <span class="sort-icon">⇅</span>
+                  <th id="ma-th-status" data-key="status" style="${thStyle}" onclick="window._maTable?.setSort('status')">
+                    ${renderTitleWithTooltip('Situação')}
                   </th>
                 </tr>
               </thead>
@@ -559,6 +565,47 @@ export async function renderProximosPassos(containerId, empresas, usuarios) {
         renderRows:       renderRows,
         renderPagination: renderPagination,
         renderFilters:    renderActiveFiltersChips,
+    });
+
+    // ─── 🛠️ Inicializa e Binda Tooltips ─────────────────────────────────────
+    initTooltipSystem();
+
+    // Tooltips das Colunas (VTT)
+    bindTooltip(document.getElementById('ma-th-title'), {
+        titulo: 'Atividade',
+        desc: 'Nome e ícone da tarefa. Clique para ver detalhes, comentários e histórico completo.',
+        video: true, type: 'maAtividade'
+    });
+    bindTooltip(document.getElementById('ma-th-company'), {
+        titulo: 'Empresa Vinculada',
+        desc: 'Indica qual cliente está relacionado a esta atividade. Se vazio, é uma tarefa interna.',
+        video: true, type: 'maEmpresa'
+    });
+    bindTooltip(document.getElementById('ma-th-date'), {
+        titulo: 'Data de Execução',
+        desc: 'Data agendada para a atividade. O sistema sinaliza automaticamente se estiver em atraso.',
+        video: true, type: 'maData'
+    });
+    bindTooltip(document.getElementById('ma-th-prazo'), {
+        titulo: 'Status de Prazo',
+        desc: 'Cálculo automático: Atrasada (passou da data), Hoje (vence agora) ou Pendente (futuro).',
+        video: true, type: 'maPrazo'
+    });
+    bindTooltip(document.getElementById('ma-th-status'), {
+        titulo: 'Situação Real',
+        desc: 'O estágio atual da tarefa: A Fazer, Em Andamento, Concluída ou Cancelada.',
+        video: true, type: 'maSituacao'
+    });
+
+    // Tooltips de Botões/Ações
+    bindTooltip(document.getElementById('ma-btn-ver-tudo'), {
+        titulo: 'Visão Completa',
+        simples: true
+    });
+    bindTooltip(document.getElementById(IDS.search).parentElement, {
+        titulo: 'Busca Inteligente',
+        simples: true,
+        emoji: '🔍'
     });
 
     // Expõe globalmente para os event handlers inline

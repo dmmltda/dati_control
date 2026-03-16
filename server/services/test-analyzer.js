@@ -64,7 +64,7 @@ async function callGemini(prompt) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error('GEMINI_API_KEY não configurada');
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     const resp = await fetch(url, {
         method: 'POST',
@@ -73,7 +73,7 @@ async function callGemini(prompt) {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.1,
-                maxOutputTokens: 2048,
+                maxOutputTokens: 4096,
                 responseMimeType: 'application/json',
             },
         }),
@@ -87,8 +87,13 @@ async function callGemini(prompt) {
     const data = await resp.json();
     const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawText) throw new Error('Gemini retornou resposta vazia');
-
-    return JSON.parse(rawText);
+    try {
+        return JSON.parse(rawText);
+    } catch (err) {
+        console.error('[test-analyzer] ❌ Erro ao parsear JSON do Gemini:', err.message);
+        console.error('[test-analyzer] 📄 Resposta bruta:', rawText);
+        throw err;
+    }
 }
 
 // ─── Analisa uma falha individual ────────────────────────────────────────────
@@ -162,7 +167,8 @@ Regras:
 - fix_before e fix_after devem ser o conteúdo exato das linhas (sem números de linha)
 - Prefira corrigir o código de produção (fix_arquivo aponta para js/modules/) exceto se o teste estiver claramente errado`;
 
-    return await callGemini(prompt);
+    const geminiResult = await callGemini(prompt);
+    return { ...geminiResult, code_snippet: codeSnippet || null };
 }
 
 // ─── API Pública: analyzeFailures ────────────────────────────────────────────
@@ -193,6 +199,7 @@ export async function analyzeFailures(failedCases, prisma) {
                 descricao_pt:      result.descricao_pt || '',
                 confianca:         result.confianca || 0,
                 lado_com_problema: result.lado_com_problema || 'ambos',
+                code_snippet:      result.code_snippet || null,
             });
 
             // Monta o fix_proposal se disponível

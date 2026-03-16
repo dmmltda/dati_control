@@ -403,6 +403,30 @@ function _injectStyles() {
             font-weight: 700;
             color: #e2e8f0;
         }
+        /* ── UNLINKED WARNING ────────────────────────── */
+        .wa-unlinked-pill {
+            background: rgba(249,115,22,0.1);
+            color: #f97316;
+            border: 1px solid rgba(249,115,22,0.3);
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .wa-btn-link {
+            padding: 0.3rem 0.7rem;
+            font-size: 0.72rem;
+            background: rgba(99,102,241,0.1);
+            color: #a5b4fc;
+            border: 1px solid rgba(99,102,241,0.3);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+        .wa-btn-link:hover { background: rgba(99,102,241,0.2); }
         /* ── NEW CONV BUTTON ─────────────────────────────── */
         .wa-new-conv-btn {
             display: flex;
@@ -514,6 +538,30 @@ function _injectStyles() {
             border-radius: 50%;
             animation: wa-spin 0.7s linear infinite;
         }
+        /* ── LINK SEARCH ───────────────────────────────── */
+        .wa-link-search-results {
+            margin-top: 0.5rem;
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.25);
+        }
+        .wa-link-item {
+            padding: 0.65rem 0.9rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            transition: all 0.15s;
+        }
+        .wa-link-item:hover { background: rgba(99,102,241,0.2); }
+        .wa-link-item:last-child { border-bottom: none; }
+        .wa-link-item-name { font-weight: 600; color: #e2e8f0; }
+        .wa-link-item-sub { font-size: 0.7rem; color: #475569; }
     `;
     document.head.appendChild(style);
 }
@@ -635,6 +683,12 @@ function _renderChatPanel(conv) {
                 </div>
             </div>
             <div class="wa-chat-actions">
+                ${!conv.company_id ? `
+                    <div class="wa-unlinked-pill">
+                        <i class="ph ph-warning"></i> Não vinculado
+                        <button class="wa-btn-link" onclick="window._waOpenLinkPrompt()">Vincular</button>
+                    </div>
+                ` : ''}
                 ${isClosed ? tempBadge(conv.gabi_temperatura || 'neutro') : ''}
                 ${!isClosed ? `<button class="wa-btn wa-btn-close" id="wa-btn-close-conv" onclick="window._waAskClose()">
                     <i class="ph ph-x-circle"></i> Encerrar
@@ -780,7 +834,9 @@ window._waSendMsg = async function() {
 
 window._waAskClose = function() {
     const conv = _conversations.find(c => c.id === _currentConvId);
-    const nome = conv?.contact_nome || `+${conv?.wa_phone_number}`;
+    const nome = conv?.contact_nome || '';
+    const isNamed = nome && !/^\d+$/.test(nome.replace(/\D/g, '')); // checa se o nome não é apenas o telefone
+    const needsLink = !conv?.company_id;
 
     const overlay = document.createElement('div');
     overlay.className = 'wa-close-modal-overlay';
@@ -788,31 +844,157 @@ window._waAskClose = function() {
     overlay.innerHTML = `
         <div class="wa-close-modal">
             <h3><i class="ph ph-sparkle" style="color:#a78bfa;"></i> Encerrar e Analisar com Gabi</h3>
-            <p style="font-size:0.875rem; color:#8b98b4; margin:0 0 0.75rem;">
-                Gabi irá analisar o transcript da conversa com <strong style="color:#e2e8f0;">${nome}</strong>,
-                classificar a temperatura do cliente e criar uma atividade automaticamente.
-            </p>
-            <div id="wa-close-status" style="font-size:0.85rem; color:#a78bfa; display:flex; align-items:center; gap:0.5rem; min-height:28px;">
-                Aguardando confirmação...
+            
+            <div style="font-size:0.875rem; color:#8b98b4; margin-bottom:1.5rem;">
+                Gabi irá analisar o transcript da conversa, classificar a temperatura e registrar a atividade no CRM Journey.
             </div>
+
+            <!-- Identificação do Cliente -->
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.25rem; margin-bottom:1.25rem;">
+                <div style="font-size:0.75rem; color:#6366f1; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:1rem; display:flex; align-items:center; gap:0.4rem;">
+                    <i class="ph ph-identification-card"></i> Identificação do Cliente
+                </div>
+                
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block; font-size:0.75rem; color:#8b98b4; font-weight:600; margin-bottom:0.4rem;">Nome do Contato</label>
+                    <input type="text" class="wa-modal-input" id="wa-internal-contact-nome" 
+                        placeholder="Ex: João Silva" 
+                        value="${isNamed ? nome : ''}" />
+                    <div style="font-size:0.65rem; color:#475569; margin-top:0.3rem;">Isso ajuda a Gabi a personalizar o log do CRM.</div>
+                </div>
+
+                ${needsLink ? `
+                <div>
+                    <label style="display:block; font-size:0.75rem; color:#8b98b4; font-weight:600; margin-bottom:0.4rem;">Vincular à Empresa <span style="color:#f97316;">*</span></label>
+                    <div style="position:relative;">
+                        <input type="text" class="wa-modal-input" id="wa-internal-search-input" 
+                            placeholder="Buscar empresa por nome..."
+                            oninput="window._waInternalSearch(this.value)"
+                            style="padding-left:2.5rem;"/>
+                        <i class="ph ph-magnifying-glass" style="position:absolute; left:0.9rem; top:50%; transform:translateY(-50%); color:#475569;"></i>
+                    </div>
+                    <div id="wa-internal-search-results" class="wa-link-search-results" style="display:none;"></div>
+                </div>
+                ` : `
+                <div style="background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.15); border-radius:10px; padding:0.75rem 1rem; display:flex; align-items:center; gap:0.75rem;">
+                    <i class="ph ph-buildings" style="color:#10b981;"></i>
+                    <div style="font-size:0.9rem; color:#e2e8f0; font-weight:600;">${conv.companies?.Nome_da_empresa || conv.company_nome}</div>
+                </div>
+                `}
+            </div>
+
+            <div id="wa-close-status" style="font-size:0.85rem; color:#a78bfa; display:flex; align-items:center; gap:0.5rem; min-height:28px; margin-bottom:0.5rem;">
+                ${needsLink ? '<span style="color:#f97316;"><i class="ph ph-lock"></i> Vínculo de empresa obrigatório</span>' : 'Aguardando confirmação...'}
+            </div>
+
             <div class="wa-close-modal-footer">
                 <button class="wa-btn wa-btn-secondary" onclick="document.getElementById('wa-close-overlay')?.remove()">Cancelar</button>
-                <button class="wa-btn wa-btn-primary" id="wa-confirm-close-btn" onclick="window._waConfirmClose()">
+                <button class="wa-btn wa-btn-primary" id="wa-confirm-close-btn" 
+                    ${needsLink ? 'disabled style="opacity:0.5;"' : ''} 
+                    onclick="window._waConfirmClose()">
                     <i class="ph ph-check-circle"></i> Confirmar Encerramento
                 </button>
             </div>
         </div>
     `;
     document.body.appendChild(overlay);
+    if (needsLink) setTimeout(() => document.getElementById('wa-internal-search-input')?.focus(), 100);
+    else setTimeout(() => document.getElementById('wa-internal-contact-nome')?.focus(), 100);
+};
+
+window._waInternalSearch = async function(term) {
+    const resultsEl = document.getElementById('wa-internal-search-results');
+    if (!term || term.length < 2) {
+        if (resultsEl) resultsEl.style.display = 'none';
+        return;
+    }
+
+    try {
+        const resp = await _fetch(`/api/companies/search?q=${encodeURIComponent(term)}&limit=5`);
+        const companies = await resp.json();
+
+        if (companies.length === 0) {
+            resultsEl.innerHTML = '<div style="padding:1rem; text-align:center; font-size:0.8rem; color:#475569;">Nenhuma empresa encontrada.</div>';
+            resultsEl.style.display = 'block';
+            return;
+        }
+
+        resultsEl.innerHTML = companies.map(co => {
+            const safeName = co.Nome_da_empresa.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            return `
+                <div class="wa-link-item" onclick="window._waInternalLink('${co.id}', '${safeName}')">
+                    <div class="wa-link-item-name">${co.Nome_da_empresa}</div>
+                    <div class="wa-link-item-sub">Selecionar <i class="ph ph-arrow-right"></i></div>
+                </div>`;
+        }).join('');
+        resultsEl.style.display = 'block';
+    } catch (err) {
+        console.error('Erro na busca interna:', err);
+    }
+};
+
+window._waInternalLink = async function(coId, coNome) {
+    const statusEl = document.getElementById('wa-close-status');
+    const input    = document.getElementById('wa-internal-search-input');
+    const results  = document.getElementById('wa-internal-search-results');
+    const btn      = document.getElementById('wa-confirm-close-btn');
+    const nomeInp  = document.getElementById('wa-internal-contact-nome');
+
+    if (statusEl) statusEl.innerHTML = `<div class="wa-spinner"></div> Gravando vínculo...`;
+    if (results) results.style.display = 'none';
+    if (input) input.disabled = true;
+
+    try {
+        const resp = await _fetch(`/api/whatsapp/conversations/${_currentConvId}/link`, {
+            method: 'POST',
+            body: JSON.stringify({ 
+                company_id: coId,
+                contact_nome: nomeInp?.value.trim() || undefined
+            })
+        });
+        
+        if (resp.ok) {
+            // Atualiza memória local
+            const convIdx = _conversations.findIndex(c => c.id === _currentConvId);
+            if (convIdx !== -1) {
+                _conversations[convIdx].company_id = coId;
+                _conversations[convIdx].company_nome = coNome;
+                if (nomeInp?.value.trim()) _conversations[convIdx].contact_nome = nomeInp.value.trim();
+            }
+
+            if (statusEl) statusEl.innerHTML = `<span style="color:#10b981;"><i class="ph ph-check-circle"></i> Vinculado à <strong>${coNome}</strong>.</span>`;
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+            _loadMessages(_currentConvId);
+        } else {
+            throw new Error('Erro ao vincular');
+        }
+    } catch (err) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ ${err.message}</span>`;
+        if (input) input.disabled = false;
+    }
 };
 
 window._waConfirmClose = async function() {
     const statusEl = document.getElementById('wa-close-status');
     const btn      = document.getElementById('wa-confirm-close-btn');
+    const nomeInp  = document.getElementById('wa-internal-contact-nome');
+
     if (btn) btn.disabled = true;
     if (statusEl) statusEl.innerHTML = `<div class="wa-spinner"></div> Gabi está analisando o atendimento...`;
 
     try {
+        // Primeiro garante que o nome do contato está salvo
+        const nomeFinal = nomeInp?.value.trim();
+        if (nomeFinal) {
+            await _fetch(`/api/whatsapp/conversations/${_currentConvId}/link`, {
+                method: 'POST',
+                body: JSON.stringify({ contact_nome: nomeFinal })
+            });
+        }
+
         const resp = await _fetch(`/api/whatsapp/conversations/${_currentConvId}/close`, {
             method: 'POST',
         });
@@ -912,13 +1094,57 @@ async function _connectSSE() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+    if (_initialized) return;
     _injectStyles();
     _renderRoot();
-    await _loadConversations();
-    await _loadStats();
-    await _connectSSE();
+    _connectSSE();
+    _loadConversations();
+    _loadStats();
     _initialized = true;
 }
+
+// ─── Vínculo Manual ──────────────────────────────────────────────────────────
+window._waOpenLinkPrompt = async function() {
+    const term = prompt("Digite o nome da EMPRESA ou CONTATO para buscar no CRM:");
+    if (!term || term.length < 2) return;
+
+    try {
+        // Busca empresas (endpoint existente no app)
+        const resp = await _fetch(`/api/companies?search=${encodeURIComponent(term)}&limit=5`);
+        const data = await resp.json();
+        const companies = data.data || [];
+
+        if (companies.length === 0) {
+            alert("Nenhuma empresa encontrada com este nome.");
+            return;
+        }
+
+        const options = companies.map((c, i) => `${i + 1}. ${c.Nome_da_empresa}`).join('\n');
+        const choice = prompt(`Selecione a empresa (digite o número):\n\n${options}`);
+        const idx = parseInt(choice) - 1;
+
+        if (companies[idx]) {
+            const co = companies[idx];
+            const confirmLink = confirm(`Deseja vincular esta conversa à empresa: ${co.Nome_da_empresa}?`);
+            if (confirmLink) {
+                const linkResp = await _fetch(`/api/whatsapp/conversations/${_currentConvId}/link`, {
+                    method: 'POST',
+                    body: JSON.stringify({ company_id: co.id })
+                });
+                if (linkResp.ok) {
+                    // Recarrega mensagens para atualizar UI
+                    await _waSelectConv(_currentConvId);
+                    await _loadConversations();
+                } else {
+                    const errData = await linkResp.json();
+                    alert("Erro ao vincular: " + (errData.error || "Erro desconhecido"));
+                }
+            }
+        }
+    } catch (err) {
+        alert("Erro na busca: " + err.message);
+    }
+};
 
 // ─── Nova Conversa: Modal ─────────────────────────────────────────────────────
 window._waNewConvModal = function() {

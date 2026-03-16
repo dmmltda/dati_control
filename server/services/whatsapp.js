@@ -23,8 +23,10 @@
 
 import crypto from 'crypto';
 import { PrismaClient } from '@prisma/client';
+import { sendEmail, isEmailConfigured } from './email.js';
 
 const _prisma = new PrismaClient();
+const _alertsEnviados = new Set();
 
 // ── Base URL da Cloud API Meta ─────────────────────────────────────────────────
 const META_API_BASE = 'https://graph.facebook.com/v19.0';
@@ -54,7 +56,7 @@ async function _getPhoneNumberId() {
 // ─── Helpers internos de log ───────────────────────────────────────────────────
 
 /**
- * Registra custo em whatsapp_usage_logs (fire-and-forget).
+ * Registra custo em whatsapp_usage_logs e verifica thresholds de alerta.
  * @param {object} params
  */
 function _logCost({ conversation_id = null, company_id = null, origin = 'agent', category = 'service', cost_usd = COST_SERVICE_WINDOW_USD } = {}) {
@@ -66,7 +68,82 @@ function _logCost({ conversation_id = null, company_id = null, origin = 'agent',
             origin,
             cost_usd,
         },
+    }).then(newLog => {
+        // Verifica thresholds após logar
+        _checkWhatsAppThresholds().catch(err => console.error('[WhatsApp Alert] Threshold check error:', err.message));
     }).catch(err => console.warn('[WhatsApp] Aviso ao logar custo:', err.message));
+}
+
+/**
+ * Verifica se o consumo mensal atingiu 80% ou 100% do limite.
+ * Dispara e-mail de alerta para o administrador.
+ */
+async function _checkWhatsAppThresholds() {
+    try {
+        const now   = new Date();
+        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+        const end   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        const anoMes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // 1. Soma consumo do mês
+        const agg = await _prisma.whatsapp_usage_logs.aggregate({
+            _sum: { cost_usd: true },
+            where: { created_at: { gte: start, lt: end } },
+        });
+
+        const totalSpent = parseFloat(agg._sum?.cost_usd || 0);
+        
+        // 2. Busca configurações
+        const limit    = parseFloat(await _getSetting('whatsapp_monthly_limit_usd', process.env.WHATSAPP_MONTHLY_LIMIT_USD || '20'));
+        const alertPct = parseFloat(await _getSetting('whatsapp_alert_pct', process.env.WHATSAPP_ALERT_PCT || '80'));
+        const alertEmail = await _getSetting('whatsapp_alert_email', process.env.WHATSAPP_ALERT_EMAIL || process.env.GABI_ALERT_EMAIL || '');
+        
+        if (!alertEmail || !isEmailConfigured()) return;
+
+        const currentPct = (totalSpent / limit) * 100;
+
+        // 3. Alerta de percentual (ex: 80%)
+        if (currentPct >= alertPct) {
+            const key = `${anoMes}_WA_PCT${Math.floor(alertPct)}`;
+            if (!_alertsEnviados.has(key)) {
+                _alertsEnviados.add(key);
+                await sendEmail({
+                    to: alertEmail,
+                    subject: `⚠️ Alerta de Consumo WhatsApp: ${currentPct.toFixed(1)}% atingido`,
+                    template: 'gabiAlert', // Reusando template por simplicidade, ou criando um novo
+                    data: {
+                        totalSpent: totalSpent.toFixed(2),
+                        limit: limit.toFixed(2),
+                        currentPct: currentPct.toFixed(1),
+                        serviceName: 'WhatsApp Cloud API'
+                    }
+                });
+                console.log(`[WhatsApp Alert] 📧 E-mail de threshold ${alertPct}% enviado para ${alertEmail}`);
+            }
+        }
+
+        // 4. Alerta de limite (100%)
+        if (totalSpent >= limit) {
+            const key = `${anoMes}_WA_LIMITE`;
+            if (!_alertsEnviados.has(key)) {
+                _alertsEnviados.add(key);
+                await sendEmail({
+                    to: alertEmail,
+                    subject: '🚨 CRÍTICO: Limite Mensal WhatsApp Atingido',
+                    template: 'gabiAlert',
+                    data: {
+                        totalSpent: totalSpent.toFixed(2),
+                        limit: limit.toFixed(2),
+                        currentPct: currentPct.toFixed(1),
+                        serviceName: 'WhatsApp Cloud API'
+                    }
+                });
+                console.log(`[WhatsApp Alert] 📧 E-mail de limite 100% enviado para ${alertEmail}`);
+            }
+        }
+    } catch (err) {
+        throw err;
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

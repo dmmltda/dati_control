@@ -95,10 +95,9 @@ export async function runGabiTestRoutine() {
         
         const duration = Date.now() - startTime;
 
-        // Atualizar Test Logs como Sucesso
         await prisma.test_cases.update({
             where: { id: testCaseId },
-            data: { status: 'PASSOU', duration_ms: duration }
+            data: { status: 'APROVADO', duration_ms: duration }
         });
 
         await prisma.test_runs.update({
@@ -126,7 +125,7 @@ export async function runGabiTestRoutine() {
         if (testCaseId) {
             await prisma.test_cases.update({
                 where: { id: testCaseId },
-                data: { status: 'FALHOU', duration_ms: duration, error_message: err.message }
+                data: { status: 'REPROVADO', duration_ms: duration, error_message: err.message }
             });
         }
         if (runId) {

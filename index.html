@@ -31,7 +31,23 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/pt.js"></script>
 
+    <!-- Trusted Types Policy (for modern browser security) -->
+    <script>
+        if (window.trustedTypes && window.trustedTypes.createPolicy) {
+            try {
+                window.trustedTypes.createPolicy('default', {
+                    createHTML: (s) => s,
+                    createScriptURL: (s) => s,
+                    createScript: (s) => s,
+                });
+            } catch (e) {
+                console.warn('TrustedTypes default policy already exists or could not be created:', e);
+            }
+        }
+    </script>
+    
     <!-- Clerk Auth -->
+
     <!-- ⚠️  IMPORTANTE: Substitua o valor abaixo pela sua publishable key real -->
     <!-- Obtenha em: https://dashboard.clerk.com → Seu App → API Keys -->
     <script>
@@ -140,7 +156,7 @@
                     <a class="nav-item" data-view="deploy" data-nav-permission="deploy.view" onclick="deployMonitor.init()">
                         <i class="ph ph-rocket"></i> Deploy
                     </a>
-                    <a class="nav-item" data-view="audit-log" onclick="auditLog.init()" data-nav-permission="audit.view">
+                    <a class="nav-item" id="nav-item-audit-log" data-view="audit-log" onclick="auditLog.init()" data-nav-permission="audit.view">
                         <i class="ph ph-sliders-horizontal"></i> Histórico de alterações
                     </a>
                     <a class="nav-item" data-view="log" data-log-tab="log-testes" data-nav-permission="test_logs.view">
@@ -164,7 +180,10 @@
                         <i class="ph ph-user-circle"></i> Usuários e permissões
                     </a>
                     <a class="nav-item" data-view="config-gabi" data-nav-permission="gabi.view">
-                        <i class="ph ph-diamond"></i> Integrações e IA
+                        <i class="ph ph-diamond"></i> Gabi AI
+                    </a>
+                    <a class="nav-item" data-view="settings-whatsapp" data-master-only>
+                        <i class="ph ph-whatsapp-logo"></i> WhatsApp
                     </a>
                 </div>
 
@@ -338,11 +357,6 @@
                                     <i class="ph ph-upload-simple"></i>
                                     <span>Importar em Massa</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-import" style="top:calc(100% + 6px);bottom:auto;left:0;right:auto;transform-origin:top left;">
-                                    <div class="vtt-video-container" id="vcvc-act-import"><canvas class="vtt-canvas" id="vcc-act-import" width="300" height="169"></canvas></div>
-                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:28</div><div class="vtt-title">Importação em massa</div><div class="vtt-desc">Suba uma planilha Excel ou CSV com múltiplas empresas e contatos de uma só vez, sem digitar linha a linha.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-import">0:00</span></div></div>
-                                    <div class="vtt-arrow" style="left:16px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                </div>
                             </div>
 
                             <div class="bulk-toolbar-divider"></div>
@@ -353,11 +367,6 @@
                                     <i class="ph ph-pencil-simple"></i>
                                     <span>Editar em massa</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-edit" style="top:calc(100% + 6px);bottom:auto;left:0;right:auto;transform-origin:top left;">
-                                    <div class="vtt-video-container" id="vcvc-act-edit"><canvas class="vtt-canvas" id="vcc-act-edit" width="300" height="169"></canvas></div>
-                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:22</div><div class="vtt-title">Edição em lote</div><div class="vtt-desc">Selecione várias empresas com o checkbox e atualize campos como Status, Segmento ou Saúde de uma só vez.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-edit">0:00</span></div></div>
-                                    <div class="vtt-arrow" style="left:16px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                </div>
                             </div>
 
                             <div class="bulk-toolbar-divider"></div>
@@ -368,11 +377,6 @@
                                     <i class="ph ph-trash"></i>
                                     <span>Excluir selecionadas</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-delete" style="top:calc(100% + 6px);bottom:auto;right:0;left:auto;transform-origin:top right;">
-                                    <div class="vtt-video-container" id="vcvc-act-delete"><canvas class="vtt-canvas" id="vcc-act-delete" width="300" height="169"></canvas></div>
-                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Exclusão em lote</div><div class="vtt-desc">Ação irreversível. Selecione as empresas com cuidado antes de excluir. Os dados serão removidos permanentemente.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-delete">0:00</span></div></div>
-                                    <div class="vtt-arrow vtt-arrow-down" style="left:16px;right:auto;"></div>
-                                </div>
                             </div>
 
                             <div class="bulk-toolbar-divider"></div>
@@ -383,11 +387,6 @@
                                     <i class="ph ph-x-circle"></i>
                                     <span>Limpar</span>
                                 </button>
-                                <div class="vtt-tooltip" id="vct-act-clear" style="top:calc(100% + 6px);bottom:auto;right:0;left:auto;transform-origin:top right;">
-                                    <div class="vtt-video-container" id="vcvc-act-clear"><canvas class="vtt-canvas" id="vcc-act-clear" width="300" height="169"></canvas></div>
-                                    <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Desfazer seleção</div><div class="vtt-desc">Desmarca todas as empresas selecionadas de uma só vez, sem afetar os dados cadastrados.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-act-clear">0:00</span></div></div>
-                                    <div class="vtt-arrow" style="right:16px;left:auto;top:-5px;transform:rotate(45deg);"></div>
-                                </div>
                             </div>
 
                         </div>
@@ -402,103 +401,59 @@
                                             title="Selecionar todos da página" style="cursor:pointer;">
                                     </th>
                                     <th class="sortable-header" data-key="nome">
-                                        <span onclick="ui.handleCompaniesSort('nome', event)">Empresa</span>
+                                        <span onclick="ui.handleCompaniesSort('nome', event)" class="empresa-th-span" data-col="nome" data-label="Empresa" data-desc="Veja como usar o filtro por coluna para encontrar qualquer empresa em segundos."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_nome', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-nome"><div class="vtt-tooltip" id="vct-nome" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-nome"><canvas class="vtt-canvas" id="vcc-nome" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Filtrando empresas na tabela</div><div class="vtt-desc">Veja como usar o filtro por coluna para encontrar qualquer empresa em segundos.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-nome">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_nome"></div>
                                     </th>
                                     <th class="sortable-header" data-key="status" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('status', event)">Status</span>
+                                        <span onclick="ui.handleCompaniesSort('status', event)" class="empresa-th-span" data-col="status" data-label="Status" data-desc="Use o filtro de status para encontrar rapidamente Ativos, Prospects ou Inativos em segundos."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_status', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-status"><div class="vtt-tooltip" id="vct-status" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-status"><canvas class="vtt-canvas" id="vcc-status" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Filtrando por status da empresa</div><div class="vtt-desc">Use o filtro de status para encontrar rapidamente Ativos, Prospects ou Inativos em segundos.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-status">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_status"></div>
                                     </th>
                                     <th class="sortable-header" data-key="healthScore" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('healthScore', event)">Saúde</span>
+                                        <span onclick="ui.handleCompaniesSort('healthScore', event)" class="empresa-th-span" data-col="healthScore" data-label="Saúde" data-desc="Filtre por Saudável, Atenção ou Risco para identificar rapidamente clientes que precisam de ação."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_healthScore', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-saude"><div class="vtt-tooltip" id="vct-saude" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-saude"><canvas class="vtt-canvas" id="vcc-saude" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Monitorando a saúde do cliente</div><div class="vtt-desc">Filtre por Saudável, Atenção ou Risco para identificar rapidamente clientes que precisam de ação.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-saude">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_healthScore"></div>
                                     </th>
                                     <th class="sortable-header" data-key="nps" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('nps', event)">NPS</span>
+                                        <span onclick="ui.handleCompaniesSort('nps', event)" class="empresa-th-span" data-col="nps" data-label="NPS" data-desc="O NPS indica o nível de lealdade. Promotores (≥9) recomendam a DATI; Detratores (≤6) requerem atenção imediata."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_nps', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-nps"><div class="vtt-tooltip" id="vct-nps" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-nps"><canvas class="vtt-canvas" id="vcc-nps" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Entendendo o NPS</div><div class="vtt-desc">O NPS indica o nível de lealdade. Promotores (≥9) recomendam a DATI; Detratores (≤6) requerem atenção imediata.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-nps">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_nps"></div>
                                     </th>
                                     <th class="sortable-header" data-key="proximoPasso" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('proximoPasso', event)">Próximo
-                                            Passo</span>
+                                        <span onclick="ui.handleCompaniesSort('proximoPasso', event)" class="empresa-th-span" data-col="proximoPasso" data-label="Próximo Passo" data-desc="Defina a próxima ação para garantir a continuidade do relacionamento comercial com cada empresa."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_proximoPasso', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-proximo"><div class="vtt-tooltip" id="vct-proximo" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-proximo"><canvas class="vtt-canvas" id="vcc-proximo" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Planejando o próximo passo</div><div class="vtt-desc">Defina a próxima ação para garantir a continuidade do relacionamento comercial com cada empresa.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-proximo">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_proximoPasso"></div>
                                     </th>
                                     <th class="sortable-header" data-key="produtosNames" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('produtosNames', event)">Produtos
-                                            DATI</span>
+                                        <span onclick="ui.handleCompaniesSort('produtosNames', event)" class="empresa-th-span" data-col="produtosNames" data-label="Produtos DATI" data-desc="Veja rapidamente quais sistemas estão ativos para cada cliente e acesse os detalhes de contratação."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_produtosNames', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-produtos"><div class="vtt-tooltip" id="vct-produtos" style="right:auto;left:0;transform-origin:top left;">
-                                                <div class="vtt-video-container" id="vcvc-produtos"><canvas class="vtt-canvas" id="vcc-produtos" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Portfólio de produtos DATI</div><div class="vtt-desc">Veja rapidamente quais sistemas estão ativos para cada cliente e acesse os detalhes de contratação.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-produtos">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="left:12px;right:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_produtosNames"></div>
                                     </th>
                                     <th class="sortable-header" data-key="segmento" style="text-align: center;">
-                                        <span onclick="ui.handleCompaniesSort('segmento', event)">Segmento</span>
+                                        <span onclick="ui.handleCompaniesSort('segmento', event)" class="empresa-th-span" data-col="segmento" data-label="Segmento" data-desc="Filtre empresas por segmento de mercado para análises comparativas e estratégias direcionadas."></span>
                                         <button type="button" class="btn-filter-column"
                                             onclick="ui.toggleFilterPopover('comp_segmento', event)">
                                             <i class="ph ph-funnel"></i>
                                         </button>
-                                        <span class="th-info-btn" id="vcb-segmento"><div class="vtt-tooltip" id="vct-segmento" style="right:0;left:auto;transform-origin:top right;">
-                                                <div class="vtt-video-container" id="vcvc-segmento"><canvas class="vtt-canvas" id="vcc-segmento" width="300" height="169"></canvas></div>
-                                                <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Segmentando por setor</div><div class="vtt-desc">Filtre empresas por segmento de mercado para análises comparativas e estratégias direcionadas.</div><div class="vtt-cta"><span class="vtt-link">Ver documentação completa →</span><span class="vtt-time" id="vctm-segmento">0:00</span></div></div>
-                                                <div class="vtt-arrow" style="right:12px;left:auto;"></div>
-                                            </div>
-</span>
                                         <div class="filter-popover" id="filter-popover-comp_segmento"></div>
                                     </th>
                                     <th>Ações</th>
@@ -558,39 +513,25 @@
                                 </div>
                             </div>
                             <div class="bulk-toolbar-actions">
-                                <div class="vcw" id="vcw-tl-agendamento" style="position:relative;display:inline-flex;">
-                                    <button type="button" id="btn-log-agendamento" class="bulk-action-btn"
-                                        onclick="agendamento.openModal()">
-                                        <i class="ph ph-clock" id="sched-btn-icon"></i>
-                                        <span id="sched-btn-label">Agendamento</span>
-                                        <span id="sched-btn-active-badge" style="display:none; align-items:center; gap:0.35rem; margin-left:0.4rem; font-size:0.72rem; font-weight:700; color:#10b981;">
-                                            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:schedPulse 1.4s ease-in-out infinite;display:inline-block;"></span>
-                                            <span id="sched-btn-next-time"></span>
-                                        </span>
-                                    </button>
-                                    <div class="vtt-tooltip" id="vct-tl-agendamento" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
-                                        <div class="vtt-video-container" id="vcvc-tl-agendamento"><canvas class="vtt-canvas" id="vcc-tl-agendamento" width="300" height="169"></canvas></div>
-                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:13</div><div class="vtt-title">Agendar Execuções</div><div class="vtt-desc">Programe a suíte para rodar periodicamente (ex: a cada hora). Mantendo o ecossistema testado e minimizando surpresas.</div><div class="vtt-cta"><span class="vtt-link">Criar agendamento →</span><span class="vtt-time" id="vctm-tl-agendamento">0:00</span></div></div>
-                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
-                                    </div>
-                                </div>
+                                <button type="button" id="btn-log-agendamento" class="bulk-action-btn"
+                                    onclick="agendamento.openModal()">
+                                    <i class="ph ph-clock" id="sched-btn-icon"></i>
+                                    <span id="sched-btn-label">Agendamento</span>
+                                    <span id="sched-btn-active-badge" style="display:none; align-items:center; gap:0.35rem; margin-left:0.4rem; font-size:0.72rem; font-weight:700; color:#10b981;">
+                                        <span style="width:6px;height:6px;border-radius:50%;background:#10b981;box-shadow:0 0 6px #10b981;animation:schedPulse 1.4s ease-in-out infinite;display:inline-block;"></span>
+                                        <span id="sched-btn-next-time"></span>
+                                    </span>
+                                </button>
                                 <style>
                                     @keyframes schedPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.75)} }
                                 </style>
 
                                 <div class="bulk-toolbar-divider"></div>
-                                <div class="vcw" id="vcw-tl-rodar" style="position:relative;display:inline-flex;">
-                                    <button type="button" id="btn-log-run-now" class="bulk-action-btn"
-                                        onclick="agendamento.openRunModal()">
-                                        <i class="ph ph-play"></i>
-                                        <span>Rodar Testes</span>
-                                    </button>
-                                    <div class="vtt-tooltip" id="vct-tl-rodar" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
-                                        <div class="vtt-video-container" id="vcvc-tl-rodar"><canvas class="vtt-canvas" id="vcc-tl-rodar" width="300" height="169"></canvas></div>
-                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Execução Manual</div><div class="vtt-desc">Força a inicialização imediata do "Mestre dos Testes". Excelente para validar correções ou fazer um health check instantâneo do sistema.</div><div class="vtt-cta"><span class="vtt-link">Como rodar agora →</span><span class="vtt-time" id="vctm-tl-rodar">0:00</span></div></div>
-                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
-                                    </div>
-                                </div>
+                                <button type="button" id="btn-log-run-now" class="bulk-action-btn"
+                                    onclick="agendamento.openRunModal()">
+                                    <i class="ph ph-play"></i>
+                                    <span>Rodar Testes</span>
+                                </button>
                                 <div class="bulk-toolbar-divider" id="log-clear-divider" style="display:none;"></div>
                                 <button type="button" id="btn-clear-log-filters" class="bulk-action-btn" style="display:none;"
                                     onclick="logTestes.clearFilters()">
@@ -614,14 +555,7 @@
                                     <tr>
                                         <th class="sortable-header" data-key="data">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-data" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('data')">Data</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-data" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-data"><canvas class="vtt-canvas" id="vcc-tl-data" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Data da Execução</div><div class="vtt-desc">Dia em que os testes de saúde e performance do sistema foram executados. Use para analisar o histórico de estabilidade.</div><div class="vtt-cta"><span class="vtt-link">Como ordenar →</span><span class="vtt-time" id="vctm-tl-data">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('data')">Data</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('data', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -630,14 +564,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="hora">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-hora" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('hora')">Hora</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-hora" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-hora"><canvas class="vtt-canvas" id="vcc-tl-hora" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:10</div><div class="vtt-title">Horário Exato</div><div class="vtt-desc">Horário de Brasília no momento exato em que a automação disparou a suíte de testes contra aquele módulo específico.</div><div class="vtt-cta"><span class="vtt-link">Dica de análise →</span><span class="vtt-time" id="vctm-tl-hora">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('hora')">Hora</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('hora', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -646,14 +573,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="tipo">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-tipo" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('tipo')">Tipo</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-tipo" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-tipo"><canvas class="vtt-canvas" id="vcc-tl-tipo" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:12</div><div class="vtt-title">Tipo de Teste (E2E)</div><div class="vtt-desc">Identifica o tipo da automação (ex: E2E). Testes E2E (End-to-End) simulam interações reais de usuário navegando por telas.</div><div class="vtt-cta"><span class="vtt-link">Entenda os tipos →</span><span class="vtt-time" id="vctm-tl-tipo">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="left:15px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('tipo')">Tipo</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('tipo', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -662,14 +582,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="modulo">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-modulo" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('modulo')">M&oacute;dulo</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-modulo" style="top:calc(100% + 8px);bottom:auto;left:0;right:auto;transform-origin:top left;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-modulo"><canvas class="vtt-canvas" id="vcc-tl-modulo" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:15</div><div class="vtt-title">Área do Sistema</div><div class="vtt-desc">O módulo alvo do teste (ex: Gabi AI, Autenticação, Faturamento). Indica qual inteligência ou área técnica foi validada.</div><div class="vtt-cta"><span class="vtt-link">Ver módulos →</span><span class="vtt-time" id="vctm-tl-modulo">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="left:20px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('modulo')">M&oacute;dulo</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('modulo', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -678,14 +591,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="descricao">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-descricao" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('descricao')">O que foi testado</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-descricao" style="top:calc(100% + 8px);bottom:auto;left:-50px;right:auto;transform-origin:top left;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-descricao"><canvas class="vtt-canvas" id="vcc-tl-descricao" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:18</div><div class="vtt-title">Descrição do Escopo</div><div class="vtt-desc">Detalha o cenário testado, como "Health Check Gemini API", garantindo que as integrações externas respondam corretamente.</div><div class="vtt-cta"><span class="vtt-link">Exemplos práticos →</span><span class="vtt-time" id="vctm-tl-descricao">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="left:70px;right:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('descricao')">O que foi testado</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('descricao', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -694,14 +600,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="status">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-status" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('status')">Resultado</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-status" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-status"><canvas class="vtt-canvas" id="vcc-tl-status" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:13</div><div class="vtt-title">Status da Execução</div><div class="vtt-desc">Indica se a execução "Passou", ou se encontrou falhas. Relaxe! Falhas disparam alertas imediatos pros engenheiros.</div><div class="vtt-cta"><span class="vtt-link">Como corrigir falhas →</span><span class="vtt-time" id="vctm-tl-status">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="right:30px;left:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('status')">Resultado</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('status', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -710,14 +609,7 @@
                                         </th>
                                         <th class="sortable-header" data-key="duracao">
                                             <div class="header-content">
-                                                <div class="vcw" id="vcw-tl-duracao" style="position:relative;display:inline-flex;">
-                                                    <span onclick="logTestes.handleSort('duracao')">Dura&ccedil;&atilde;o</span>
-                                                    <div class="vtt-tooltip" id="vct-tl-duracao" style="top:calc(100% + 8px);bottom:auto;right:0;left:auto;transform-origin:top right;z-index:9999;">
-                                                        <div class="vtt-video-container" id="vcvc-tl-duracao"><canvas class="vtt-canvas" id="vcc-tl-duracao" width="300" height="169"></canvas></div>
-                                                        <div class="vtt-body"><div class="vtt-label">Tutorial · 0:12</div><div class="vtt-title">Performance (ms)</div><div class="vtt-desc">Tempo total levado pela automação. Monitoramos isso para detectar anomalias ou degradação na velocidade das respostas.</div><div class="vtt-cta"><span class="vtt-link">Por que monitoramos →</span><span class="vtt-time" id="vctm-tl-duracao">0:00</span></div></div>
-                                                        <div class="vtt-arrow" style="right:20px;left:auto;top:-5px;transform:rotate(45deg);"></div>
-                                                    </div>
-                                                </div>
+                                                <span onclick="logTestes.handleSort('duracao')">Dura&ccedil;&atilde;o</span>
                                                 <button type="button" class="btn-filter-column"
                                                     onclick="window._logTesteToggleFilter('duracao', event)"><i
                                                         class="ph ph-funnel"></i></button>
@@ -2391,6 +2283,234 @@
                  VIEW: Config → Gabi AI
             ═══════════════════════════════════════════════════════════════════ -->
 
+            <!-- WhatsApp Settings Panel -->
+            <div id="view-settings-whatsapp" class="view-section" style="display:none;">
+                <div class="top-bar" style="margin-bottom:1.429rem;">
+                    <div>
+                        <h1 style="display:flex; align-items:center; gap:0.571rem;">
+                            <i class="ph ph-whatsapp-logo" style="color:#25d366;"></i> WhatsApp
+                        </h1>
+                        <p style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+                            Configurações da integração com Meta Cloud API e custos de sessões.
+                            <span id="wa-last-update" style="font-size:0.7rem; color:#334155; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); padding:0.15rem 0.5rem; border-radius:6px;"></span>
+                        </p>
+                    </div>
+                    <button class="btn btn-primary" id="wa-cfg-refresh-btn">
+                        <i class="ph ph-arrows-clockwise"></i> Atualizar
+                    </button>
+                </div>
+
+                <!-- Alerta de limite -->
+                <div id="wa-alerta-box" style="display:none; align-items:flex-start; gap:0.75rem; padding:1rem 1.25rem; border-radius:12px; border:1px solid; margin-bottom:1.25rem;"></div>
+
+                <!-- KPI Cards -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+                    <div class="glass-panel" style="padding:1.25rem; border-radius:16px; border:1px solid rgba(37,211,102,0.2);">
+                        <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;"><i class="ph ph-chat-circle-dots" style="color:#25d366;"></i> Sessões este mês</div>
+                        <div id="wa-kpi-sessions" style="font-size:2rem; font-weight:800; color:#e2e8f0;">—</div>
+                        <div id="wa-kpi-per-session" style="font-size:0.7rem; color:#475569; margin-top:0.25rem;"></div>
+                    </div>
+                    <div class="glass-panel" style="padding:1.25rem; border-radius:16px; border:1px solid rgba(245,158,11,0.2);">
+                        <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;"><i class="ph ph-coins" style="color:#f59e0b;"></i> Custo este mês (USD)</div>
+                        <div id="wa-kpi-cost" style="font-size:2rem; font-weight:800; color:#e2e8f0;">—</div>
+                    </div>
+                    <div class="glass-panel" style="padding:1.25rem; border-radius:16px; border:1px solid rgba(99,102,241,0.15);">
+                        <div style="font-size:0.7rem; color:#64748b; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.5rem;"><i class="ph ph-broadcast" style="color:#6366f1;"></i> Status da API</div>
+                        <div id="wa-kpi-status" style="font-size:1.4rem; font-weight:700; color:#e2e8f0; margin-top:0.5rem;">Conectado</div>
+                    </div>
+                </div>
+
+                <!-- 🔑 WhatsApp API Credentials -->
+                <div class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(37,211,102,0.2); background:rgba(37,211,102,0.04);">
+                    <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.25rem;">
+                        <i class="ph ph-key" style="color:#25d366; font-size:1.1rem;"></i>
+                        <span style="font-weight:700; color:#e2e8f0;">Credenciais Meta Cloud API</span>
+                        <span id="wa-api-badge" style="display:none; font-size:0.62rem; padding:0.1rem 0.5rem; border-radius:20px; font-weight:700;"></span>
+                    </div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:1.25rem;">Necessárias para enviar e receber mensagens. Obtenha no <a href="https://developers.facebook.com" target="_blank" style="color:#25d366;">Painel do Desenvolvedor Meta</a>.</div>
+                    
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:block; margin-bottom:0.4rem;">Phone Number ID</label>
+                            <input type="text" id="wa-phoneid-input" placeholder="1029384756..."
+                                style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.5rem 0.85rem; color:#e2e8f0; font-family:monospace; font-size:0.85rem; outline:none;">
+                        </div>
+                        <div style="flex:2;">
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:block; margin-bottom:0.4rem;">Access Token (System User)</label>
+                            <input type="password" id="wa-token-input" placeholder="EAAY..."
+                                style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.5rem 0.85rem; color:#e2e8f0; font-family:monospace; font-size:0.85rem; outline:none;">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary" id="wa-save-api-btn" style="font-size:0.85rem; background:linear-gradient(135deg,#25d366,#128c7e); border:none;">
+                        <i class="ph ph-floppy-disk"></i> Salvar credenciais
+                    </button>
+                    
+                    <div style="margin-top:0.65rem; font-size:0.72rem; color:#475569; display:flex; align-items:center; gap:0.35rem;">
+                        <i class="ph ph-lock" style="color:#64748b;"></i>
+                        O token é armazenado de forma segura e nunca é exposto no frontend após salvo.
+                    </div>
+                </div>
+
+                <!-- Configuração de Limite & Alertas -->
+                <div class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(37,211,102,0.15);">
+                    <div style="font-weight:700; color:#e2e8f0; margin-bottom:0.2rem;">⚙️ Limite & Alertas</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:1.25rem;">Configure o limite mensal e o percentual para ser notificado.</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:block; margin-bottom:0.4rem;"><i class="ph ph-currency-dollar" style="color:#f59e0b;"></i> Limite Mensal (USD)</label>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <span style="color:#64748b; font-size:0.85rem;">US$</span>
+                                <input type="number" id="wa-limit-input" min="1" max="1000" step="1" value="20"
+                                    style="width:90px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.45rem 0.6rem; color:#e2e8f0; font-family:inherit; font-size:0.9rem; outline:none;">
+                            </div>
+                            <div style="font-size:0.7rem; color:#334155; margin-top:0.3rem;">O WhatsApp HD para ao atingir este valor.</div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:block; margin-bottom:0.4rem;"><i class="ph ph-bell" style="color:#6366f1;"></i> Avisar ao atingir (%)</label>
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <input type="number" id="wa-alert-pct" min="1" max="100" step="5" value="80"
+                                    style="width:80px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.45rem 0.6rem; color:#e2e8f0; font-family:inherit; font-size:0.9rem; outline:none;">
+                                <span style="color:#64748b; font-size:0.85rem;">% do limite</span>
+                            </div>
+                            <div style="font-size:0.7rem; color:#334155; margin-top:0.3rem;">Ex: 80% = aviso ao gastar US$ 16 de US$ 20.</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="wa-save-limit-btn" style="font-size:0.85rem;">
+                        <i class="ph ph-floppy-disk"></i> Salvar configurações
+                    </button>
+                </div>
+
+                <!-- Notificações de Alerta -->
+                <div class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(37,211,102,0.2); position:relative;">
+                    <div style="font-weight:700; color:#e2e8f0; margin-bottom:0.2rem;">🔔 Notificações de Alerta</div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-bottom:1.25rem;">Receba um e-mail quando o gasto atingir o percentual ou o limite configurado.</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.25rem;">
+                        <!-- Multi-email input -->
+                        <div>
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+                                <i class="ph ph-envelope" style="color:#6366f1;"></i> E-mails de alerta
+                            </label>
+                            <!-- Chips container -->
+                            <div id="wa-email-chips"
+                                style="display:flex; flex-wrap:wrap; gap:0.35rem; align-items:center; min-height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; padding:0.4rem 0.6rem; cursor:text; transition:border-color 0.2s;"
+                                onclick="document.getElementById('wa-email-input').focus()">
+                                <!-- chips gerados por JS -->
+                                <input id="wa-email-input" type="email" placeholder="email@exemplo.com"
+                                    style="flex:1; min-width:140px; background:transparent; border:none; outline:none; color:#e2e8f0; font-family:inherit; font-size:0.85rem; padding:0.1rem 0;"
+                                    onkeydown="waEmailChips.onKey(event)"
+                                    onblur="waEmailChips.confirmCurrent()">
+                            </div>
+                            <div style="font-size:0.7rem; color:#475569; margin-top:0.35rem;">
+                                <i class="ph ph-keyboard" style="font-size:0.65rem;"></i> Pressione <kbd style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:3px; padding:0.05rem 0.3rem; font-size:0.65rem;">Enter</kbd> ou <kbd style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-radius:3px; padding:0.05rem 0.3rem; font-size:0.65rem;">,</kbd> para adicionar
+                            </div>
+                        </div>
+                        <!-- WhatsApp — Em breve -->
+                        <div style="opacity:0.4; pointer-events:none;">
+                            <label style="font-size:0.78rem; font-weight:600; color:#94a3b8; display:flex; align-items:center; gap:0.4rem; margin-bottom:0.5rem;">
+                                <i class="ph ph-whatsapp-logo" style="color:#25d366;"></i> WhatsApp
+                                <span style="font-size:0.62rem; background:rgba(37,211,102,0.1); color:#25d366; border:1px solid rgba(37,211,102,0.2); padding:0.05rem 0.35rem; border-radius:4px;">Em breve</span>
+                            </label>
+                            <input type="tel" disabled placeholder="+55 (11) 99999-9999"
+                                style="width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:0.5rem 0.75rem; color:#64748b; font-family:inherit; font-size:0.85rem; cursor:not-allowed;">
+                        </div>
+                    </div>
+                    <!-- Botão salvar notificações -->
+                    <button class="btn btn-primary" id="wa-save-email-btn" style="font-size:0.85rem;">
+                        <i class="ph ph-floppy-disk"></i> Salvar alterações
+                    </button>
+                    <div style="margin-top:1rem; font-size:0.75rem; color:#475569; display:flex; align-items:center; gap:0.4rem;">
+                        <i class="ph ph-info" style="color:#6366f1;"></i>
+                        O e-mail é enviado via Resend. Configure <strong style="color:#e2e8f0;">RESEND_API_KEY</strong> no servidor para ativar.
+                    </div>
+                </div>
+
+                <!-- Barra de progresso -->
+                <div class="glass-panel" style="padding:1.5rem; border-radius:16px; margin-bottom:1.5rem; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <div style="font-weight:600; color:#e2e8f0; font-size:0.9rem;">Consumo do mês atual</div>
+                        <div style="font-size:0.78rem; color:#64748b;">
+                            US$ <span id="wa-bar-spent" style="color:#e2e8f0; font-weight:600;">0.00</span>
+                            &nbsp;/&nbsp;
+                            US$ <span id="wa-bar-limit" style="color:#e2e8f0; font-weight:600;">20</span>
+                        </div>
+                    </div>
+                    <div style="height:10px; background:rgba(255,255,255,0.06); border-radius:5px; overflow:hidden; margin-bottom:0.5rem;">
+                        <div id="wa-usage-bar" style="height:100%; background:linear-gradient(90deg,#25d366,#128c7e); border-radius:5px; width:0%; transition:width 0.6s ease;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:#64748b;">
+                        <span>0%</span>
+                        <span id="wa-bar-pct" style="font-weight:600;">0%</span>
+                        <span>100%</span>
+                    </div>
+                </div>
+
+                <!-- Tabela diária -->
+                <div id="wa-usage-card" class="glass-panel" style="border-radius:16px; overflow:hidden; border:1px solid rgba(255,255,255,0.06); margin-bottom:1.5rem;">
+                    <!-- Header da Tabela -->
+                    <div style="padding:1.25rem 1.5rem; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <h3 style="margin:0; font-size:0.95rem; font-weight:700; color:#e2e8f0; display:flex; align-items:center; gap:0.5rem;">
+                                <i class="ph ph-chart-line" style="color:#25d366;"></i> Consumo Diário
+                            </h3>
+                            <button id="btn-clear-wa-filters" class="btn btn-ghost" style="font-size:0.7rem; padding:0.3rem 0.6rem; display:none;" onclick="window._waClearFilters()">
+                                <i class="ph ph-trash"></i> Limpar filtros
+                            </button>
+                        </div>
+
+                        <div style="display:flex; align-items:center; gap:0.75rem;">
+                            <div class="search-wrapper" style="width: 200px;">
+                                <i class="ph ph-magnifying-glass search-icon"></i>
+                                <input type="text" id="wa-search" class="search-input" placeholder="Buscar data..." oninput="window._waSearch(this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chips de filtros ativos -->
+                    <div id="wa-active-chips" style="padding:0.75rem 1.5rem; display:none; flex-wrap:wrap; gap:0.5rem; border-bottom:1px solid rgba(255,255,255,0.04); background:rgba(255,255,255,0.01);"></div>
+
+                    <div class="company-table-container">
+                        <table class="company-table" id="wa-usage-table" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th data-key="date">
+                                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                                            <span>DATA</span>
+                                            <button class="btn-filter-column" onclick="window._waToggleFilter('date', event)"><i class="ph ph-funnel"></i></button>
+                                        </div>
+                                    </th>
+                                    <th data-key="sessions" style="text-align:center;">
+                                        <div style="display:flex; align-items:center; justify-content:center; gap:0.5rem;">
+                                            <span>CHAMADAS</span>
+                                            <button class="btn-filter-column" onclick="window._waToggleFilter('sessions', event)"><i class="ph ph-funnel"></i></button>
+                                        </div>
+                                    </th>
+                                    <th data-key="cost" style="text-align:right;">
+                                        <div style="display:flex; align-items:center; justify-content:flex-end; gap:0.5rem;">
+                                            <span>CUSTO (USD)</span>
+                                            <button class="btn-filter-column" onclick="window._waToggleFilter('cost', event)"><i class="ph ph-funnel"></i></button>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="wa-usage-table-body">
+                                <tr><td colspan="3" style="text-align:center; padding:2rem; color:#475569;">Carregando...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="pagination-wa" style="padding:1rem 1.25rem; border-top:1px solid rgba(255,255,255,0.04); display:flex; align-items:center; justify-content:space-between;"></div>
+                </div>
+
+                <div style="padding:1rem 1.25rem; background:rgba(37,211,102,0.05); border:1px solid rgba(37,211,102,0.15); border-radius:12px; display:flex; align-items:flex-start; gap:0.75rem;">
+                    <i class="ph ph-info" style="color:#25d366; font-size:1.1rem; margin-top:0.05rem; flex-shrink:0;"></i>
+                    <div style="font-size:0.8rem; color:#94a3b8; line-height:1.6;">
+                        <strong style="color:#e2e8f0;">Precificação Meta Cloud API:</strong><br>
+                        A Meta cobra por conversas (janelas de 24h). As primeiras 1.000 conversas de serviço por mês são gratuitas para a WABA.<br>
+                        Custo estimado de <strong style="color:white;">US$ 0,025</strong> por sessão de serviço iniciada pelo cliente.
+                    </div>
+                </div>
+            </div>
+
             <div id="view-config-gabi" class="view-section" style="display:none;">
                 <div class="top-bar" style="margin-bottom:1.429rem;">
                     <div>
@@ -2698,7 +2818,7 @@
                                 <tr>
                                     <th class="sortable-header" data-key="quando" style="width:160px; position:relative;">
                                         <div class="header-content">
-                                            <span onclick="auditLog.handleSort('quando')">Quando</span>
+                                            <span class="db-tooltip-label-wrapper" onclick="auditLog.handleSort('quando')">Quando <i class="db-tooltip-icon ph ph-info"></i></span>
                                             <button type="button" class="btn-filter-column"
                                                 onclick="_auditTogglePopover('quando', event)">
                                                 <i class="ph ph-funnel"></i>
@@ -2710,7 +2830,7 @@
                                     </th>
                                     <th class="sortable-header" data-key="quem" style="width:200px; position:relative;">
                                         <div class="header-content">
-                                            <span onclick="auditLog.handleSort('quem')">Quem</span>
+                                            <span class="db-tooltip-label-wrapper" onclick="auditLog.handleSort('quem')">Quem <i class="db-tooltip-icon ph ph-info"></i></span>
                                             <button type="button" class="btn-filter-column"
                                                 onclick="_auditTogglePopover('quem', event)">
                                                 <i class="ph ph-funnel"></i>
@@ -2720,7 +2840,7 @@
                                     </th>
                                     <th class="sortable-header" data-key="acao" style="width:110px; position:relative;">
                                         <div class="header-content">
-                                            <span onclick="auditLog.handleSort('acao')">Ação</span>
+                                            <span class="db-tooltip-label-wrapper" onclick="auditLog.handleSort('acao')">Ação <i class="db-tooltip-icon ph ph-info"></i></span>
                                             <button type="button" class="btn-filter-column"
                                                 onclick="_auditTogglePopover('acao', event)">
                                                 <i class="ph ph-funnel"></i>
@@ -2730,12 +2850,12 @@
                                     </th>
                                     <th data-key="descricao">
                                         <div class="header-content">
-                                            <span>O que foi feito</span>
+                                            <span class="db-tooltip-label-wrapper">O que foi feito <i class="db-tooltip-icon ph ph-info"></i></span>
                                         </div>
                                     </th>
                                     <th class="sortable-header" data-key="entidade" style="width:160px; position:relative;">
                                         <div class="header-content">
-                                            <span onclick="auditLog.handleSort('entidade')">Entidade</span>
+                                            <span class="db-tooltip-label-wrapper" onclick="auditLog.handleSort('entidade')">Entidade <i class="db-tooltip-icon ph ph-info"></i></span>
                                             <button type="button" class="btn-filter-column"
                                                 onclick="_auditTogglePopover('entidade', event)">
                                                 <i class="ph ph-funnel"></i>
@@ -5122,7 +5242,8 @@ window._vttPulse = (function() {
 
     drawFrame(0);
     // Pulse dot — amber for action buttons
-    window._vttPulse?.add(wrapEl, btnId, 'amber');
+    // Pulse dot removed as requested
+    // window._vttPulse?.add(wrapEl, btnId, 'amber');
   });
 })();
 </script>

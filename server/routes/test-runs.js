@@ -163,9 +163,9 @@ router.post('/', ingestAuth, async (req, res) => {
         }
 
         const total_tests  = cases.length;
-        const passed_tests = cases.filter(c => c.status === 'PASSOU').length;
-        const failed_tests = cases.filter(c => c.status === 'FALHOU').length;
-        const error_tests  = cases.filter(c => c.status === 'ERRO').length;
+        const passed_tests = cases.filter(c => c.status === 'APROVADO').length;
+        const failed_tests = cases.filter(c => c.status === 'REPROVADO').length;
+        const error_tests  = cases.filter(c => c.status === 'ERRO DO TESTE').length;
         const overall_status = (failed_tests > 0 || error_tests > 0) ? 'failed' : 'passed';
 
         const run = await prisma.test_runs.create({
@@ -187,7 +187,7 @@ router.post('/', ingestAuth, async (req, res) => {
                         module:         c.module         || null,
                         test_name:      c.test_name      || 'Teste sem nome',
                         suite_type:     c.suite_type     || suite_type,
-                        status:         c.status         || 'ERRO',
+                        status:         c.status         || 'ERRO DO TESTE',
                         duration_ms:    c.duration_ms    ? parseInt(c.duration_ms) : null,
                         error_message:  c.error_message  || null,
                         error_stack:    c.error_stack    || null,
@@ -206,7 +206,7 @@ router.post('/', ingestAuth, async (req, res) => {
         console.log(`[test-runs] ✅ ${run.id} — ${passed_tests}/${total_tests} passou`);
 
         // ── Análise IA em Background (não bloqueia a response) ───────────────
-        const failedCases = run.test_cases.filter(c => c.status === 'FALHOU' || c.status === 'ERRO');
+        const failedCases = run.test_cases.filter(c => c.status === 'REPROVADO' || c.status === 'ERRO DO TESTE');
         if (failedCases.length > 0) {
             import('../services/test-analyzer.js')
                 .then(({ analyzeFailures }) => analyzeFailures(failedCases, prisma))

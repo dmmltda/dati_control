@@ -6,6 +6,7 @@
 import { TableManager } from '../core/table-manager.js';
 import { getAuthToken } from './auth.js';
 import { showToast } from './utils.js';
+import { renderTitleWithTooltip, bindTooltip } from '../src/components/dashboard/Tooltip.js';
 
 const DEPLOY_COLUMNS = [
     { key: 'date',   label: 'Quando',  type: 'string', sortable: true,  filterable: false, searchable: true  },
@@ -374,8 +375,10 @@ async function _load() {
                 renderPagination: _renderPagination,
             });
             _exposeGlobals();
+            _bindTooltips();
         } else {
             _manager.setData(data);
+            _bindTooltips();
         }
 
     } catch (err) {
@@ -573,7 +576,7 @@ export const deployMonitor = {
                                     <tr>
                                         <th class="sortable-header" data-key="date" style="width:135px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('date')">Quando<span id="vcw-dep-date" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span onclick="window._deploySort('date')">${renderTitleWithTooltip('Quando')}</span>
                                                         <div id="vct-dep-date" class="vtt-tooltip" style="width:280px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-date" class="vtt-canvas"></canvas></div>
@@ -593,7 +596,7 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="author" style="width:145px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('author')">Quem<span id="vcw-dep-author" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span onclick="window._deploySort('author')">${renderTitleWithTooltip('Quem')}</span>
                                                         <div id="vct-dep-author" class="vtt-tooltip" style="width:280px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-author" class="vtt-canvas"></canvas></div>
@@ -613,7 +616,7 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="area" style="width:140px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('area')">Área<span id="vcw-dep-area" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span onclick="window._deploySort('area')">${renderTitleWithTooltip('Área')}</span>
                                                         <div id="vct-dep-area" class="vtt-tooltip" style="width:280px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-area" class="vtt-canvas"></canvas></div>
@@ -633,7 +636,7 @@ export const deployMonitor = {
                                         </th>
                                         <th data-key="de" style="width:130px;">
                                             <div class="header-content">
-                                                <span>De<span id="vcw-dep-de" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span>${renderTitleWithTooltip('De')}</span>
                                                         <div id="vct-dep-de" class="vtt-tooltip" style="width:280px;right:-140px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="left:50%; margin-left:-4px;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-de" class="vtt-canvas"></canvas></div>
@@ -649,7 +652,7 @@ export const deployMonitor = {
                                         </th>
                                         <th data-key="para">
                                             <div class="header-content">
-                                                <span>Para<span id="vcw-dep-para" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span>${renderTitleWithTooltip('Para')}</span>
                                                         <div id="vct-dep-para" class="vtt-tooltip" style="width:280px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="left:12px;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-para" class="vtt-canvas"></canvas></div>
@@ -665,7 +668,7 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="hash" style="width:85px;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('hash')">Versão<span id="vcw-dep-hash" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span onclick="window._deploySort('hash')">${renderTitleWithTooltip('Versão')}</span>
                                                         <div id="vct-dep-hash" class="vtt-tooltip" style="width:280px;right:-15px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-hash" class="vtt-canvas"></canvas></div>
@@ -681,7 +684,7 @@ export const deployMonitor = {
                                         </th>
                                         <th class="sortable-header" data-key="status" style="width:110px; position:relative;">
                                             <div class="header-content">
-                                                <span onclick="window._deploySort('status')">Status<span id="vcw-dep-status" class="vcw" style="position:relative;display:inline-block;width:5px;height:12px;margin-left:0px;">
+                                                <span onclick="window._deploySort('status')">${renderTitleWithTooltip('Status')}</span>
                                                         <div id="vct-dep-status" class="vtt-tooltip" style="width:280px;right:-15px;">
                                                             <div class="vtt-arrow vtt-arrow-down" style="right:20px; left:auto;"></div>
                                                             <div class="vtt-video-container"><canvas id="vcc-dep-status" class="vtt-canvas"></canvas></div>

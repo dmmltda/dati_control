@@ -640,6 +640,20 @@ Permissões aplicadas automaticamente conforme perfil do usuário.`,
                 required: ['contact_id'],
             }
         },
+        {
+            name: 'identify_whatsapp_conversation',
+            description: 'Vincula uma conversa de WhatsApp a um contato ou empresa. Use quando o usuário ou a Gabi descobrir quem é o dono do número de uma conversa "Desconhecida".',
+            parameters: {
+                type: 'object',
+                properties: {
+                    conversation_id: { type: 'string', description: 'ID da conversa' },
+                    contact_id:      { type: 'string', description: 'ID do contato para vincular' },
+                    company_id:      { type: 'string', description: 'ID da empresa para vincular' },
+                    activity_type:   { type: 'string', description: 'Chamados HD | Chamados CS (para classificar o ticket)' },
+                },
+                required: ['conversation_id'],
+            }
+        },
     ]
 }];
 
@@ -719,6 +733,116 @@ async function execTool(name, args = {}) {
         });
         const result = rows.map(a => ({ id: a.id, tipo: a.activity_type, titulo: a.title, empresa: a.companies?.Nome_da_empresa || null, status: a.status, prioridade: a.priority, data: a.activity_datetime ? new Date(a.activity_datetime).toLocaleDateString('pt-BR') : null, responsaveis: a.activity_assignees.map(r => r.user_id), proximoPasso: a.next_step_title, prazo: a.next_step_date ? new Date(a.next_step_date).toLocaleDateString('pt-BR') : null, tempo_minutos: a.time_spent_minutes || null }));
         return { total: result.length, atividades: result };
+    }
+
+    // ── get_whatsapp_history ───────────────────────────────────────────────────
+    if (name === 'get_whatsapp_history') {
+        const { contact_id, limit } = args;
+        const msgs = await prisma.whatsapp_messages.findMany({
+            where: { contact_id },
+            orderBy: { created_at: 'desc' },
+            take: limit || 20,
+        });
+        const formatada = msgs.map(m => ({
+            id: m.id,
+            remetente: m.from_me ? 'Eu' : 'Contato',
+            mensagem: m.message_body,
+            data: m.created_at.toLocaleString('pt-BR'),
+        }));
+        return { total: msgs.length, historico: formatada };
+    }
+
+    // ── identify_whatsapp_conversation ─────────────────────────────────────────
+    if (name === 'identify_whatsapp_conversation') {
+        const { conversation_id, contact_id, company_id, activity_type } = args;
+        
+        const conv = await prisma.whatsapp_conversations.findUnique({ where: { id: conversation_id } });
+        if (!conv) return { error: 'Conversa não encontrada.' };
+
+        // Resolve nomes se IDs fornecidos
+        let contactNome = conv.contact_nome;
+        let companyNome = conv.company_nome;
+
+        if (contact_id) {
+            const c = await prisma.contacts.findUnique({ where: { id: contact_id } });
+            if (c) contactNome = c.Nome_do_contato;
+        }
+        if (company_id) {
+            const co = await prisma.companies.findUnique({ where: { id: company_id } });
+            if (co) companyNome = co.Nome_da_empresa;
+        }
+
+        const dataUpdate = {
+            contact_id:   contact_id   || conv.contact_id,
+            company_id:   company_id   || conv.company_id,
+            contact_nome: contactNome,
+            company_nome: companyNome,
+        };
+
+        // Se houver atividade vinculada, atualiza o tipo e empresa nela também
+        if (conv.activity_id) {
+            const updateAct = { company_id: dataUpdate.company_id };
+            if (activity_type) updateAct.activity_type = activity_type;
+            
+            await prisma.activities.update({
+                where: { id: conv.activity_id },
+                data: updateAct
+            });
+
+            // Se a atividade foi classificada, registra o tempo gasto
+            if (activity_type && conv.time_spent_minutes && userId) {
+                await prisma.activity_time_logs.create({
+                    data: {
+                        activity_id: conv.activity_id,
+                        user_id: userId,
+                        time_spent_minutes: conv.time_spent_minutes,
+                        description: `Tempo registrado ao classificar conversa WhatsApp como ${activity_type}.`,
+                    }
+                });
+            }
+        }
+
+        await prisma.whatsapp_conversations.update({
+            where: { id: conversation_id },
+            data: dataUpdate
+        });
+
+        return { success: true, message: `Conversa identificada com sucesso como ${contactNome || 'Contato'} (${companyNome || 'Empresa'}).` };
+    }
+
+    // ── describe_whatsapp_conversation ─────────────────────────────────────────
+    if (name === 'describe_whatsapp_conversation') {
+        const { conversation_id, description, time_spent_minutes } = args;
+
+        const conv = await prisma.whatsapp_conversations.findUnique({ where: { id: conversation_id } });
+        if (!conv) return { error: 'Conversa não encontrada.' };
+
+        const updateData = {};
+        if (description) updateData.description = description;
+        if (time_spent_minutes) updateData.time_spent_minutes = time_spent_minutes;
+
+        if (Object.keys(updateData).length === 0) {
+            return { success: false, message: 'Nenhuma descrição ou tempo fornecido para atualizar.' };
+        }
+
+        await prisma.whatsapp_conversations.update({
+            where: { id: conversation_id },
+            data: updateData
+        });
+
+        // Se houver tempo gasto e atividade vinculada, registra no activity_time_logs
+        if (time_spent_minutes && conv.activity_id && userId) {
+            await prisma.activity_time_logs.create({
+                data: {
+                    activity_id: conv.activity_id,
+                    user_id: userId,
+                    time_spent_minutes: time_spent_minutes,
+                    description: description || 'Tempo registrado em conversa WhatsApp.',
+                }
+            });
+        }
+
+        return { success: true, message: 'Conversa de WhatsApp atualizada com sucesso.' };
     }
 
     // ── get_helpdesk_stats ────────────────────────────────────────────────────

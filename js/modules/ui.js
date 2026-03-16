@@ -3,6 +3,7 @@ import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
 import { TableManager } from './table-manager.js';
 import { TableManager as TableManager2 } from '../core/table-manager.js'; // 🧪 TableManager 2.0 - teste paralelo
 import { initTooltipSystem } from '../core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
+import { renderTitleWithTooltip, showTooltip, updateTooltipPosition, hideTooltip, bindTooltip } from '../../src/components/dashboard/Tooltip.js'; // Global Tooltip
 import { CustomSelect } from './custom-select.js'; // 🎛️ Custom Select Premium
 export { setupGlobalCustomSelects } from './custom-select.js';
 import {
@@ -270,6 +271,8 @@ export function renderCompanyList() {
         }
 
         console.log('[TableManager 2.0] Running as primary table engine');
+        setupEmpresasTooltips();
+        setupBulkActionsTooltips();
     } else {
         // Preserva a página atual para não voltar à página 1 ao editar em background
         const currentPage = companiesTableManagerV2._page;
@@ -280,6 +283,96 @@ export function renderCompanyList() {
     }
 
     updateActiveFiltersUI();
+}
+
+function setupEmpresasTooltips() {
+    const headers = document.querySelectorAll('.empresa-th-span');
+    headers.forEach(el => {
+        const label = el.getAttribute('data-label');
+        const desc = el.getAttribute('data-desc');
+        const colId = el.getAttribute('data-col'); // Ex: 'status', 'nome', etc.
+        
+        if (!label) return;
+        
+        el.innerHTML = renderTitleWithTooltip(label);
+        
+        if (desc && colId) {
+            bindTooltip(el.querySelector('.db-tooltip-icon'), {
+                video: true,
+                colId: colId,
+                titulo: label,
+                desc: desc
+            });
+        }
+    });
+}
+
+function setupBulkActionsTooltips() {
+    // Importar
+    const importWrap = document.getElementById('vcw-act-import');
+    if (importWrap) {
+        bindTooltip(importWrap, {
+            video: true,
+            type: 'bulk-import',
+            titulo: 'Importação em massa',
+            desc: 'Suba uma planilha Excel ou CSV com múltiplas empresas e contatos de uma só vez.'
+        });
+    }
+
+    // Editar em massa
+    const editWrap = document.getElementById('vcw-act-edit');
+    if (editWrap) {
+        bindTooltip(editWrap, {
+            video: true,
+            type: 'bulk-edit',
+            titulo: 'Edição em lote',
+            desc: 'Selecione várias empresas e atualize campos como Status ou Saúde de uma só vez.'
+        });
+    }
+
+    // Excluir selecionadas
+    const deleteWrap = document.getElementById('vcw-act-delete');
+    if (deleteWrap) {
+        bindTooltip(deleteWrap, {
+            video: true,
+            type: 'bulk-delete',
+            titulo: 'Exclusão em lote',
+            desc: 'Ação irreversível. Selecione as empresas com cuidado antes de excluir.'
+        });
+    }
+
+    // Limpar
+    const clearWrap = document.getElementById('vcw-act-clear');
+    if (clearWrap) {
+        bindTooltip(clearWrap, {
+            video: true,
+            type: 'bulk-clear',
+            titulo: 'Desfazer seleção',
+            desc: 'Desmarca todas as empresas selecionadas de uma só vez.'
+        });
+    }
+
+    // Busca
+    const searchInput = document.getElementById('search-empresa');
+    if (searchInput) {
+        bindTooltip(searchInput, {
+            video: true,
+            type: 'search', // default Empresa drawer
+            titulo: 'Busca Inteligente',
+            desc: 'Encontre rapidamente por empresa, segmento, local ou status.'
+        });
+    }
+
+    // Nova Empresa
+    const newBtns = document.querySelectorAll('.btn-new-company');
+    newBtns.forEach(btn => {
+        bindTooltip(btn, {
+            video: true,
+            type: 'new-company',
+            titulo: 'Nova Empresa',
+            desc: 'Cadastre uma nova empresa e seus contatos em menos de 1 minuto.'
+        });
+    });
 }
 
 export function updateActiveFiltersUI() {
@@ -1746,65 +1839,5 @@ export function updateNPSFormLink(tipoForm) {
     } else {
         linkEl.style.display = 'none';
     }
-}
-
-// ── Sidebar Premium Logic ──
-
-export function toggleNavGroup(id) {
-    const grp = document.getElementById('grp-' + id);
-    const grph = document.getElementById('grph-' + id);
-    const chev = document.getElementById('chev-' + id);
-    const kids = document.getElementById('kids-' + id);
-    if (!grp || !kids) return;
-
-    const isOpen = grp.classList.contains('is-open');
-
-    // Close all other groups (accordion behavior) - optional, but nice
-    document.querySelectorAll('.nav-group').forEach(otherGrp => {
-        if (otherGrp !== grp && otherGrp.classList.contains('is-open')) {
-            otherGrp.classList.remove('is-open');
-            otherGrp.querySelector('.nav-group__header')?.classList.remove('is-active');
-            otherGrp.querySelector('.nav-group__chevron')?.classList.remove('is-open');
-            const otherKids = otherGrp.querySelector('.nav-group__children');
-            if (otherKids) {
-                otherKids.style.maxHeight = '0px';
-                otherKids.classList.remove('is-open');
-            }
-        }
-    });
-
-    if (isOpen) {
-        kids.style.maxHeight = '0px';
-        kids.classList.remove('is-open');
-        chev.classList.remove('is-open');
-        grp.classList.remove('is-open');
-        grph.classList.remove('is-active');
-    } else {
-        kids.style.maxHeight = 'none';
-        const h = kids.scrollHeight;
-        kids.style.maxHeight = '0px';
-        kids.getBoundingClientRect(); // force reflow
-        kids.style.maxHeight = h + 'px';
-        kids.classList.add('is-open');
-        chev.classList.add('is-open');
-        grp.classList.add('is-open');
-        grph.classList.add('is-active');
-    }
-
-    refreshNavDots();
-}
-
-export function selectNavChild(el) {
-    // The active state is managed globally by switchView from navigation.js using .nav-item .active
-    // We just need to make sure the dots are updated when a child becomes active.
-    setTimeout(refreshNavDots, 50);
-}
-
-export function refreshNavDots() {
-    // Automatically identify all groups
-    document.querySelectorAll('.nav-group').forEach(grp => {
-        const hasActive = !!grp.querySelector('.nav-item.active, .nav-item.is-active');
-        grp.classList.toggle('has-active-child', hasActive);
-    });
 }
 

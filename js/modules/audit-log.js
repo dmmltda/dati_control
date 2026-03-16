@@ -19,6 +19,7 @@
  */
 
 import { TableManager } from '../core/table-manager.js';
+import { renderTitleWithTooltip, bindTooltip } from '../../src/components/dashboard/Tooltip.js';
 
 // ─── Configuração visual por tipo de ação ────────────────────────────────────
 const ACTION_CONFIG = {
@@ -42,11 +43,11 @@ const ENTITY_LABELS = {
 
 // ─── Colunas para o TableManager ─────────────────────────────────────────────
 const AUDIT_COLUMNS = [
-    { key: 'quando',    label: 'Quando',         type: 'string',  sortable: true,  filterable: false, searchable: true  },
-    { key: 'quem',      label: 'Quem',           type: 'string',  sortable: true,  filterable: true,  searchable: true  },
-    { key: 'acao',      label: 'Ação',           type: 'string',  sortable: true,  filterable: true,  searchable: true  },
-    { key: 'descricao', label: 'O que foi feito',type: 'string',  sortable: false, filterable: false, searchable: true  },
-    { key: 'entidade',  label: 'Entidade',       type: 'string',  sortable: true,  filterable: true,  searchable: true  },
+    { key: 'quando',    label: renderTitleWithTooltip('Quando'),         type: 'string',  sortable: true,  filterable: false, searchable: true, colId: 'maData' },
+    { key: 'quem',      label: renderTitleWithTooltip('Quem'),           type: 'string',  sortable: true,  filterable: true,  searchable: true, colId: 'auditLog' },
+    { key: 'acao',      label: renderTitleWithTooltip('Ação'),           type: 'string',  sortable: true,  filterable: true,  searchable: true, colId: 'auditLog' },
+    { key: 'descricao', label: renderTitleWithTooltip('O que foi feito'),type: 'string',  sortable: false, filterable: false, searchable: true, colId: 'auditLog' },
+    { key: 'entidade',  label: renderTitleWithTooltip('Entidade'),       type: 'string',  sortable: true,  filterable: true,  searchable: true, colId: 'auditLog' },
 ];
 
 // ─── Estado do módulo ─────────────────────────────────────────────────────────
@@ -460,6 +461,7 @@ async function _load() {
 
         _buildFilterPopovers();
         _syncClearBtn();
+        _bindTooltips();
 
     } catch (err) {
         console.error('[AuditLog] Erro ao carregar:', err);
@@ -776,6 +778,28 @@ export function handleDateTo(value) {
 }
 
 /**
+ * Binda os tooltips aos headers da tabela após renderização.
+ */
+function _bindTooltips() {
+    const table = document.getElementById('audit-log-table');
+    if (!table) return;
+
+    // Colunas do Audit Log
+    const headers = {
+        'quando':   { title: 'Quando',   desc: 'Registra o momento exato em que a alteração foi efetuada no sistema.', video: true, type: 'auditQuando' },
+        'quem':     { title: 'Quem',     desc: 'Identifica o usuário (Master, Standard ou Sistema) que realizou a ação.', video: true, type: 'auditQuem' },
+        'acao':     { title: 'Ação',     desc: 'Classifica a operação realizada: Criação, Alteração, Exclusão ou Acesso.', video: true, type: 'auditAcao' },
+        'descricao': { title: 'O que foi feito', desc: 'Exibe os detalhes técnicos das mudanças, comparando valores antigos e novos.', video: true, type: 'auditEntidade' },
+        'entidade': { title: 'Entidade', desc: 'Indica qual categoria de dado foi afetada pela alteração no sistema.', video: true, type: 'auditEntidade' },
+    };
+
+    Object.entries(headers).forEach(([key, data]) => {
+        const th = table.querySelector(`th[data-key="${key}"]`);
+        if (th) bindTooltip(th, data);
+    });
+}
+
+/**
  * Reaplica filtros externos e atualiza o manager.
  */
 async function _reloadWithFilters() {
@@ -792,6 +816,7 @@ async function _reloadWithFilters() {
         _manager.setData(filtered);
         _buildFilterPopovers();
         _syncClearBtn();
+        _bindTooltips();
     } catch (err) {
         console.error('[AuditLog] Erro ao refiltrar:', err);
     }

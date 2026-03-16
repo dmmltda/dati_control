@@ -33,17 +33,17 @@ const LOG_COLUMNS = [
 
 function _badgeStatus(status, fixStatus) {
     const map = {
-        'PASSOU':   { bg: 'rgba(16,185,129,0.15)',  color: '#10b981', border: 'rgba(16,185,129,0.3)',  icon: 'ph-check-circle' },
-        'FALHOU':   { bg: 'rgba(239,68,68,0.1)',    color: '#ef4444', border: 'rgba(239,68,68,0.2)',   icon: 'ph-x-circle' },
-        'ERRO':     { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b', border: 'rgba(245,158,11,0.2)',  icon: 'ph-warning' },
-        'SKIPADO':  { bg: 'rgba(100,116,139,0.1)',  color: '#64748b', border: 'rgba(100,116,139,0.2)', icon: 'ph-minus-circle' },
+        'APROVADO':      { bg: 'rgba(16,185,129,0.15)',  color: '#10b981', border: 'rgba(16,185,129,0.3)',  icon: 'ph-check-circle' },
+        'REPROVADO':     { bg: 'rgba(239,68,68,0.1)',    color: '#ef4444', border: 'rgba(239,68,68,0.2)',   icon: 'ph-x-circle' },
+        'ERRO DO TESTE': { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b', border: 'rgba(245,158,11,0.2)',  icon: 'ph-warning' },
+        'IGNORADO':      { bg: 'rgba(100,116,139,0.1)',  color: '#64748b', border: 'rgba(100,116,139,0.2)', icon: 'ph-minus-circle' },
     };
-    const s = map[status] || map['ERRO'];
+    const s = map[status] || map['ERRO DO TESTE'];
     // Indicador extra de fix aplicado
     const fixIndicator = fixStatus === 'applied'
-        ? ' <i class="ph ph-wrench" style="color:#4ade80; font-size:0.65rem; margin-left:2px;" title="Fix aplicado"></i>'
+        ? ' <i class="ph ph-wrench" style="color:#4ade80; font-size:0.65rem; margin-left:2px;"></i>'
         : fixStatus === 'pending'
-        ? ' <i class="ph ph-sparkle" style="color:#818cf8; font-size:0.65rem; margin-left:2px;" title="Análise IA em andamento"></i>'
+        ? ' <i class="ph ph-sparkle" style="color:#818cf8; font-size:0.65rem; margin-left:2px;"></i>'
         : '';
     return `<span class="badge" style="background:${s.bg};color:${s.color};border:1px solid ${s.border};font-size:0.75rem;white-space:nowrap;">
                 <i class="ph ${s.icon}"></i> ${status}${fixIndicator}
@@ -94,7 +94,7 @@ function _flattenRuns(runs) {
                 tipo:        run.suite_type,
                 modulo:      '(suite completa)',
                 descricao:   `Execução: ${run.total_tests} testes | ${run.passed_tests} passou | ${run.failed_tests} falhou`,
-                status:      run.status === 'passed' ? 'PASSOU' : (run.status === 'failed' ? 'FALHOU' : 'ERRO'),
+                status:      run.status === 'passed' ? 'APROVADO' : (run.status === 'failed' ? 'REPROVADO' : 'ERRO DO TESTE'),
                 duracao:     run.duration_ms,
                 _errorMsg:   null,
                 _errorStack: null,
@@ -116,6 +116,15 @@ function _flattenRuns(runs) {
                 try { if (c.ai_analysis)  aiAnalysis  = JSON.parse(c.ai_analysis);  } catch {}
                 try { if (c.fix_proposal) fixProposal = JSON.parse(c.fix_proposal); } catch {}
 
+                // Mapeamento para nomes novos (compatibilidade legado)
+                const statusMap = {
+                    'PASSOU': 'APROVADO',
+                    'FALHOU': 'REPROVADO',
+                    'ERRO':   'ERRO DO TESTE',
+                    'SKIPADO': 'IGNORADO'
+                };
+                const mappedStatus = statusMap[c.status] || c.status || 'ERRO DO TESTE';
+
                 rows.push({
                     _rowId:        c.id,
                     _runId:        run.id,
@@ -124,7 +133,7 @@ function _flattenRuns(runs) {
                     tipo:          c.suite_type || run.suite_type,
                     modulo:        c.module || c.suite_file || '—',
                     descricao:     c.test_name,
-                    status:        c.status || 'ERRO',
+                    status:        mappedStatus,
                     duracao:       c.duration_ms,
                     _errorMsg:     c.error_message,
                     _errorStack:   c.error_stack,
@@ -163,7 +172,7 @@ function _renderRows(data) {
     tbody.innerHTML = data.map(row => {
         const hasDetails = row._errorMsg || row._errorStack || row._screenshot || row._video || row._aiAnalysis;
         const detailsId  = `log-detail-${row._rowId}`;
-        const isFailed   = row.status === 'FALHOU' || row.status === 'ERRO';
+        const isFailed = row.status === 'REPROVADO' || row.status === 'ERRO DO TESTE';
 
         // ── Seção: localização do código ──
         const locationSection = (row._locationFile && row._locationLine) ? `
@@ -262,12 +271,21 @@ function _renderRows(data) {
             </div>`;
         }
 
-        // ── Seção: screenshot e vídeo (Playwright) ──
-        const mediaSection = (row._screenshot || row._video) ? `
+        // ── Seção: screenshot e vídeo (Playwright) ou Snippet de Código (Unitário) ──
+        let mediaSection = '';
+        if (row._screenshot || row._video) {
+            mediaSection = `
             <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
                 ${row._screenshot ? `<a href="${row._screenshot}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-image"></i> Screenshot</a>` : ''}
                 ${row._video ? `<a href="${row._video}" target="_blank" class="btn btn-secondary" style="font-size:0.75rem; padding:0.3rem 0.7rem;"><i class="ph ph-video"></i> Vídeo</a>` : ''}
-            </div>` : '';
+            </div>`;
+        } else if (ai && ai.code_snippet) {
+            mediaSection = `
+            <div style="margin-top:0.5rem;">
+                <span style="font-size:0.7rem; color:var(--text-muted); font-weight:600; letter-spacing:0.05em; text-transform:uppercase;">Contexto do Código</span>
+                <pre style="margin:0.25rem 0 0; font-size:0.72rem; color:#94a3b8; white-space:pre; overflow-x:auto; font-family:monospace; padding:0.6rem; background:#000000; border-radius:6px; border:1px solid #334155;">${_escapeHtml(ai.code_snippet)}</pre>
+            </div>`;
+        }
 
         // ── Stack trace (collapsible) ──
         const stackSection = row._errorStack ? `
@@ -296,7 +314,7 @@ function _renderRows(data) {
                 <td style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">${row.hora}</td>
                 <td style="text-align:center;">${_badgeTipo(row.tipo)}</td>
                 <td style="font-size:0.82rem; color:#94a3b8;">${_escapeHtml(row.modulo)}</td>
-                <td style="font-size:0.82rem; max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${_escapeHtml(row.descricao)}">${_escapeHtml(row.descricao)}</td>
+                <td style="font-size:0.82rem; max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${_escapeHtml(row.descricao)}</td>
                 <td style="text-align:center;">${_badgeStatus(row.status, row._fixStatus)}</td>
                 <td style="font-size:0.82rem; color:var(--text-muted); white-space:nowrap;">
                     ${_formatDuration(row.duracao)}
@@ -344,6 +362,7 @@ function _updateSummary(runs) {
     const totalCases   = runs.reduce((s, r) => s + (r.total_tests || 0), 0);
     const totalPassed  = runs.reduce((s, r) => s + (r.passed_tests || 0), 0);
     const totalFailed  = runs.reduce((s, r) => s + (r.failed_tests || 0), 0);
+    const totalErrors  = runs.reduce((s, r) => s + (r.error_tests || 0), 0);
     const lastRun = runs[0];
     const lastDate = lastRun ? _formatDate(lastRun.triggered_at) : 'Nunca';
     const lastTime = lastRun ? _formatDate(lastRun.triggered_at) + ' ' + _formatTime(lastRun.triggered_at) : '';
@@ -353,8 +372,8 @@ function _updateSummary(runs) {
     const headerEl = document.getElementById('log-testes-last-run');
     if (headerEl) {
         headerEl.innerHTML = lastRun
-            ? `Última execução: <strong>${lastDate}</strong> — <span style="color:${totalFailed > 0 ? '#ef4444' : '#10b981'}; font-weight:600;">
-                ${totalPassed}/${totalCases} passando ${totalFailed > 0 ? '✗' : '✓'}
+            ? `Última execução: <strong>${lastDate}</strong> — <span style="color:${totalFailed > 0 || totalErrors > 0 ? '#ef4444' : '#10b981'}; font-weight:600;">
+                ${totalPassed}/${totalCases} aprovados ${totalFailed > 0 || totalErrors > 0 ? '✗' : '✓'}
                </span>`
             : 'Nenhuma execução disponível. Execute <code>npm run test:report</code> para registrar.';
     }
@@ -364,10 +383,13 @@ function _updateSummary(runs) {
     if (badgesEl) {
         badgesEl.innerHTML = `
             <span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:0.8rem;">
-                <i class="ph ph-check-circle"></i> ${totalPassed} Passou
+                <i class="ph ph-check-circle"></i> ${totalPassed} Aprovados
             </span>
             <span class="badge" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.2);font-size:0.8rem;">
-                <i class="ph ph-x-circle"></i> ${totalFailed} Falhou
+                <i class="ph ph-x-circle"></i> ${totalFailed} Reprovados
+            </span>
+            <span class="badge" style="background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);font-size:0.8rem;">
+                <i class="ph ph-warning"></i> ${totalErrors} Erro do teste
             </span>
             <span class="badge" style="background:rgba(245,158,11,0.1);color:#f59e0b;border:1px solid rgba(245,158,11,0.2);font-size:0.8rem;">
                 <i class="ph ph-clock"></i> ${_formatDuration(totalMs)}
@@ -408,7 +430,6 @@ async function _updateScheduleButtonStatus() {
             $badge.style.display = 'inline-flex';
             if ($btn) {
                 $btn.style.color = '#10b981';
-                $btn.title = `Agendamento ativo — próxima execução: ${fmt}`;
             }
         } else if (active) {
             // Caso 2: enabled mas frequência manual → mostra indicador sem horário
@@ -416,14 +437,12 @@ async function _updateScheduleButtonStatus() {
             $badge.style.display = 'inline-flex';
             if ($btn) {
                 $btn.style.color = '#10b981';
-                $btn.title = 'Agendamento ativo';
             }
         } else {
             // Caso 3: desabilitado
             $badge.style.display = 'none';
             if ($btn) {
                 $btn.style.color = '';
-                $btn.title = 'Configurar agendamento de testes';
             }
         }
     } catch (_) {
@@ -437,7 +456,7 @@ function _buildFilterPopovers() {
 
     const tipoValues   = _manager.getUniqueValues('tipo');
     const moduloValues = _manager.getUniqueValues('modulo');
-    const statusValues = ['PASSOU', 'FALHOU', 'ERRO', 'SKIPADO'];
+    const statusValues = ['APROVADO', 'REPROVADO', 'ERRO DO TESTE', 'IGNORADO'];
 
     _buildSelectPopover('filter-popover-tipo',     tipoValues,   'tipo');
     _buildSelectPopover('filter-popover-modulo',   moduloValues, 'modulo');
@@ -630,7 +649,6 @@ export async function initLogTestes() {
 
     _exposeGlobals();
     await refreshLogTestes();
-    _initTestLogsTooltips();
     _initialized = true;
 }
 
@@ -687,11 +705,7 @@ export async function refreshLogTestes() {
                     btn.disabled = true;
                     btn.style.opacity = '0.6';
                     btn.style.cursor = 'not-allowed';
-                    btn.style.pointerEvents = 'auto'; // allow hover for tooltip
                     btn.onclick = (e) => { e.stopPropagation(); e.preventDefault(); };
-                    btn.setAttribute('data-th-title', 'MODO SOMENTE LEITURA');
-                    btn.setAttribute('data-th-tooltip', 'Você tem permissão apenas para visualizar o histórico de execuções.');
-                    btn.removeAttribute('title'); // impede tooltip nativo conflitar
                 }
             }
         });
@@ -742,7 +756,7 @@ function _renderActiveFilters(activeFilters, search) {
         chips.push(`
             <span class="filter-chip">
                 <i class="ph ph-magnifying-glass"></i> "${_escapeHtml(search)}"
-                <button class="chip-remove" data-remove-tm-search="1" title="Remover busca">
+                <button class="chip-remove" data-remove-tm-search="1">
                     <i class="ph ph-x"></i>
                 </button>
             </span>`);
@@ -761,7 +775,7 @@ function _renderActiveFilters(activeFilters, search) {
         chips.push(`
             <span class="filter-chip">
                 ${_escapeHtml(f.label)}: <strong>${_escapeHtml(displayValue)}</strong>
-                <button class="chip-remove" data-remove-tm-filter="${_escapeHtml(f.key)}" title="Remover filtro">
+                <button class="chip-remove" data-remove-tm-filter="${_escapeHtml(f.key)}">
                     <i class="ph ph-x"></i>
                 </button>
             </span>`);
@@ -1055,441 +1069,4 @@ function _exposeGlobals() {
     }, { capture: false });
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-// VTT ANIMATED TOOLTIPS (Test Logs)
-// ══════════════════════════════════════════════════════════════════════════════
 
-function _initTestLogsTooltips() {
-    const W=300, H=169;
-    function init(el){ const DPR=window.devicePixelRatio||1; el.width=W*DPR; el.height=H*DPR; el.style.width=W+'px'; el.style.height=H+'px'; const ctx=el.getContext('2d'); ctx.scale(DPR,DPR); return ctx; }
-    function prog(f,s,e){ return Math.max(0,Math.min(1,(f-s)/(e-s)||0)); }
-    function lerp(a,b,t){ return a+(b-a)*t; }
-
-    function drawCursor(ctx,x,y,pressing=false){
-        ctx.save(); ctx.translate(x,y); ctx.scale(0.8,0.8);
-        ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=2; ctx.shadowOffsetX=1; ctx.shadowOffsetY=1;
-        ctx.fillStyle=pressing?'#e2e8f0':'#ffffff'; ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1;
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,11); ctx.lineTo(2.4,8.6); ctx.lineTo(4,12.4); ctx.lineTo(5.6,11.7); ctx.lineTo(4.1,7.9); ctx.lineTo(6.8,7.9); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
-    }
-
-    const anims = {
-        'tl-data': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx = W/2, cy = H/2+10;
-            // Calendar icon
-            const s = 1 + Math.sin(prog(f,20,80)*Math.PI)*0.1;
-            ctx.save(); ctx.translate(cx, cy); ctx.scale(s,s);
-            ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.roundRect(-40,-30,80,70,8); ctx.fill();
-            ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.roundRect(-40,-30,80,20,8); ctx.fill();
-            ctx.fillStyle='#cbd5e1'; ctx.fillRect(-40,-15,80,55); ctx.roundRect(-40,-15,80,55,8); ctx.fill();
-            // Grid
-            ctx.fillStyle='#94a3b8';
-            for(let i=0;i<3;i++) {
-                for(let j=0;j<4;j++) {
-                    if (i===1 && j===2) ctx.fillStyle='#3b82f6';
-                    else ctx.fillStyle='#94a3b8';
-                    ctx.beginPath(); ctx.roundRect(-30+j*18, -5+i*16, 12,12,3); ctx.fill();
-                }
-            }
-            ctx.restore();
-            // Checking dates
-            if(f>100) {
-                const a = prog(f,100,160);
-                ctx.globalAlpha = Math.sin(a*Math.PI);
-                ctx.fillStyle='#3b82f6'; ctx.beginPath(); ctx.arc(cx-30+2*18+6, cy-5+1*16+6, 14+a*10, 0, Math.PI*2); ctx.fill();
-                ctx.globalAlpha = 1;
-            }
-        },
-        'tl-hora': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+10;
-            ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(cx,cy,50,0,Math.PI*2); ctx.fill();
-            ctx.strokeStyle='#334155'; ctx.lineWidth=4; ctx.stroke();
-            
-            // Ticks
-            ctx.fillStyle='#64748b';
-            for(let i=0;i<12;i++){
-                ctx.save(); ctx.translate(cx,cy); ctx.rotate((i*30)*Math.PI/180);
-                ctx.fillRect(-2,-40,4,8);
-                ctx.restore();
-            }
-            
-            // Hands
-            const minutesProgress = (f%180)/180;
-            const hoursProgress = minutesProgress/12;
-            
-            ctx.save(); ctx.translate(cx,cy); ctx.rotate(hoursProgress*Math.PI*2 - Math.PI/2);
-            ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(25,0); ctx.stroke();
-            ctx.restore();
-            
-            ctx.save(); ctx.translate(cx,cy); ctx.rotate(minutesProgress*Math.PI*2 - Math.PI/2);
-            ctx.strokeStyle='#94a3b8'; ctx.lineWidth=4; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(35,0); ctx.stroke();
-            ctx.restore();
-            
-            ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fill();
-        },
-        'tl-tipo': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+10;
-            const p = prog(f, 20, 140);
-            
-            // Target
-            ctx.save(); ctx.translate(cx,cy);
-            ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=2;
-            ctx.beginPath(); ctx.arc(0,0,50,0,Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.stroke();
-            ctx.beginPath(); ctx.arc(0,0,10,0,Math.PI*2); ctx.stroke();
-            
-            // E2E Path
-            if (f>20) {
-                ctx.strokeStyle='#10b981'; ctx.lineWidth=3; ctx.lineCap='round';
-                ctx.beginPath(); 
-                ctx.moveTo(-60, 40);
-                const x1 = lerp(-60, -20, Math.min(1, p*3));
-                const y1 = lerp(40, -30, Math.min(1, p*3));
-                ctx.lineTo(x1, y1);
-                
-                if (p > 0.33) {
-                    const x2 = lerp(-20, 20, Math.min(1, (p-0.33)*3));
-                    const y2 = lerp(-30, 20, Math.min(1, (p-0.33)*3));
-                    ctx.lineTo(x2, y2);
-                }
-                
-                if (p > 0.66) {
-                    const x3 = lerp(20, 50, Math.min(1, (p-0.66)*3));
-                    const y3 = lerp(20, -10, Math.min(1, (p-0.66)*3));
-                    ctx.lineTo(x3, y3);
-                    // Hit!
-                    if(p > 0.9) {
-                        ctx.fillStyle='#10b981'; ctx.beginPath(); ctx.arc(x3,y3,6 + Math.sin(f)*2,0,Math.PI*2); ctx.fill();
-                    }
-                }
-                ctx.stroke();
-            }
-            ctx.restore();
-        },
-        'tl-modulo': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+10;
-            // Draw blocks connecting
-            const blocks = [ {x:-50, y:-30}, {x:50, y:-30}, {x:0, y:20} ];
-            
-            ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=2;
-            if(f>40) { ctx.beginPath(); ctx.moveTo(cx+blocks[0].x, cy+blocks[0].y); ctx.lineTo(cx+blocks[2].x, cy+blocks[2].y); ctx.stroke(); }
-            if(f>60) { ctx.beginPath(); ctx.moveTo(cx+blocks[1].x, cy+blocks[1].y); ctx.lineTo(cx+blocks[2].x, cy+blocks[2].y); ctx.stroke(); }
-            
-            blocks.forEach((b, i) => {
-                const s = f > i*20+20 ? 1 : 0;
-                if(!s) return;
-                
-                const hover = (i===2 && f>100 && f<160);
-                const a = hover ? Math.sin((f-100)*Math.PI/60) : 0;
-                
-                ctx.save(); ctx.translate(cx+b.x, cy+b.y - a*10);
-                if(hover) { ctx.shadowColor='#6366f1'; ctx.shadowBlur=15; }
-                
-                ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.roundRect(-25, -20, 50, 40, 6); ctx.fill();
-                ctx.strokeStyle=hover?'#6366f1':'#334155'; ctx.lineWidth=2; ctx.stroke();
-                
-                // Tech decor
-                ctx.fillStyle=hover?'#6366f1':'#cbd5e1';
-                ctx.fillRect(-15, -10, 30, 4);
-                ctx.fillRect(-15, 0, 20, 4);
-                ctx.restore();
-            });
-            
-            if(f>100 && f<160) {
-                drawCursor(ctx, cx, cy+20 - Math.sin((f-100)*Math.PI/60)*10, true);
-            } else if(f<100) {
-                drawCursor(ctx, lerp(W, cx, prog(f,80,100)), lerp(H, cy+20, prog(f,80,100)));
-            } else {
-                drawCursor(ctx, lerp(cx, W, prog(f,160,180)), lerp(cy+20, H, prog(f,160,180)));
-            }
-        },
-        'tl-descricao': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            
-            ctx.fillStyle='#141824'; ctx.beginPath(); ctx.roundRect(20, 30, W-40, H-50, 6); ctx.fill();
-            ctx.fillStyle='#1e293b'; ctx.fillRect(20, 30, W-40, 20); // Header
-            
-            const lines = [
-                {w: 180, c: '#cbd5e1'},
-                {w: 140, c: '#94a3b8'},
-                {w: 200, c: '#94a3b8'},
-                {w: 160, c: '#10b981'}, // Success line
-            ];
-            
-            lines.forEach((l, i) => {
-                if (f > 40 + i*20) {
-                    const pw = Math.min(l.w, prog(f, 40+i*20, 80+i*20)*l.w);
-                    ctx.fillStyle = l.c;
-                    ctx.fillRect(40, 65+i*16, pw, 6);
-                }
-            });
-            
-            // Scanner effect
-            if (f > 40 && f < 180) {
-                const sy = lerp(60, 140, prog(f, 40, 180));
-                ctx.fillStyle = 'rgba(99,102,241,0.2)';
-                ctx.fillRect(20, sy, W-40, 20);
-                ctx.fillStyle = 'rgba(99,102,241,0.8)';
-                ctx.fillRect(20, sy, W-40, 2);
-            }
-        },
-        'tl-status': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+10;
-            
-            const isSuccess = f % 240 < 120;
-            const pf = isSuccess ? f % 240 : (f % 240) - 120;
-            const p = prog(pf, 20, 60);
-            
-            ctx.save(); ctx.translate(cx, cy);
-            
-            // Circle
-            ctx.strokeStyle = isSuccess ? '#10b981' : '#ef4444';
-            ctx.lineWidth = 6;
-            ctx.beginPath();
-            ctx.arc(0, 0, 30, 0, Math.PI * 2 * p);
-            ctx.stroke();
-            
-            // Icon
-            if(pf > 60) {
-                ctx.fillStyle = isSuccess ? '#10b981' : '#ef4444';
-                const s = 1 + Math.sin(prog(pf,60,100)*Math.PI)*0.2;
-                ctx.scale(s,s);
-                if (isSuccess) { // Check
-                    ctx.beginPath(); ctx.moveTo(-10,2); ctx.lineTo(-2,10); ctx.lineTo(15,-8); 
-                    ctx.lineTo(10,-12); ctx.lineTo(-2,2); ctx.lineTo(-6,-2); ctx.fill();
-                } else { // X
-                    ctx.beginPath(); ctx.moveTo(-10,-10); ctx.lineTo(10,10); ctx.moveTo(10,-10); ctx.lineTo(-10,10); 
-                    ctx.strokeStyle='#ef4444'; ctx.lineWidth=6; ctx.stroke();
-                }
-            }
-            ctx.restore();
-        },
-        'tl-duracao': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            
-            const bars = [20, 35, 25, 60, 30, 80]; // ms simulations
-            const maxH = 80;
-            const w = 24;
-            const gap = 12;
-            const startX = (W - (bars.length * (w + gap) - gap)) / 2;
-            const cy = H/2 + 40;
-            
-            bars.forEach((b, i) => {
-                if (f > i*15) {
-                    const hp = prog(f, i*15, i*15+30);
-                    const h = hp * b;
-                    
-                    // Color based on height (duration)
-                    ctx.fillStyle = b > 50 ? '#ef4444' : (b > 30 ? '#f59e0b' : '#10b981');
-                    ctx.beginPath(); ctx.roundRect(startX + i*(w+gap), cy - h, w, h, [3,3,0,0]); ctx.fill();
-                    
-                    // Highlight the slow one
-                    if (b > 50 && hp === 1 && f % 60 < 30) {
-                         ctx.fillStyle='rgba(239,68,68,0.2)';
-                         ctx.beginPath(); ctx.roundRect(startX + i*(w+gap)-4, cy - h - 4, w+8, h+8, 4); ctx.fill();
-                    }
-                }
-            });
-            
-            // Average line
-            if (f > bars.length*15 + 20) {
-                const lh = prog(f, bars.length*15+20, bars.length*15+60);
-                ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
-                ctx.beginPath(); ctx.moveTo(startX-10, cy-35); ctx.lineTo(startX-10 + lh*(W-startX*2+20), cy-35); ctx.stroke();
-                ctx.setLineDash([]);
-            }
-        },
-        'tl-agendamento': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+5;
-            
-            // Loop path
-            ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=4;
-            ctx.beginPath(); ctx.arc(cx, cy, 40, 0, Math.PI*2); ctx.stroke();
-            
-            // Moving dots
-            for(let i=0; i<3; i++) {
-                const a = ((f + i*60) % 180) / 180 * Math.PI*2;
-                const x = cx + Math.cos(a)*40;
-                const y = cy + Math.sin(a)*40;
-                
-                ctx.fillStyle='#10b981';
-                ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fill();
-                ctx.shadowColor='#10b981'; ctx.shadowBlur=10; ctx.fill(); ctx.shadowBlur=0;
-                
-                // execution bursts
-                if (a > Math.PI*1.5 && a < Math.PI*1.6) {
-                    ctx.strokeStyle='#10b981'; ctx.lineWidth=2;
-                    ctx.beginPath(); ctx.arc(cx,cy,40 + Math.sin(f)*10,0,Math.PI*2); ctx.stroke();
-                }
-            }
-            
-            // Clock center
-            ctx.fillStyle='#1e293b'; ctx.beginPath(); ctx.arc(cx,cy,20,0,Math.PI*2); ctx.fill();
-            ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx,cy-10); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+8,cy+5); ctx.stroke();
-        },
-        'tl-rodar': function(ctx,f) {
-            ctx.fillStyle='#1a1f2e'; ctx.fillRect(0,0,W,H);
-            const cx=W/2, cy=H/2+10;
-            
-            // Button
-            const pressing = f>60 && f<80;
-            const bs = pressing ? 0.95 : 1;
-            
-            ctx.save(); ctx.translate(cx,cy); ctx.scale(bs,bs);
-            ctx.shadowColor='rgba(16,185,129,0.4)'; ctx.shadowBlur=pressing?5:15; ctx.shadowOffsetY=pressing?2:5;
-            ctx.fillStyle='#10b981'; ctx.beginPath(); ctx.roundRect(-50,-20,100,40,8); ctx.fill();
-            ctx.shadowBlur=0; ctx.shadowOffsetY=0;
-            
-            ctx.fillStyle='#fff';
-            ctx.beginPath(); ctx.moveTo(-10,-8); ctx.lineTo(15,0); ctx.lineTo(-10,8); ctx.fill(); // Play icon
-            ctx.restore();
-            
-            // Cursor
-            let cursX=cx+60, cursY=cy+40;
-            if (f<40) cursX = lerp(W, cx+10, prog(f,0,40));
-            if (f<40) cursY = lerp(H, cy+10, prog(f,0,40));
-            else if (f<100) { cursX=cx+10; cursY=cy+10; }
-            else { cursX = lerp(cx+10, W, prog(f,100,140)); cursY = lerp(cy+10, H, prog(f,100,140)); }
-            
-            if (f<140) drawCursor(ctx, cursX, cursY, pressing);
-            
-            // Ripples
-            if (f > 70 && f < 130) {
-                const rp = prog(f, 70, 130);
-                ctx.strokeStyle=`rgba(16,185,129,${1-rp})`; ctx.lineWidth=2;
-                ctx.beginPath(); ctx.roundRect(cx-50-rp*20, cy-20-rp*10, 100+rp*40, 40+rp*20, 12); ctx.stroke();
-            }
-        }
-    };
-
-    const metaData = {
-        'tl-data': ['Data da Execução', 'Dia em que os testes de saúde e performance foram executados.', '0:10'],
-        'tl-hora': ['Horário Exato', 'Horário de Brasília no momento em que a automação disparou a suíte de testes.', '0:10'],
-        'tl-tipo': ['Tipo de Teste (E2E)', 'Identifica o tipo da automação (ex: E2E). Testes E2E simulam interações de um usuário real navegando.', '0:12'],
-        'tl-modulo': ['Área do Sistema', 'O módulo alvo do teste (ex: Gabi AI, Faturamento). Indica qual inteligência foi validada.', '0:15'],
-        'tl-descricao': ['Descrição do Escopo', 'Detalha o cenário testado. Garante que as integrações externas respondam corretamente.', '0:18'],
-        'tl-status': ['Status da Execução', 'Indica se a execução "Passou", ou se encontrou falhas. Relaxe! Falhas disparam alertas imediatos.', '0:13'],
-        'tl-duracao': ['Performance (ms)', 'Tempo total levado pela automação. Monitoramos isso para detectar degradação na velocidade.', '0:12'],
-        'tl-agendamento': ['Agendar Execuções', 'Programe a suíte para rodar periodicamente e monitore o ecossistema minimizando surpresas.', '0:13'],
-        'tl-rodar': ['Execução Manual', 'Força a inicialização imediata do robô dos testes. Excelente para validar correções em tempo real.', '0:15']
-    };
-
-    function ensureDOM(id) {
-        let wrap = document.getElementById(`vcw-${id}`);
-        if (wrap) return wrap;
-
-        // Tolerance for index.html strict cache
-        let targetNode;
-        if (id === 'tl-agendamento') targetNode = document.getElementById('btn-log-agendamento');
-        else if (id === 'tl-rodar') targetNode = document.getElementById('btn-log-run-now');
-        else {
-            const th = document.querySelector(`th.sortable-header[data-key="${id.replace('tl-', '')}"]`);
-            if (th) targetNode = th.querySelector('.header-content span');
-        }
-
-        if (!targetNode) return null;
-
-        wrap = document.createElement('div');
-        wrap.className = 'vcw';
-        wrap.id = `vcw-${id}`;
-        wrap.style.position = 'relative';
-        wrap.style.display = 'inline-flex';
-        targetNode.parentNode.insertBefore(wrap, targetNode);
-        wrap.appendChild(targetNode);
-
-        const rightAnchored = id.includes('agendamento') || id.includes('rodar') || id.includes('status') || id.includes('duracao');
-        const tooltipHTML = `
-            <div class="vtt-tooltip" id="vct-${id}" style="display:none;position:absolute;z-index:999999;">
-                <div class="vtt-video-container" id="vcvc-${id}"><canvas class="vtt-canvas" id="vcc-${id}" width="300" height="169"></canvas></div>
-                <div class="vtt-body">
-                    <div class="vtt-label">Tutorial · ${metaData[id][2]}</div>
-                    <div class="vtt-title">${metaData[id][0]}</div>
-                    <div class="vtt-desc">${metaData[id][1]}</div>
-                    <div class="vtt-cta"><span class="vtt-link">Entenda mais →</span><span class="vtt-time" id="vctm-${id}">0:00</span></div>
-                </div>
-                <div class="vtt-arrow" style="${rightAnchored?'right:20px;left:auto;':'left:20px;right:auto;'}top:-5px;transform:rotate(45deg);"></div>
-            </div>`;
-        wrap.insertAdjacentHTML('beforeend', tooltipHTML);
-        return wrap;
-    }
-
-    function setup(id, durationFrames) {
-        const wrap = ensureDOM(id);
-        if(!wrap) return;
-
-        const tooltip = document.getElementById(`vct-${id}`);
-        const canvas = document.getElementById(`vcc-${id}`);
-        const ctaTime = document.getElementById(`vctm-${id}`);
-        if(!tooltip || !canvas) return;
-
-        const ctx = init(canvas);
-        let animId=null, frame=0, visible=false;
-        
-        function draw(){ if(anims[id]) anims[id](ctx,frame); }
-        function tick(){ draw(); frame=(frame+1)%durationFrames; if (ctaTime) ctaTime.innerHTML=`0:${String(Math.floor(frame/60)).padStart(2,'0')}`; animId=requestAnimationFrame(tick); }
-        
-        const showTooltip = () => {
-            if(visible) return; visible=true;
-            document.querySelectorAll('.vtt-tooltip.vtt-visible').forEach(t=> { t.classList.remove('vtt-visible'); t.style.display='none'; });
-            
-            // Appending to body solves <th> overflow hidden / position sticky z-index clipping
-            document.body.appendChild(tooltip);
-            tooltip.style.display = 'block';
-            tooltip.style.position = 'fixed';
-            const rect = wrap.getBoundingClientRect();
-            
-            if (id.includes('agendamento') || id.includes('rodar') || id.includes('status') || id.includes('duracao')) {
-                tooltip.style.left = 'auto';
-                tooltip.style.right = (window.innerWidth - rect.right) + 'px';
-            } else if (id.includes('descricao')) {
-                tooltip.style.left = (rect.left - 50) + 'px';
-                tooltip.style.right = 'auto';
-            } else {
-                tooltip.style.left = rect.left + 'px';
-                tooltip.style.right = 'auto';
-            }
-            tooltip.style.top = (rect.bottom + 8) + 'px';
-            tooltip.style.zIndex = '999999';
-            
-            void tooltip.offsetWidth; // Reflow
-            tooltip.classList.add('vtt-visible'); 
-            frame=0; 
-            if(animId)cancelAnimationFrame(animId); 
-            animId=requestAnimationFrame(tick);
-            window._vttPulse?.seen(id);
-        };
-
-        const hideTooltip = (e) => {
-            if(!wrap.contains(e.relatedTarget) && !tooltip.contains(e.relatedTarget)){ 
-                visible=false; 
-                tooltip.classList.remove('vtt-visible'); 
-                if(animId)cancelAnimationFrame(animId); 
-                animId=null; frame=0; draw(); 
-                setTimeout(() => { if(!visible) tooltip.style.display='none'; }, 200);
-            }
-        };
-
-        wrap.addEventListener('mouseenter', showTooltip);
-        wrap.addEventListener('mouseleave', hideTooltip);
-        tooltip.addEventListener('mouseenter', () => { if(visible) return; showTooltip(); });
-        tooltip.addEventListener('mouseleave', hideTooltip);
-        draw();
-        window._vttPulse?.add(wrap, id, id.includes('agendamento') || id.includes('rodar') ? 'green' : undefined);
-    }
-
-    setup('tl-data', 180);
-    setup('tl-hora', 180);
-    setup('tl-tipo', 160);
-    setup('tl-modulo', 200);
-    setup('tl-descricao', 180);
-    setup('tl-status', 240);
-    setup('tl-duracao', 180);
-    setup('tl-agendamento', 180);
-    setup('tl-rodar', 160);
-}

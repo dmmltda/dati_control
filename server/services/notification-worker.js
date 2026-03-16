@@ -59,6 +59,12 @@ function buildWhatsAppText(type, activity, usuario, empresa) {
         case 'next-step':
             return `🎯 *Próximo Passo — Journey*\n\n*${activity?.next_step_title || titulo}*${emp ? `\n🏢 ${emp}` : ''}${activity?.next_step_date ? `\n📅 ${formatDate(activity.next_step_date)}` : ''}\n\nNão esqueça de registrar o andamento.`;
 
+        case 'meeting-summary':
+            return `📝 *Resumo do Atendimento — Journey*\n\n*${titulo}*${emp ? `\n🏢 ${emp}` : ''}\n\n*Resumo:* ${activity?.description || 'Nenhum'}\n\n*Próximo Passo:* ${activity?.next_step_title || 'Não definido'}${activity?.next_step_date ? ` (${new Date(activity.next_step_date).toLocaleDateString('pt-BR')})` : ''}`;
+
+        case 'recording':
+            return `🎥 *Gravação do Atendimento — Journey*\n\n*${titulo}*${emp ? `\n🏢 ${emp}` : ''}\n\n*Link:* ${activity?.recording_url}\n\nAcesse para revisar o que foi discutido.`;
+
         default:
             return `📌 *Journey CRM*\n\n${titulo}${emp ? ` — ${emp}` : ''}`;
     }
@@ -199,11 +205,20 @@ export async function processNotificationJob({ type, activityId, userId, extra }
 
     console.log(`[notification-worker] Job ${type} processed for ${email}`);
 
-    // 5. Envio via WhatsApp (se configurado + atividade tem reminder_whatsapp + usuário tem número)
-    const waTypes = ['reminder', 'meeting-invite', 'task-assigned', 'next-step'];
+    // 5. Envio via WhatsApp
+    const waTypes = ['reminder', 'meeting-invite', 'task-assigned', 'next-step', 'meeting-summary', 'recording'];
+    
+    // Novas flags baseadas nos campos do schema
+    const shouldSendWA = 
+        (type === 'reminder' && activity?.reminder_whatsapp) ||
+        (type === 'meeting-invite' && activity?.send_invite_whatsapp) ||
+        (type === 'meeting-summary' && activity?.send_summary_whatsapp) ||
+        (type === 'recording' && activity?.send_recording_whatsapp) ||
+        (['task-assigned', 'next-step'].includes(type) && activity?.reminder_whatsapp); // fallback para tarefas
+
     if (
         waTypes.includes(type) &&
-        activity?.reminder_whatsapp &&
+        shouldSendWA &&
         isWhatsAppConfigured()
     ) {
         try {

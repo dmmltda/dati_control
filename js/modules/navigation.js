@@ -20,7 +20,8 @@ export function switchView(viewId) {
             item.classList.add('active');
         }
     });
-    ui.initGlobalPickers();
+    
+    if (ui.initGlobalPickers) ui.initGlobalPickers();
 }
 
 export function switchFormTab(tabId, btnElement) {
