@@ -392,9 +392,23 @@ const emailMonitor = (() => {
                     `;
                 }
 
-                let contentHtml = row.content ? 
-                    `<div style="white-space:pre-wrap; background:rgba(0,0,0,0.15); padding:1rem; border-radius:6px; font-family:monospace; font-size:0.82rem; max-height:220px; overflow-y:auto; line-height:1.45; color:var(--text-color);">${_esc(row.content)}</div>` 
-                    : `<em style="color:var(--text-muted); font-size:0.85rem;">(Corpo do e-mail não disponível no histórico)</em>`;
+                let contentHtml = '';
+                if (row.content) {
+                    const isHtml = row.direction === 'outbound' || /<body|<html/i.test(row.content);
+                    if (isHtml) {
+                        const safeSrcDoc = String(row.content)
+                            .replace(/&/g, '&amp;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#39;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;');
+                        contentHtml = `<iframe srcdoc="${safeSrcDoc}" style="width:100%; height:320px; border:1px solid var(--border-color); background:#fff; border-radius:6px; margin-top:0.5rem;"></iframe>`;
+                    } else {
+                        contentHtml = `<div style="white-space:pre-wrap; background:rgba(0,0,0,0.15); padding:1rem; border-radius:6px; font-size:0.85rem; max-height:220px; overflow-y:auto; line-height:1.45; color:var(--text-color); margin-top:0.5rem;">${_esc(row.content)}</div>`;
+                    }
+                } else {
+                    contentHtml = `<em style="color:var(--text-muted); font-size:0.85rem; margin-top:0.5rem; display:block;">(Corpo do e-mail não disponível no histórico)</em>`;
+                }
 
                 html += `
                     <div style="position:relative; padding-left:1.5rem; border-left:3px solid ${borderLeft}; padding-bottom:${isLast ? '0' : '2rem'}; opacity:${isLast ? '1' : '0.8'};">
