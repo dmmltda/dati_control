@@ -109,7 +109,7 @@ export class CustomSelect {
             this._root.classList.add('disabled');
         }
 
-        // Dropdown panel
+        // Dropdown panel — será portado para body ao abrir (evita z-index cortado por contextos de stacking)
         this._panel = document.createElement('div');
         this._panel.className = 'csel-panel';
         this._panel.setAttribute('role', 'listbox');
@@ -138,7 +138,7 @@ export class CustomSelect {
         this._panel.appendChild(this._list);
 
         this._root.appendChild(this._trigger);
-        this._root.appendChild(this._panel);
+        // Nota: _panel NÃO é appendado ao root aqui — será portado para body ao abrir
 
         // Insere após o select nativo e oculta chevron nativo se estiver em um wrapper
         this._select.insertAdjacentElement('afterend', this._root);
@@ -209,7 +209,7 @@ export class CustomSelect {
         }
     }
 
-    /* ── Abre o painel ── */
+    /* ── Abre o painel (padrão portal: appenda ao body com position:fixed) ── */
     _openPanel() {
         if (this._open) return;
         this._open = true;
@@ -220,28 +220,59 @@ export class CustomSelect {
         this._searchInput.value = '';
         this._renderList('');
 
-        // Foco automático no campo de busca
+        // ── Portal: move o panel para o body com coordenadas fixas do trigger ──
+        const rect = this._trigger.getBoundingClientRect();
+        this._panel.style.position = 'fixed';
+        this._panel.style.top = (rect.bottom + 6) + 'px';
+        this._panel.style.left = rect.left + 'px';
+        this._panel.style.width = rect.width + 'px';
+        this._panel.style.zIndex = '99999';
+        this._panel.style.display = 'flex';
+        this._panel.style.flexDirection = 'column';
+        document.body.appendChild(this._panel);
+
+        // Ajusta posição se o painel ultrapassar a viewport na vertical
         requestAnimationFrame(() => {
+            const panelRect = this._panel.getBoundingClientRect();
+            if (panelRect.bottom > window.innerHeight) {
+                this._panel.style.top = (rect.top - panelRect.height - 6) + 'px';
+            }
             this._searchInput.focus();
             // Scroll até o item selecionado
             const sel = this._list.querySelector('.csel-option.selected');
             if (sel) sel.scrollIntoView({ block: 'nearest' });
         });
 
+        // Atualiza posição ao rolar a página
+        this._scrollHandler = () => {
+            const r = this._trigger.getBoundingClientRect();
+            this._panel.style.top = (r.bottom + 6) + 'px';
+            this._panel.style.left = r.left + 'px';
+        };
+        window.addEventListener('scroll', this._scrollHandler, true);
+
         // Click fora fecha
         this._outsideHandler = (e) => {
-            if (!this._root.contains(e.target)) this._closePanel();
+            if (!this._root.contains(e.target) && !this._panel.contains(e.target)) this._closePanel();
         };
         document.addEventListener('mousedown', this._outsideHandler);
     }
 
-    /* ── Fecha o painel ── */
+    /* ── Fecha o painel e remove o portal do body ── */
     _closePanel() {
         if (!this._open) return;
         this._open = false;
         this._root.classList.remove('open');
         this._root.setAttribute('aria-expanded', 'false');
+        // Remove o panel do body (portal)
+        if (this._panel.parentNode === document.body) {
+            document.body.removeChild(this._panel);
+        }
+        this._panel.style.display = '';
         document.removeEventListener('mousedown', this._outsideHandler);
+        if (this._scrollHandler) {
+            window.removeEventListener('scroll', this._scrollHandler, true);
+        }
     }
 
     /* ── Events ── */

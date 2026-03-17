@@ -484,6 +484,8 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.429rem; /* ≈ 20px (base: 14px) */
+    position: relative;
+    z-index: 100;
 }
 
 /* Sidebar Expandable Nav Group */
