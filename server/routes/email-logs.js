@@ -123,8 +123,6 @@ router.get('/stats', async (req, res) => {
     }
 });
 
-export default router;
-
 // ── GET /api/email-logs/:id/thread ───────────────────────────────────────────
 router.get('/:id/thread', async (req, res) => {
     try {
@@ -166,3 +164,5 @@ router.get('/:id/thread', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+
+export default router;

@@ -15,7 +15,10 @@ router.post('/incoming', async (req, res) => {
         // Resend envia um formato específico, ajuste conforme o provedor real
         // Webhooks do Resend chegam encapsulados em "req.body.data"
         const payloadData = req.body.data || req.body;
-        const { from, to, subject, text, html } = payloadData;
+        const { from, to, subject } = payloadData;
+        // Resend pode usar diferentes campos para o corpo — normalizar aqui
+        const text = payloadData.text || payloadData.plain_text || payloadData.text_body || '';
+        const html = payloadData.html || payloadData.html_body || payloadData.html_content || '';
         
         let recipientRaw = '';
         if (Array.isArray(to)) recipientRaw = to.join(',');
@@ -85,6 +88,7 @@ router.post('/incoming', async (req, res) => {
         let action = 'auto_replied';
         let summary = 'Não foi possível gerar um resumo pela IA. Cliente confirmou ou respondeu de forma breve.';
         let isComplex = false;
+        let sentimentLevel = 'neutral'; // Será classificado pela IA
         
         // Chamada real ao Gemini
         try {
@@ -97,19 +101,27 @@ router.post('/incoming', async (req, res) => {
             
             if (apiKey) {
                 const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+                const emailBody = text || html || '(sem texto)';
                 const prompt = `Você é especialista em Customer Success. Analise o e-mail recebido e responda SOMENTE com JSON válido.
 Responda APENAS com este formato JSON:
 {
   "intent": "suporte_complexo|resposta_simples",
   "action": "escalated_to_human|auto_replied",
+  "sentiment_level": "very_positive|positive|neutral|negative|very_negative",
   "summary": "Resumo de 1 a 2 frases do que o cliente precisa."
 }
-Critérios:
-- "suporte_complexo" / "escalated_to_human": cliente relatou um problema, quer cancelar, ou precisa de ajuda específica (ex: faturamento falhou).
+Critérios de intent:
+- "suporte_complexo" / "escalated_to_human": cliente relatou um problema, quer cancelar, reclama, demonstra insatisfação, ou precisa de ajuda específica.
 - "resposta_simples" / "auto_replied": cliente deu um ok, respondeu NPS brevemente, só confirmou.
+Critérios de sentiment_level:
+- very_positive: elogios efusivos, muito satisfeito.
+- positive: cliente satisfeito, resposta positiva.
+- neutral: neutro, sem indicação clara de satisfação/insatisfação.
+- negative: reclamação, frustração, insatisfação.
+- very_negative: ameaça cancelar, indignação severa, linguagem muito negativa.
 
-E-mail:
-"${text || html || '(sem texto)'}"`;
+E-mail recebido:
+"${emailBody}"`;
 
                 const resp = await fetch(geminiUrl, {
                     method: 'POST',
@@ -129,8 +141,9 @@ E-mail:
                     intent = parsed.intent || intent;
                     action = parsed.action || action;
                     summary = parsed.summary || summary;
+                    sentimentLevel = parsed.sentiment_level || 'neutral';
                     isComplex = action === 'escalated_to_human';
-                    console.log(`[Webhook Email] 🧠 Análise Gabi: Intenção=${intent}, Transbordo=${isComplex}`);
+                    console.log(`[Webhook Email] 🧠 Análise Gabi: Intenção=${intent}, Sentimento=${sentimentLevel}, Transbordo=${isComplex}`);
                 } else {
                     console.warn(`[Webhook Email] Falha na API Gemini: ${resp.status}`);
                 }
@@ -139,8 +152,12 @@ E-mail:
                 throw new Error("No API key");
             }
         } catch (err) {
-            // Fallback simulado se IA falhar
-            isComplex = (text || html || '').length > 200 || /cancelar|problema|erro|ajuda|socorro/i.test(text || '');
+            // Fallback simulado se IA falhar — analisa palavras-chave no texto
+            const bodyForFallback = text || html || '';
+            isComplex = bodyForFallback.length > 200 || /cancelar|problema|erro|ajuda|socorro|ruim|péssimo|horrível|insatisf|não consigo|reclamação/i.test(bodyForFallback);
+            const isNegative = /ruim|péssimo|horrível|insatisf|cancelar|não consigo|reclamação|problema/i.test(bodyForFallback);
+            const isPositive = /ótimo|excelente|parabéns|obrigad|satisfeito|adorei|perfeito/i.test(bodyForFallback);
+            sentimentLevel = isNegative ? 'negative' : (isPositive ? 'positive' : 'neutral');
             intent = isComplex ? 'suporte_complexo' : 'resposta_simples';
             action = isComplex ? 'escalated_to_human' : 'auto_replied';
             summary = isComplex 
@@ -149,10 +166,11 @@ E-mail:
         }
             
         let gabiOutboundLogId = null;
+        let generatedReply = null;
         if (action === 'auto_replied') {
             generatedReply = "Olá! Agradecemos o seu contato. Entendi sua mensagem e já registrei no sistema. Em breve nosso time analisará caso haja mais alguma pendência. Um abraço da Gabi!";
             
-            const replySubject = `Re: ${subject || 'Sem assunto'}`;
+            const replySubject = subject?.startsWith('Re:') ? subject : `Re: ${subject || 'Sem assunto'}`;
             const replyHtml = `<div style="font-family:sans-serif; color:#1e293b; line-height:1.7">
 <p>${generatedReply}</p>
 <hr style="border:none; border-top:1px solid #e2e8f0; margin:1.5rem 0;">
@@ -160,48 +178,53 @@ E-mail:
 Este é um e-mail automático. Para falar com nossa equipe, responda esta mensagem.</p>
 </div>`;
 
-            // ── Envio REAL via Resend (passa pelo email.js) ──
+            // ── Envio REAL via Resend — NÃO deixa sendEmail criar log duplo ──
+            // Criamos o log de saída manualmente para ter controle total do parent_email_id
+            const outboundDedupKey = randomUUID();
+            const outboundLog = await prisma.email_send_log.create({
+                data: {
+                    dedup_key: outboundDedupKey,
+                    recipient: cleanEmail,
+                    subject: replySubject,
+                    template: 'gabi-auto-reply',
+                    tag: 'gabi-auto-reply',
+                    direction: 'outbound',
+                    parent_email_id: inboundLog.id,
+                    status: 'pending',
+                    content: replyHtml,
+                    gabi_analysis: {
+                        processed_by_ai: true,
+                        action_taken: 'auto_replied',
+                        intent,
+                        sentiment: { level: sentimentLevel },
+                        summary: `Resposta automática enviada para: ${cleanEmail}`
+                    }
+                }
+            });
+            gabiOutboundLogId = outboundLog.id;
+
             const sendResult = await sendEmail({
                 to: cleanEmail,
                 subject: replySubject,
                 html: replyHtml,
                 tag: 'gabi-auto-reply',
-                dedupKey: randomUUID(),
+                dedupKey: outboundDedupKey,
+                skipLog: true, // Log já criado manualmente com parent_email_id e gabi_analysis
             });
 
-            // ── Atualiza o registro criado pelo sendEmail com metadata da thread ──
-            // sendEmail já cria o log no banco; vamos buscar pelo tag mais recente
-            // e completar com os campos da thread
-            try {
-                const outbound = await prisma.email_send_log.findFirst({
-                    where: { tag: 'gabi-auto-reply', direction: null },
-                    orderBy: { sent_at: 'desc' }
-                });
-                if (outbound) {
-                    await prisma.email_send_log.update({
-                        where: { id: outbound.id },
-                        data: {
-                            direction: 'outbound',
-                            status: sendResult.sent ? 'sent' : 'failed',
-                            parent_email_id: inboundLog.id,
-                            gabi_analysis: {
-                                processed_by_ai: true,
-                                action_taken: 'auto_replied',
-                                intent,
-                                summary: `Resposta automática enviada para: ${cleanEmail}`
-                            }
-                        }
-                    });
-                    gabiOutboundLogId = outbound.id;
+            // Atualiza status após envio
+            await prisma.email_send_log.update({
+                where: { id: outboundLog.id },
+                data: { 
+                    status: sendResult.sent ? 'sent' : 'failed',
+                    resend_id: sendResult.id || null
                 }
-            } catch (updateErr) {
-                console.warn('[Webhook Email] Não foi possível atualizar o log de saída da Gabi:', updateErr.message);
-            }
+            });
 
             console.log(`[Webhook Email] 📤 Resposta Gabi ${sendResult.sent ? 'ENVIADA' : 'FALHOU'} para ${cleanEmail}`);
         }
 
-        // Atualizar log com análise
+        // Atualizar log com análise completa (incluindo sentiment para o frontend)
         await prisma.email_send_log.update({
             where: { id: inboundLog.id },
             data: {
@@ -211,6 +234,7 @@ Este é um e-mail automático. Para falar com nossa equipe, responda esta mensag
                     confidence_score: isComplex ? 0.3 : 0.9,
                     action_taken: action,
                     summary,
+                    sentiment: { level: sentimentLevel },
                     ...(generatedReply && { generated_reply: generatedReply })
                 }
             }

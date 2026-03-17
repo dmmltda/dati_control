@@ -91,7 +91,7 @@ const TEMPLATES = {
  *
  * @returns {Promise<{ sent: boolean, blocked?: string, error?: string }>}
  */
-export async function sendEmail({ to, from, template, data, subject, html, tag, dedupKey, replyTo, headers }) {
+export async function sendEmail({ to, from, template, data, subject, html, tag, dedupKey, replyTo, headers, skipLog }) {
     // ── Guarda: Resend não configurado ────────────────────────────────────────
     if (!_resend) {
         console.warn(`[Email] RESEND_API_KEY não configurada — e-mail ignorado${tag ? ` [${tag}]` : ''}`);
@@ -125,29 +125,31 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
         return { sent: false, blocked: 'Sem destinatários' };
     }
 
-    // ── Dedup: INSERT antes de enviar ──────────────────────────────────────────────────────────────
+    // ── Dedup: INSERT antes de enviar (skip se o caller já criou o log) ───────────────────────
     const logTag = tag ? ` [${tag}]` : '';
     dedupKey = dedupKey || crypto.randomUUID();
     
-    try {
-        await _prisma.email_send_log.create({
-            data: {
-                dedup_key: dedupKey,
-                recipient: recipients.join(','),
-                subject,
-                template:  template || null,
-                tag:       tag     || null,
-                content:   html    // Salva o corpo para renderizar no modal de Cadeia de E-mails
-            },
-        });
-    } catch (dedupErr) {
-        if (dedupErr.code === 'P2002') {
-            // Unique constraint: e-mail já enviado com essa chave
-            console.warn(`[Email] 🛑 Bloqueado duplicado${logTag}: ${dedupKey}`);
-            return { sent: false, blocked: 'duplicate' };
+    if (!skipLog) {
+        try {
+            await _prisma.email_send_log.create({
+                data: {
+                    dedup_key: dedupKey,
+                    recipient: recipients.join(','),
+                    subject,
+                    template:  template || null,
+                    tag:       tag     || null,
+                    content:   html    // Salva o corpo para renderizar no modal de Cadeia de E-mails
+                },
+            });
+        } catch (dedupErr) {
+            if (dedupErr.code === 'P2002') {
+                // Unique constraint: e-mail já enviado com essa chave
+                console.warn(`[Email] 🛑 Bloqueado duplicado${logTag}: ${dedupKey}`);
+                return { sent: false, blocked: 'duplicate' };
+            }
+            // Outro erro de DB: loga mas não bloqueia o envio
+            console.warn(`[Email] Aviso dedup${logTag}: ${dedupErr.message}`);
         }
-        // Outro erro de DB: loga mas não bloqueia o envio
-        console.warn(`[Email] Aviso dedup${logTag}: ${dedupErr.message}`);
     }
 
     // ── Envio ────────────────────────────────────────────────────────────────────────────────
@@ -181,11 +183,11 @@ export async function sendEmail({ to, from, template, data, subject, html, tag, 
         }
 
         console.log(`[Email] ✅ Enviado${logTag} → ${recipients.join(', ')}`);
-        return { sent: true };
+        return { sent: true, id: response?.data?.id || null };
     } catch (err) {
         console.error(`[Email] ❌ Falha${logTag}:`, err.message);
-        // Se o envio falhou e dedup foi inserido, remove para permitir retry
-        if (dedupKey) {
+        // Se o envio falhou e dedup foi inserido (e não era skipLog), remove para permitir retry
+        if (dedupKey && !skipLog) {
             await _prisma.email_send_log.delete({ where: { dedup_key: dedupKey } }).catch(() => {});
         }
         return { sent: false, error: err.message };
