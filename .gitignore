@@ -29,6 +29,14 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+server.log
+start-dev.log
+
+# Screenshots e arquivos temporários de testes
+test_shot.png
+test_screenshot*.png
+pw-report.json/
+tmp/
 
 # Variáveis de ambiente — NUNCA commitar segredos reais
 .env
