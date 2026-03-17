@@ -1101,46 +1101,223 @@ async function init() {
     _initialized = true;
 }
 
-// ─── Vínculo Manual ──────────────────────────────────────────────────────────
+// ─── Vínculo Manual — Modal de Empresas ──────────────────────────────────────
+let _allCompaniesCache = null; // cache simples para não recarregar toda vez
+
 window._waOpenLinkPrompt = async function() {
-    const term = prompt("Digite o nome da EMPRESA ou CONTATO para buscar no CRM:");
-    if (!term || term.length < 2) return;
+    // Remove overlay anterior
+    document.getElementById('wa-link-overlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'wa-modal-overlay';
+    overlay.id = 'wa-link-overlay';
+    overlay.innerHTML = `
+        <div class="wa-modal wa-link-modal" onclick="event.stopPropagation()" style="max-width:560px; max-height:85vh; display:flex; flex-direction:column;">
+            <!-- Header -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; flex-shrink:0;">
+                <h3 style="margin:0; font-size:1.05rem; display:flex; align-items:center; gap:0.5rem; color:#e2e8f0;">
+                    <i class="ph ph-buildings" style="color:#6366f1;"></i> Vincular à Empresa
+                </h3>
+                <button onclick="document.getElementById('wa-link-overlay')?.remove()" 
+                    style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.3rem 0.6rem; color:#8b98b4; cursor:pointer; font-family:inherit; font-size:0.8rem; transition:all 0.15s;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.12)'" 
+                    onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <!-- Search -->
+            <div style="position:relative; margin-bottom:1rem; flex-shrink:0;">
+                <i class="ph ph-magnifying-glass" style="position:absolute; left:0.9rem; top:50%; transform:translateY(-50%); color:#6366f1; font-size:1rem;"></i>
+                <input type="text" id="wa-link-search" class="wa-modal-input" 
+                    placeholder="Buscar empresa..." 
+                    style="padding-left:2.6rem;"
+                    oninput="window._waLinkFilter(this.value)"
+                />
+            </div>
+
+            <!-- Companies list -->
+            <div id="wa-link-list" style="flex:1; overflow-y:auto; border:1px solid rgba(255,255,255,0.07); border-radius:12px; background:rgba(0,0,0,0.2);">
+                <div class="wa-loading"><div class="wa-spinner"></div> Carregando empresas...</div>
+            </div>
+
+            <!-- Divider -->
+            <div style="display:flex; align-items:center; gap:0.75rem; margin:1rem 0; flex-shrink:0;">
+                <div style="flex:1; height:1px; background:rgba(255,255,255,0.08);"></div>
+                <span style="font-size:0.72rem; color:#475569; white-space:nowrap;">ou cadastre nova empresa</span>
+                <div style="flex:1; height:1px; background:rgba(255,255,255,0.08);"></div>
+            </div>
+
+            <!-- Quick create -->
+            <div id="wa-link-new-form" style="flex-shrink:0;">
+                <div style="display:flex; gap:0.6rem; align-items:flex-end;">
+                    <div style="flex:1;">
+                        <label style="display:block; font-size:0.72rem; color:#8b98b4; font-weight:600; margin-bottom:0.35rem; letter-spacing:0.04em;">NOME DA EMPRESA</label>
+                        <input type="text" id="wa-link-new-name" class="wa-modal-input" placeholder="Ex: Acme Ltda" />
+                    </div>
+                    <div style="width:130px;">
+                        <label style="display:block; font-size:0.72rem; color:#8b98b4; font-weight:600; margin-bottom:0.35rem; letter-spacing:0.04em;">SEGMENTO</label>
+                        <input type="text" id="wa-link-new-seg" class="wa-modal-input" placeholder="Ex: Indústria" />
+                    </div>
+                    <button class="wa-btn wa-btn-primary" id="wa-link-create-btn" onclick="window._waLinkCreateCompany()" style="flex-shrink:0; height:40px; padding:0 1rem;">
+                        <i class="ph ph-plus"></i> Criar
+                    </button>
+                </div>
+                <div id="wa-link-create-status" style="min-height:20px; font-size:0.78rem; margin-top:0.4rem;"></div>
+            </div>
+        </div>
+    `;
+    overlay.addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+
+    // Foca no campo de busca
+    setTimeout(() => document.getElementById('wa-link-search')?.focus(), 80);
+
+    // Carrega empresas
+    await _waLinkLoadAll();
+};
+
+let _waLinkAllCompanies = [];
+
+async function _waLinkLoadAll() {
+    const listEl = document.getElementById('wa-link-list');
+    if (!listEl) return;
 
     try {
-        // Busca empresas (endpoint existente no app)
-        const resp = await _fetch(`/api/companies?search=${encodeURIComponent(term)}&limit=5`);
-        const data = await resp.json();
-        const companies = data.data || [];
+        const resp = await _fetch('/api/companies/search?limit=200');
+        _waLinkAllCompanies = await resp.json();
+        _waLinkRenderList(_waLinkAllCompanies);
+    } catch (err) {
+        if (listEl) listEl.innerHTML = `<div style="padding:1.25rem; text-align:center; font-size:0.8rem; color:#ef4444;">Erro ao carregar: ${err.message}</div>`;
+    }
+}
 
-        if (companies.length === 0) {
-            alert("Nenhuma empresa encontrada com este nome.");
-            return;
-        }
+window._waLinkFilter = function(term) {
+    if (!term.trim()) {
+        _waLinkRenderList(_waLinkAllCompanies);
+        return;
+    }
+    const lower = term.toLowerCase();
+    const filtered = _waLinkAllCompanies.filter(c => c.Nome_da_empresa?.toLowerCase().includes(lower));
+    _waLinkRenderList(filtered);
+};
 
-        const options = companies.map((c, i) => `${i + 1}. ${c.Nome_da_empresa}`).join('\n');
-        const choice = prompt(`Selecione a empresa (digite o número):\n\n${options}`);
-        const idx = parseInt(choice) - 1;
+function _waLinkRenderList(companies) {
+    const listEl = document.getElementById('wa-link-list');
+    if (!listEl) return;
 
-        if (companies[idx]) {
-            const co = companies[idx];
-            const confirmLink = confirm(`Deseja vincular esta conversa à empresa: ${co.Nome_da_empresa}?`);
-            if (confirmLink) {
-                const linkResp = await _fetch(`/api/whatsapp/conversations/${_currentConvId}/link`, {
-                    method: 'POST',
-                    body: JSON.stringify({ company_id: co.id })
-                });
-                if (linkResp.ok) {
-                    // Recarrega mensagens para atualizar UI
-                    await _waSelectConv(_currentConvId);
-                    await _loadConversations();
-                } else {
-                    const errData = await linkResp.json();
-                    alert("Erro ao vincular: " + (errData.error || "Erro desconhecido"));
-                }
+    if (!companies.length) {
+        listEl.innerHTML = `
+            <div style="padding:2rem; text-align:center; color:#475569; font-size:0.82rem; display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+                <i class="ph ph-buildings" style="font-size:2rem; opacity:0.3;"></i>
+                Nenhuma empresa encontrada
+            </div>`;
+        return;
+    }
+
+    listEl.innerHTML = companies.map(co => {
+        const statusColor = co.Status === 'Ativo' || co.Status === 'ativo' ? '#10b981' : '#6b7280';
+        const statusDot = `<span style="width:7px;height:7px;border-radius:50%;background:${statusColor};display:inline-block;flex-shrink:0;"></span>`;
+        const safeName = co.Nome_da_empresa.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        return `
+            <div class="wa-link-item" onclick="window._waLinkSelect('${co.id}', '${safeName}')" 
+                style="padding:0.75rem 1rem; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; gap:0.75rem; transition:background 0.12s;"
+                onmouseover="this.style.background='rgba(99,102,241,0.12)'"
+                onmouseout="this.style.background='transparent'">
+                <div style="width:34px;height:34px;border-radius:8px;background:rgba(99,102,241,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ph ph-buildings" style="color:#6366f1; font-size:0.95rem;"></i>
+                </div>
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.855rem; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${co.Nome_da_empresa}</div>
+                    <div style="font-size:0.7rem; color:#475569; display:flex; align-items:center; gap:0.35rem; margin-top:0.15rem;">
+                        ${statusDot} ${co.Status || '—'}
+                    </div>
+                </div>
+                <div style="color:#6366f1; font-size:0.75rem; font-weight:600; flex-shrink:0; opacity:0.7;">
+                    Vincular <i class="ph ph-arrow-right"></i>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+window._waLinkSelect = async function(coId, coNome) {
+    const listEl = document.getElementById('wa-link-list');
+    if (listEl) listEl.innerHTML = `<div class="wa-loading"><div class="wa-spinner"></div> Vinculando à <strong>${coNome}</strong>...</div>`;
+
+    try {
+        const resp = await _fetch(`/api/whatsapp/conversations/${_currentConvId}/link`, {
+            method: 'POST',
+            body: JSON.stringify({ company_id: coId })
+        });
+
+        if (resp.ok) {
+            // Atualiza memória local
+            const convIdx = _conversations.findIndex(c => c.id === _currentConvId);
+            if (convIdx !== -1) {
+                _conversations[convIdx].company_id = coId;
+                _conversations[convIdx].company_nome = coNome;
             }
+
+            // Feedback visual antes de fechar
+            if (listEl) listEl.innerHTML = `
+                <div style="padding:2rem; text-align:center; color:#10b981; font-size:0.9rem; display:flex; flex-direction:column; align-items:center; gap:0.5rem;">
+                    <i class="ph ph-check-circle" style="font-size:2.5rem;"></i>
+                    <strong>Vinculado com sucesso!</strong>
+                    <span style="color:#8b98b4; font-size:0.8rem;">${coNome}</span>
+                </div>`;
+
+            setTimeout(() => {
+                document.getElementById('wa-link-overlay')?.remove();
+                _loadMessages(_currentConvId);
+                _loadConversations();
+            }, 900);
+        } else {
+            const errData = await resp.json();
+            throw new Error(errData.error || 'Erro desconhecido');
         }
     } catch (err) {
-        alert("Erro na busca: " + err.message);
+        if (listEl) listEl.innerHTML = `<div style="padding:1.25rem; text-align:center; font-size:0.8rem; color:#ef4444;"><i class="ph ph-x-circle"></i> Erro: ${err.message}</div>`;
+    }
+};
+
+window._waLinkCreateCompany = async function() {
+    const nome = document.getElementById('wa-link-new-name')?.value.trim();
+    const seg  = document.getElementById('wa-link-new-seg')?.value.trim() || 'Geral';
+    const statusEl = document.getElementById('wa-link-create-status');
+    const btn = document.getElementById('wa-link-create-btn');
+
+    if (!nome) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f87171;">⚠️ Nome da empresa é obrigatório.</span>';
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    if (statusEl) statusEl.innerHTML = '<div class="wa-spinner" style="display:inline-block; width:14px; height:14px; margin-right:6px;"></div> Criando empresa...';
+
+    try {
+        const resp = await _fetch('/api/companies', {
+            method: 'POST',
+            body: JSON.stringify({
+                Nome_da_empresa: nome,
+                Status: 'Ativo',
+                Segmento_da_empresa: seg,
+                Tipo_de_empresa: 'Cliente',
+                Estado: '',
+                Cidade: '',
+            })
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+
+        if (statusEl) statusEl.innerHTML = `<span style="color:#10b981;"><i class="ph ph-check-circle"></i> Empresa criada! Vinculando...</span>`;
+
+        // Vincula automaticamente à conversa atual
+        await window._waLinkSelect(data.id, data.Nome_da_empresa);
+
+    } catch (err) {
+        if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">❌ ${err.message}</span>`;
+        if (btn) btn.disabled = false;
     }
 };
 

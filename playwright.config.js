@@ -103,10 +103,10 @@ export default defineConfig({
     webServer: {
         command: 'node server/index.js',
         url:     BASE_URL,
-        reuseExistingServer: !IS_CI,
+        reuseExistingServer: true,   // sempre reaproveita o servidor local rodando
         timeout: 30000,
         env: {
-            PORT:         '3001',
+            PORT:         String(new URL(BASE_URL).port || '3001'),
             NODE_ENV:     'test',
             TEST_MODE:    'true',  // bypassa Clerk JWT nos testes
             DATABASE_URL: process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || '',
