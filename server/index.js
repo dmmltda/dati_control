@@ -71,6 +71,11 @@ function loadEnvFile(filePath) {
 loadEnvFile(path.join(__dirname, '.env'));        // server/.env
 loadEnvFile(path.join(__dirname, '..', '.env'));  // root .env (fallback)
 
+// ── Validação de ambiente (startup-check) ────────────────────────────────────
+// Verifica variáveis críticas ANTES de subir o servidor.
+// Em produção: aborta o processo se faltar algo crítico.
+// Em desenvolvimento: apenas loga avisos.
+import('./scripts/startup-check.js').then(({ runStartupCheck }) => runStartupCheck());
 
 const app = express();
 const prisma = new PrismaClient({
