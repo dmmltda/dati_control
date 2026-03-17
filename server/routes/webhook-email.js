@@ -10,15 +10,43 @@ const prisma = new PrismaClient();
 // Rota para receber respostas de email via Webhook (Ex: Resend, SendGrid)
 router.post('/incoming', async (req, res) => {
     try {
-        console.log('[Webhook Email] Requisição recebida:', JSON.stringify(req.body).substring(0, 200));
+        console.log('[Webhook Email] Requisição recebida:', JSON.stringify(req.body).substring(0, 500));
 
-        // Resend envia um formato específico, ajuste conforme o provedor real
-        // Webhooks do Resend chegam encapsulados em "req.body.data"
+        // Resend envia o evento com metadados, mas o corpo do email não vem no payload.
+        // O payload contém um email_id — usamos ele para buscar o conteúido completo via API.
         const payloadData = req.body.data || req.body;
-        const { from, to, subject } = payloadData;
-        // Resend pode usar diferentes campos para o corpo — normalizar aqui
-        const text = payloadData.text || payloadData.plain_text || payloadData.text_body || '';
-        const html = payloadData.html || payloadData.html_body || payloadData.html_content || '';
+        const emailId = payloadData.email_id || payloadData.id;
+
+        // Campos do payload (fallback se não conseguirmos buscar via API)
+        let from    = payloadData.from    || '';
+        let to      = payloadData.to      || payloadData.headers?.['to'] || '';
+        let subject = payloadData.subject || '';
+        let text    = payloadData.text    || payloadData.plain_text || payloadData.text_body || '';
+        let html    = payloadData.html    || payloadData.html_body  || payloadData.html_content || '';
+
+        // ══ Busca conteúudo completo via API do Resend (email_id obrigatório) ══
+        if (emailId && process.env.RESEND_API_KEY) {
+            try {
+                const apiRes = await fetch(`https://api.resend.com/emails/${emailId}`, {
+                    headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` }
+                });
+                if (apiRes.ok) {
+                    const emailData = await apiRes.json();
+                    from    = emailData.from    || from;
+                    to      = Array.isArray(emailData.to) ? emailData.to.join(',') : (emailData.to || to);
+                    subject = emailData.subject || subject;
+                    text    = emailData.text    || text;
+                    html    = emailData.html    || html;
+                    console.log(`[Webhook Email] ✅ Conteúdo buscado via API Resend (email_id: ${emailId})`);
+                } else {
+                    console.warn(`[Webhook Email] ⚠️ Falha ao buscar email ${emailId} via API: ${apiRes.status}`);
+                }
+            } catch (fetchErr) {
+                console.warn(`[Webhook Email] ⚠️ Erro ao buscar conteúudo do email:`, fetchErr.message);
+            }
+        } else if (!emailId) {
+            console.warn('[Webhook Email] Nenhum email_id no payload. Usando campos diretos.');
+        }
         
         let recipientRaw = '';
         if (Array.isArray(to)) recipientRaw = to.join(',');
