@@ -1107,6 +1107,10 @@ window.logTestes = {
     clearFilters: logTestes.clearLogFilters,
     refresh:      logTestes.refreshLogTestes,
     init:         logTestes.initLogTestes,
+    setTipo:      logTestes.setTipo,
+    setStatus:    logTestes.setStatus,
+    setDateFrom:  logTestes.setDateFrom,
+    setDateTo:    logTestes.setDateTo,
 };
 
 // ── Aliases para o HTML inline que ainda usa window._logTesteSearch etc. ──────
