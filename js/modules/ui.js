@@ -1,7 +1,6 @@
 import { state } from './state.js';
 import { STATUS_CONFIG, CS_VISIBLE_STATUSES } from './config.js';
-import { TableManager } from './table-manager.js';
-import { TableManager as TableManager2 } from '../core/table-manager.js'; // 🧪 TableManager 2.0 - teste paralelo
+import { TableManager } from '../core/table-manager.js'; // ✅ TableManager 2.0 — motor único
 import { initTooltipSystem } from '../core/tooltip.js'; // 🎯 Tooltip System — UX 10/10
 import { renderTitleWithTooltip, showTooltip, updateTooltipPosition, hideTooltip, bindTooltip } from '../../src/components/dashboard/Tooltip.js'; // Global Tooltip
 import { CustomSelect } from './custom-select.js'; // 🎛️ Custom Select Premium
@@ -624,17 +623,17 @@ export function renderDashboardsTable() {
     if (!body) return;
 
     if (!dashboardTableManager) {
-        dashboardTableManager = new TableManager(
-            state.tempDashboards,
-            [
+        dashboardTableManager = new TableManager({
+            data: state.tempDashboards,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'destinatarios', type: 'string' }
             ],
-            (data) => renderDashboardsTableRows(data),
-            'tab-dashboards'
-        );
-        dashboardTableManager.paginationContainerId = 'pagination-dashboards';
-        dashboardTableManager.apply();
+            tableId: 'tab-dashboards',
+            pageSize: 10,
+            renderRows: (data) => renderDashboardsTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-dashboards', s, dashboardTableManager),
+        });
     } else {
         dashboardTableManager.setData(state.tempDashboards);
     }
@@ -669,18 +668,18 @@ export function renderNPSHistoryTable() {
     if (!body) return;
 
     if (!npsTableManager) {
-        npsTableManager = new TableManager(
-            state.tempNPSHistory,
-            [
+        npsTableManager = new TableManager({
+            data: state.tempNPSHistory,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'destinatarios', type: 'string' },
                 { key: 'score', type: 'number' }
             ],
-            (data) => renderNPSHistoryTableRows(data),
-            'tab-nps'
-        );
-        npsTableManager.paginationContainerId = 'pagination-nps';
-        npsTableManager.apply();
+            tableId: 'tab-nps',
+            pageSize: 10,
+            renderRows: (data) => renderNPSHistoryTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-nps', s, npsTableManager),
+        });
     } else {
         npsTableManager.setData(state.tempNPSHistory);
     }
@@ -856,17 +855,17 @@ export function renderCSMeetingsTable() {
     if (!body) return;
 
     if (!csMeetingTableManager) {
-        csMeetingTableManager = new TableManager(
-            state.tempReunioesCS,
-            [
+        csMeetingTableManager = new TableManager({
+            data: state.tempReunioesCS,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'participantes', type: 'string' }
             ],
-            (data) => renderCSMeetingsTableRows(data),
-            'tab-cs-meetings'
-        );
-        csMeetingTableManager.paginationContainerId = 'pagination-cs-meetings';
-        csMeetingTableManager.apply();
+            tableId: 'tab-cs-meetings',
+            pageSize: 10,
+            renderRows: (data) => renderCSMeetingsTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-cs-meetings', s, csMeetingTableManager),
+        });
     } else {
         csMeetingTableManager.setData(state.tempReunioesCS);
     }
@@ -954,19 +953,19 @@ export function renderFollowUpsTable() {
     if (!body) return;
 
     if (!followUpTableManager) {
-        followUpTableManager = new TableManager(
-            state.tempFollowUps,
-            [
+        followUpTableManager = new TableManager({
+            data: state.tempFollowUps,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'usuario', type: 'string' },
                 { key: 'area', type: 'string' }
             ],
-            (data) => renderFollowUpsTableRows(data),
-            'tab-followup'
-        );
-        followUpTableManager.paginationContainerId = 'pagination-followup';
-        followUpTableManager.sort = { key: 'data', direction: 'desc' };
-        followUpTableManager.apply();
+            tableId: 'tab-followup',
+            pageSize: 10,
+            renderRows: (data) => renderFollowUpsTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-followup', s, followUpTableManager),
+        });
+        followUpTableManager.setSortExplicit('data', 'desc');
     } else {
         followUpTableManager.setData(state.tempFollowUps);
     }
@@ -1003,18 +1002,18 @@ export function renderReunioesTable() {
     if (!tableBody) return;
 
     if (!meetingGeralTableManager) {
-        meetingGeralTableManager = new TableManager(
-            state.tempReunioes,
-            [
+        meetingGeralTableManager = new TableManager({
+            data: state.tempReunioes,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'participantes', type: 'string' },
                 { key: 'temperatura', type: 'string' }
             ],
-            (data) => renderReunioesTableRows(data),
-            'tab-meetings-geral'
-        );
-        meetingGeralTableManager.paginationContainerId = 'pagination-meetings-geral';
-        meetingGeralTableManager.apply();
+            tableId: 'tab-meetings-geral',
+            pageSize: 10,
+            renderRows: (data) => renderReunioesTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-meetings-geral', s, meetingGeralTableManager),
+        });
     } else {
         meetingGeralTableManager.setData(state.tempReunioes);
     }
@@ -1087,9 +1086,9 @@ export function renderLogTestes() {
     ];
 
     if (!logTableManager) {
-        logTableManager = new TableManager(
-            testesRaw,
-            [
+        logTableManager = new TableManager({
+            data: testesRaw,
+            columns: [
                 { key: 'data', type: 'date' },
                 { key: 'hora', type: 'string' },
                 { key: 'tipo', type: 'string' },
@@ -1097,13 +1096,14 @@ export function renderLogTestes() {
                 { key: 'descricao', type: 'string' },
                 { key: 'status', type: 'string' }
             ],
-            (data) => renderLogTableRows(data),
-            'log-testes'
-        );
-        logTableManager.paginationContainerId = 'pagination-log';
+            tableId: 'log-testes',
+            pageSize: 10,
+            renderRows: (data) => renderLogTableRows(data),
+            renderPagination: (s) => renderPaginationSimples('pagination-log', s, logTableManager),
+        });
+    } else {
+        logTableManager.setData(testesRaw);
     }
-
-    logTableManager.apply();
 }
 
 function renderLogTableRows(data) {
@@ -1152,15 +1152,49 @@ function getDataKey(key) {
     return key.replace(/^(produtos_|contatos_|eml_|db_|nps_|csmt_|meet_|comp_|prod_|adh_)/, '');
 }
 
+// ─── Helper de paginação compartilhado (Fase 4A) ────────────────────────────
+// Renderiza botões de página no containerId usando a API do TableManager v2.
+// Chamado via renderPagination callback — substituí a paginação interna do v1.
+function renderPaginationSimples(containerId, { currentPage, totalPages }, manager) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!totalPages || totalPages <= 1) { el.innerHTML = ''; return; }
+
+    const maxBtns = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxBtns / 2));
+    let end = Math.min(totalPages, start + maxBtns - 1);
+    if (end - start < maxBtns - 1) start = Math.max(1, end - maxBtns + 1);
+
+    const pages = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+
+    el.innerHTML = `
+        <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''}
+            onclick="getManagerForKeyPagination('${containerId}').goToPage(${currentPage - 1})">
+            <i class="ph ph-caret-left"></i>
+        </button>
+        ${pages.map(i => `
+            <button class="pagination-page ${i === currentPage ? 'active' : ''}"
+                onclick="getManagerForKeyPagination('${containerId}').goToPage(${i})">${i}</button>
+        `).join('')}
+        <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''}
+            onclick="getManagerForKeyPagination('${containerId}').goToPage(${currentPage + 1})">
+            <i class="ph ph-caret-right"></i>
+        </button>
+    `;
+}
+
+// Todos os managers agora são TableManager 2.0 — usam goToPage() em vez de setPage()
 window.getManagerForKeyPagination = function (containerId) {
     if (containerId === 'pagination-companies') return companiesTableManagerV2;
     if (containerId === 'pagination-dashboards') return dashboardTableManager;
     if (containerId === 'pagination-nps') return npsTableManager;
     if (containerId === 'pagination-cs-meetings') return csMeetingTableManager;
     if (containerId === 'pagination-meetings-geral') return meetingGeralTableManager;
+    if (containerId === 'pagination-followup') return followUpTableManager;
     if (containerId === 'pagination-log') return logTableManager;
     if (containerId === 'pagination-email-mon') return window._emlTM;
-    if (containerId === 'pagination-contatos') return getCompanyContactsManager(); // ✅ TM2 contatos
+    if (containerId === 'pagination-contatos') return getCompanyContactsManager();
     return null;
 };
 
