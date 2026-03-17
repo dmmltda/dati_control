@@ -21,6 +21,8 @@
     "test:report": "vitest run --reporter=json --outputFile=test-results.json && node scripts/ingest-test-results.js --input test-results.json --type UNITÁRIO",
     "test:ingest": "node scripts/ingest-test-results.js --input test-results.json --type UNITÁRIO",
     "test:ingest:e2e": "node scripts/ingest-test-results.js --input js/tests/e2e/results/results.json --type E2E",
+    "test:smoke": "playwright test --config=tests/playwright.config.js",
+    "test:smoke:headed": "playwright test --config=tests/playwright.config.js --headed",
     "lint": "eslint js/**/*.js"
   },
   "devDependencies": {
