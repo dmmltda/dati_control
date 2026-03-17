@@ -149,7 +149,7 @@ export function renderCompanyList() {
 
     if (!companiesTableManagerV2) {
         // ✅ TableManager 2.0 — motor primário da tabela de empresas
-        companiesTableManagerV2 = new TableManager2({
+        companiesTableManagerV2 = new TableManager({
             data: state.companies,
             columns: [
                 { key: 'nome', label: 'Empresa', type: 'string', searchable: true, sortable: true },
