@@ -3,8 +3,8 @@
  * Vitest Config — Testes Funcionais (Backend)
  * ============================================================================
  * Ambiente: node (não jsdom — testa endpoints HTTP reais)
- * Setup:    js/tests/functional/setup.js
- * Inclui:   js/tests/functional/**\/*.test.js
+ * Setup:    tests/functional/setup.js
+ * Inclui:   tests/functional/**\/*.test.js
  *
  * Uso: npm run test:functional
  * ============================================================================
@@ -18,10 +18,10 @@ export default defineConfig({
         globals: true,
 
         // Carrega setup antes de cada suíte
-        setupFiles: ['./js/tests/functional/setup.js'],
+        setupFiles: ['./tests/functional/setup.js'],
 
         // Inclui apenas testes funcionais (não unitários!)
-        include: ['js/tests/functional/**/*.test.js'],
+        include: ['tests/functional/**/*.test.js'],
 
         // Timeout generoso pois há I/O real (banco + servidor)
         testTimeout: 15000,

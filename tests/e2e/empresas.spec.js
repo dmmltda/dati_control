@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { login, navegarPara } = require('./helpers/auth');
+const { login, navegarPara } = require('./fixtures/auth-helper');
 
 test.describe('🏢 Empresas — Lista e Filtros', () => {
 

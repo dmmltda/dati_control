@@ -16,7 +16,7 @@ export default defineConfig({
             include: ['js/modules/**/*.js', 'js/core/**/*.js'],
             exclude: ['js/app.js', 'js/modules/log-testes.js']
         },
-        include: ['js/tests/unit/**/*.test.js'],
+        include: ['tests/unit/**/*.test.js'],
         // Reporter padrão: verbose no terminal
         reporter: ['verbose'],
     }

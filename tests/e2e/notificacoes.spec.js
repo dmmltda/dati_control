@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { login } = require('./helpers/auth');
+const { login } = require('./fixtures/auth-helper');
 
 test.describe('🔔 Notificações', () => {
 

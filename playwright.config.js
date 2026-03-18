@@ -14,13 +14,13 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Carrega .env.e2e (variáveis específicas dos testes E2E)
-dotenvConfig({ path: path.join(__dirname, 'js/tests/e2e/.env.e2e') });
+dotenvConfig({ path: path.join(__dirname, 'tests/e2e/.env.e2e') });
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
 const IS_CI    = !!process.env.CI;
 
 export default defineConfig({
-    testDir: './js/tests/e2e',
+    testDir: './tests/e2e',
     testMatch: '**/*.spec.js',
 
     // Cada spec é independente — pode rodar em paralelo
@@ -43,8 +43,8 @@ export default defineConfig({
 
     // ─── Repórteres ──────────────────────────────────────────────────────────
     reporter: [
-        ['html',  { outputFolder: 'js/tests/e2e/report/', open: 'never' }],
-        ['json',  { outputFile:   'js/tests/e2e/results/results.json' }],
+        ['html',  { outputFolder: 'tests/e2e/report/', open: 'never' }],
+        ['json',  { outputFile:   'tests/e2e/results/results.json' }],
         ['line'],
     ],
 
@@ -64,7 +64,7 @@ export default defineConfig({
     },
 
     // ─── Output de artefatos ─────────────────────────────────────────────────
-    outputDir: 'js/tests/e2e/results/',
+    outputDir: 'tests/e2e/results/',
 
     // ─── Projetos ────────────────────────────────────────────────────────────
     projects: [
@@ -74,7 +74,7 @@ export default defineConfig({
             use: {
                 ...devices['Desktop Chrome'],
                 // storageState salvo pelo script de auth (login.setup.js)
-                storageState: 'js/tests/e2e/fixtures/.auth/master.json',
+                storageState: 'tests/e2e/fixtures/.auth/master.json',
             },
             dependencies: ['setup'],
         },
@@ -84,7 +84,7 @@ export default defineConfig({
             name: 'firefox',
             use: {
                 ...devices['Desktop Firefox'],
-                storageState: 'js/tests/e2e/fixtures/.auth/master.json',
+                storageState: 'tests/e2e/fixtures/.auth/master.json',
             },
             dependencies: ['setup'],
         }] : []),

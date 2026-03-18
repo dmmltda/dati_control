@@ -16,13 +16,13 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:module": "playwright test --grep",
-    "test:e2e:report": "playwright show-report js/tests/e2e/report",
+    "test:e2e:report": "playwright show-report tests/e2e/report",
     "test:all": "vitest run && vitest run --config vitest.functional.config.js && playwright test",
     "test:report": "vitest run --reporter=json --outputFile=test-results.json && node scripts/ingest-test-results.js --input test-results.json --type UNITÁRIO",
     "test:ingest": "node scripts/ingest-test-results.js --input test-results.json --type UNITÁRIO",
-    "test:ingest:e2e": "node scripts/ingest-test-results.js --input js/tests/e2e/results/results.json --type E2E",
-    "test:smoke": "playwright test --config=tests/playwright.config.js",
-    "test:smoke:headed": "playwright test --config=tests/playwright.config.js --headed",
+    "test:ingest:e2e": "node scripts/ingest-test-results.js --input tests/e2e/results/results.json --type E2E",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:smoke:headed": "playwright test --grep @smoke --headed",
     "lint": "eslint js/**/*.js"
   },
   "devDependencies": {
