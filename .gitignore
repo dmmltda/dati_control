@@ -45,3 +45,7 @@ tmp/
 .env.*.local
 server/.env
 jira_journey*.pdf
+
+# Playwright auth state (tokens de sessão - nunca commitar)
+tests/e2e/fixtures/.auth/
+tests/e2e/fixtures/.auth/*.json

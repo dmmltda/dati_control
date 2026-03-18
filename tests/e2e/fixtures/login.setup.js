@@ -1,13 +1,10 @@
 /**
  * ============================================================================
  * Setup Global — Login e Seed de Dados para E2E
- * js/tests/e2e/fixtures/login.setup.js
+ * tests/e2e/fixtures/login.setup.js
  * ============================================================================
- * Este arquivo é executado UMA VEZ antes de todos os specs (project 'setup').
+ * Executado UMA VEZ antes de todos os specs (project 'setup').
  * Salva o storageState autenticado para que os specs não precisem fazer login.
- *
- * Playwright usa storageState (cookies + localStorage do Clerk) para manter
- * a sessão entre os testes sem repetir o fluxo de login.
  * ============================================================================
  */
 import { test as setup, expect } from '@playwright/test';
@@ -24,46 +21,64 @@ const AUTH_FILE = path.join(AUTH_DIR, 'master.json');
 setup('autenticar como master e salvar sessão', async ({ page }) => {
     await page.goto('/');
 
-    // Aguarda tela de login aparecer (Clerk renderiza de forma assíncrona)
-    const clerkSignIn = page.locator('.cl-signIn-root, #sign-in-form, [data-clerk-sign-in]');
-    const customLogin = page.locator('#login-screen');
+    // 1. Aguarda o Clerk ou o login customizado aparecer
+    //    (a splash ".screen#app-layout" desaparece antes do Clerk renderizar)
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000); // Clerk é client-side — precisa de um tick extra
 
-    // Espera por um dos dois (Clerk hosted ou login customizado)
-    await Promise.race([
-        clerkSignIn.waitFor({ timeout: 15000 }).catch(() => null),
-        customLogin.waitFor( { timeout: 15000 }).catch(() => null),
-    ]);
+    // 2. Detecta qual fluxo está ativo
+    const clerkEmail    = page.locator('#identifier-field, input[name="identifier"], input[type="email"]');
+    const clerkPassword = page.locator('#password-field, input[type="password"]');
+    const customLogin   = page.locator('#login-screen');
 
-    const isClerk = await clerkSignIn.isVisible().catch(() => false);
+    const clerkVisible  = await clerkEmail.first().isVisible({ timeout: 10000 }).catch(() => false);
+    const customVisible = await customLogin.isVisible({ timeout: 3000 }).catch(() => false);
 
-    if (isClerk) {
-        // ── Fluxo Clerk HostedUI ──────────────────────────────────────────
-        await page.fill('input[name="identifier"], input[type="email"]', USER_MASTER.email);
-        await page.click('button[type="submit"], .cl-formButtonPrimary');
+    if (clerkVisible) {
+        // ── Fluxo Clerk (email + senha na mesma tela, ou em dois passos) ──────
+        console.log('[setup] Clerk detectado — fazendo login...');
 
-        // Clerk tem um step de senha separado
-        const passField = page.locator('input[type="password"]');
-        if (await passField.isVisible({ timeout: 5000 }).catch(() => false)) {
-            await passField.fill(USER_MASTER.password);
+        await clerkEmail.first().fill(USER_MASTER.email);
+
+        // Verifica se senha também já está visível (single-step)
+        const passVisibleNow = await clerkPassword.isVisible({ timeout: 1000 }).catch(() => false);
+
+        if (!passVisibleNow) {
+            // Two-step: clica em "Continue" para avançar ao passo de senha
+            await page.click('button[type="submit"], .cl-formButtonPrimary').catch(() => {});
+            await clerkPassword.waitFor({ timeout: 8000 }).catch(() => {});
+        }
+
+        const passVisible = await clerkPassword.isVisible({ timeout: 5000 }).catch(() => false);
+        if (passVisible) {
+            await clerkPassword.fill(USER_MASTER.password);
             await page.click('button[type="submit"], .cl-formButtonPrimary');
         }
 
-    } else {
-        // ── Fluxo login customizado (TEST_MODE) ───────────────────────────
-        // Em TEST_MODE o servidor aceita qualquer token — simulamos login
+    } else if (customVisible) {
+        // ── Fluxo login customizado (TEST_MODE) ───────────────────────────────
+        console.log('[setup] Login customizado detectado — injetando sessão...');
         await page.evaluate((email) => {
-            // Injeta diretamente no storage para simular a sessão
             localStorage.setItem('__e2e_user_email', email);
             localStorage.setItem('__e2e_user_type', 'master');
         }, USER_MASTER.email);
+
+        // Recarrega para que o app leia o localStorage e inicialize autenticado
+        await page.reload({ waitUntil: 'networkidle' });
+        await page.waitForTimeout(1500); // tick extra para hydration do app
+
+    } else {
+        // ── Já logado? Verifica se o app está visível ─────────────────────────
+        console.log('[setup] Nenhum form de login encontrado — talvez já esteja logado');
     }
 
-    // Aguarda o app carregar (app-layout visível = login OK)
-    await expect(page.locator('#app-layout, .app-shell, [data-testid="app-layout"]'))
-        .toBeVisible({ timeout: 20000 });
+    // 3. Aguarda o app carregar após o login
+    //    O sidebar com links [data-view] é o sinal mais confiável de sessão ativa
+    await expect(
+        page.locator('[data-view="dashboard"], [data-view="company-list"], #sidebar').first()
+    ).toBeVisible({ timeout: 30000 });
 
-    // Salva o storageState (cookies + localStorage + sessionStorage)
+    // 4. Salva o storageState (cookies + localStorage + sessionStorage)
     await page.context().storageState({ path: AUTH_FILE });
-
     console.log(`[setup] ✅ Sessão master salva em ${AUTH_FILE}`);
 });

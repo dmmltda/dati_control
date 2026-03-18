@@ -14,6 +14,17 @@ let _bootstrapped = false;
 let _pollInterval = null;
 
 export async function initClerk() {
+    // ── Bypass E2E ─────────────────────────────────────────────────────────────
+    // Se o Playwright injetou __e2e_user_email no localStorage, pula o Clerk
+    // e autentica diretamente via token de teste (aceito pelo servidor em TEST_MODE).
+    const _e2eEmail = localStorage.getItem('__e2e_user_email');
+    if (_e2eEmail) {
+        console.log('[Auth] Modo E2E detectado — bypass Clerk para:', _e2eEmail);
+        await _bootstrapAppE2E(_e2eEmail);
+        return;
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
     const publishableKey = window.__clerk_publishable_key;
 
     if (!publishableKey || publishableKey.startsWith('COLE_')) {
@@ -203,8 +214,90 @@ export async function handleLogout() {
 }
 
 export async function getAuthToken() {
+    // Modo E2E: retorna token fixo aceito pelo servidor em TEST_MODE
+    if (window.__e2e_token) return window.__e2e_token;
     if (!_clerk?.session) return null;
     return _clerk.session.getToken();
+}
+
+/**
+ * Bootstrap para ambiente E2E — bypassa o Clerk completamente.
+ * Usa o token fixo 'test-token-e2e' aceito pelo servidor quando TEST_MODE=true.
+ * NUNCA deve ser chamado em produção (só ativo se __e2e_user_email existir).
+ */
+async function _bootstrapAppE2E(email) {
+    if (_bootstrapping || _bootstrapped) return;
+    _bootstrapping = true;
+
+    const E2E_TOKEN = 'test-token-e2e';
+
+    // Expõe token E2E para o módulo api.js via mesmo slot que o Clerk usa
+    window.__e2e_token = E2E_TOKEN;
+
+    try {
+        const res = await fetch('/api/me', {
+            headers: { Authorization: `Bearer ${E2E_TOKEN}` }
+        });
+
+        if (!res.ok) {
+            console.error('[Auth E2E] /api/me falhou:', res.status);
+            _bootstrapping = false;
+            return;
+        }
+
+        const me = await res.json();
+        window.__usuarioAtual = me;
+
+        window.canDo = function(permissionKey) {
+            const u = window.__usuarioAtual;
+            if (!u) return false;
+            if ((u.user_type || '').toLowerCase() === 'master') return true;
+            return Array.isArray(u.feature_permissions) && u.feature_permissions.includes(permissionKey);
+        };
+
+        console.log(`[Auth E2E] ✅ Usuário E2E: ${me.nome || email} (${me.user_type})`);
+
+        // Atualiza sidebar
+        const elNome   = document.getElementById('sidebar-user-name');
+        const elRole   = document.getElementById('sidebar-user-role');
+        const elAvatar = document.getElementById('sidebar-user-avatar');
+        if (elNome)   elNome.textContent   = me.nome || email;
+        if (elRole)   elRole.textContent   = me.user_type === 'master' ? 'Master' : 'Standard';
+        if (elAvatar) elAvatar.textContent = me.nome
+            ? me.nome.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+            : 'E2';
+
+        if (me.user_type === 'master') {
+            document.getElementById('nav-group-config')?.style && (document.getElementById('nav-group-config').style.display = 'block');
+            document.getElementById('nav-label-config')?.style && (document.getElementById('nav-label-config').style.display = 'flex');
+            document.getElementById('nav-group-config-flat')?.style && (document.getElementById('nav-group-config-flat').style.display = 'block');
+        }
+
+        _aplicarPermissoesNavegacao(me);
+
+        try {
+            localStorage.removeItem('dati_control_companies');
+            const companies = await api.getCompanies();
+            state.companies = companies;
+            localStorage.setItem('dati_control_companies', JSON.stringify(companies));
+        } catch (err) {
+            console.warn('[Auth E2E] Erro ao carregar empresas:', err.message);
+        }
+
+        document.getElementById('login-screen')?.classList.remove('flex-active');
+        document.getElementById('app-layout')?.classList.add('flex-active');
+
+        try { renderDashboard(); } catch (e) { console.warn('[Auth E2E] renderDashboard:', e); }
+        try { renderCompanyList(); } catch (e) { console.warn('[Auth E2E] renderCompanyList:', e); }
+
+        _bootstrapped = true;
+        document.dispatchEvent(new CustomEvent('dati:app-ready'));
+        console.log('[Auth E2E] ✅ Bootstrap E2E completo!');
+
+    } catch (err) {
+        console.error('[Auth E2E] Erro crítico:', err);
+        _bootstrapping = false;
+    }
 }
 
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
