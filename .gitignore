@@ -44,3 +44,4 @@ tmp/
 .env.local
 .env.*.local
 server/.env
+jira_journey*.pdf
