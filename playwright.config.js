@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Carrega .env.e2e (variáveis específicas dos testes E2E)
 dotenvConfig({ path: path.join(__dirname, 'tests/e2e/.env.e2e') });
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.BASE_URL || 'https://unnephritic-spirituously-davion.ngrok-free.dev';
 const IS_CI    = !!process.env.CI;
 
 export default defineConfig({
@@ -54,6 +54,11 @@ export default defineConfig({
         screenshot: 'only-on-failure',
         video:      'retain-on-failure',
         trace:      'on-first-retry',
+
+        // Bypass da tela de aviso do ngrok free tier
+        extraHTTPHeaders: {
+            'ngrok-skip-browser-warning': '1',
+        },
 
         // Viewport padrão desktop
         viewport: { width: 1440, height: 900 },
@@ -100,16 +105,19 @@ export default defineConfig({
     ],
 
     // ─── Web Server ──────────────────────────────────────────────────────────
-    webServer: {
-        command: 'node server/index.js',
-        url:     BASE_URL,
-        reuseExistingServer: true,   // sempre reaproveita o servidor local rodando
-        timeout: 30000,
-        env: {
-            PORT:         String(new URL(BASE_URL).port || '3001'),
-            NODE_ENV:     'test',
-            TEST_MODE:    'true',  // bypassa Clerk JWT nos testes
-            DATABASE_URL: process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || '',
+    // Só sobe servidor local se BASE_URL for localhost (não ngrok/produção)
+    ...(BASE_URL.includes('localhost') ? {
+        webServer: {
+            command: 'node index.js',
+            url:     BASE_URL,
+            reuseExistingServer: true,
+            timeout: 30000,
+            env: {
+                PORT:         String(new URL(BASE_URL).port || '8000'),
+                NODE_ENV:     'test',
+                TEST_MODE:    'true',
+                DATABASE_URL: process.env.DATABASE_URL_TEST || process.env.DATABASE_URL || '',
+            },
         },
-    },
+    } : {}),
 });

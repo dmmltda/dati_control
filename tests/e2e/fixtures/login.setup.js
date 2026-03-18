@@ -40,7 +40,6 @@ setup('autenticar como master e salvar sessão', async ({ page }) => {
         // ── Fluxo Clerk HostedUI ──────────────────────────────────────────
         await page.fill('input[name="identifier"], input[type="email"]', USER_MASTER.email);
         await page.click('button[type="submit"], .cl-formButtonPrimary');
-        await page.waitForTimeout(1000);
 
         // Clerk tem um step de senha separado
         const passField = page.locator('input[type="password"]');

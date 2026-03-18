@@ -16,7 +16,7 @@ test.describe('LOG — Tab Log Testes', () => {
         const logTestesTab = page.locator('button:has-text("Log Testes"), .cs-submenu-btn:has-text("Log")').first();
         if (await logTestesTab.isVisible({ timeout: 3000 }).catch(() => false)) {
             await logTestesTab.click();
-            await page.waitForTimeout(500);
+            await page.locator('#log-testes, .cs-submenu-btn.active').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
         }
     });
 
@@ -38,7 +38,6 @@ test.describe('LOG — Tab Log Testes', () => {
         const searchInput = page.locator('#log-search-global').first();
         await expect(searchInput).toBeVisible({ timeout: 5000 });
         await searchInput.fill('UNITÁRIO');
-        await page.waitForTimeout(500);
         // Não deve lançar erro
         const hasError = await page.locator('.error-message', { hasText: /erro/i }).isVisible().catch(() => false);
         expect(hasError).toBe(false);
@@ -49,7 +48,6 @@ test.describe('LOG — Tab Log Testes', () => {
         const searchInput = page.locator('#log-search-global').first();
         if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
             await searchInput.fill('algo');
-            await page.waitForTimeout(300);
 
             const clearBtn = page.locator('#btn-clear-log-filters');
             await expect(clearBtn).toBeVisible({ timeout: 3000 });
@@ -92,9 +90,8 @@ test.describe('LOG — Tab Agendamento', () => {
         const agendTab = page.locator('button:has-text("Agendamento"), .cs-submenu-btn:has-text("Agendamento")').first();
         if (await agendTab.isVisible({ timeout: 3000 }).catch(() => false)) {
             await agendTab.click();
-            await page.waitForTimeout(800); // aguarda carregar dados da API
             const panel = page.locator('#log-agendamento');
-            await expect(panel).toBeVisible({ timeout: 5000 });
+            await expect(panel).toBeVisible({ timeout: 8000 });
         } else {
             test.skip(true, 'Aba Agendamento não encontrada');
         }
@@ -107,7 +104,6 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500); // aguarda loadScheduleConfig()
 
         const form = page.locator('#sched-form');
         await expect(form).toBeVisible({ timeout: 8000 });
@@ -124,10 +120,9 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500);
 
         const freqSelect = page.locator('#sched-frequency');
-        await expect(freqSelect).toBeVisible({ timeout: 5000 });
+        await expect(freqSelect).toBeVisible({ timeout: 8000 });
 
         const options = await freqSelect.locator('option').allTextContents();
         expect(options).toContain('Manual');
@@ -142,11 +137,10 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500);
 
         const freqSelect = page.locator('#sched-frequency');
+        await freqSelect.waitFor({ state: 'visible', timeout: 8000 });
         await freqSelect.selectOption('semanal');
-        await page.waitForTimeout(300);
 
         const weekdayRow = page.locator('#sched-weekday-row');
         await expect(weekdayRow).toBeVisible({ timeout: 3000 });
@@ -159,10 +153,9 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500);
 
         const runBtn = page.locator('#btn-run-now');
-        await expect(runBtn).toBeVisible({ timeout: 5000 });
+        await expect(runBtn).toBeVisible({ timeout: 8000 });
         await expect(runBtn).toContainText(/Executar/i);
     });
 
@@ -173,10 +166,9 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500);
 
         const nextRun = page.locator('#sched-next-run');
-        await expect(nextRun).toBeVisible({ timeout: 5000 });
+        await expect(nextRun).toBeVisible({ timeout: 8000 });
     });
 
     test('salvar configuração chama API e exibe feedback', async ({ page }) => {
@@ -186,7 +178,6 @@ test.describe('LOG — Tab Agendamento', () => {
             return;
         }
         await agendTab.click();
-        await page.waitForTimeout(1500);
 
         // Intercept API
         const [response] = await Promise.all([

@@ -106,8 +106,8 @@ export async function goToNewCompany(page) {
 export async function openCompanyByName(page, nome) {
     await goToCompanyList(page);
     await page.fill('#search-empresa', nome);
-    await page.waitForTimeout(500); // debounce da busca
     const link = page.locator('#company-table-body').getByText(nome).first();
+    await link.waitFor({ state: 'visible', timeout: 8000 });
     await link.click();
     await expect(page.locator('#view-company-form')).toBeVisible({ timeout: 8000 });
 }
@@ -148,5 +148,75 @@ export async function goToLog(page) {
  */
 export async function goToDashboard(page) {
     await page.click('[data-view="dashboard"], [data-view="home"]');
-    await page.waitForTimeout(500);
+    await expect(page.locator('#view-dashboard, #view-home, [id^="view-dash"]').first()).toBeVisible({ timeout: 8000 }).catch(() => {});
+}
+
+/**
+ * Navega para Configurações — Usuários.
+ */
+export async function goToConfigUsuarios(page) {
+    await page.click('[data-view="config-usuarios"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Navega para Configurações — Gabi IA.
+ */
+export async function goToConfigGabi(page) {
+    await page.click('[data-view="config-gabi"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Navega para o painel de Notificações (abre dropdown do sino).
+ * Nota: notificações não têm view própria — ficam na topbar.
+ * Esta função apenas garante que o app está carregado.
+ */
+export async function goToNotificacoes(page) {
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('#app-layout, .app-shell, [data-testid="app-layout"]').first())
+        .toBeVisible({ timeout: 8000 });
+}
+
+/**
+ * Navega para o WhatsApp Inbox.
+ */
+export async function goToWhatsApp(page) {
+    await page.click('[data-view="whatsapp-inbox"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Navega para Configurações WhatsApp.
+ */
+export async function goToSettingsWhatsApp(page) {
+    await page.click('[data-view="settings-whatsapp"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Navega para Audit Log (Histórico de Alterações).
+ */
+export async function goToAuditLog(page) {
+    await page.click('[data-view="audit-log"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Navega para Relatórios.
+ */
+export async function goToReports(page) {
+    await page.click('[data-view="reports"]');
+    await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Helper genérico de navegação — replica auth-helper.navegarPara().
+ * Clica em [data-view="<view>"] e aguarda networkidle.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} dataView  — valor do atributo data-view
+ */
+export async function navegarPara(page, dataView) {
+    await page.click(`[data-view="${dataView}"]`);
+    await page.waitForLoadState('networkidle');
 }

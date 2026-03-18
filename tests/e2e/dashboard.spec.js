@@ -52,7 +52,7 @@ test.describe('Dashboard — métricas e visualizações', () => {
 
         await page.reload();
         await goToDashboard(page);
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState('networkidle');
 
         // Permite erros de rede em testes (ex: Clerk mock), mas não de JS
         const criticalErrors = errors.filter(e =>

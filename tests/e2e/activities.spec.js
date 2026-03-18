@@ -16,7 +16,6 @@ async function openActivitiesTab(page, testCompany) {
     const searchInput = page.locator('#search-empresa').first();
     if (testCompany?.nome && await searchInput.isVisible().catch(() => false)) {
         await searchInput.fill(testCompany.nome);
-        await page.waitForTimeout(600);
     }
 
     const row = page.locator('#company-table-body').getByText(testCompany?.nome || '').first();
@@ -30,7 +29,7 @@ async function openActivitiesTab(page, testCompany) {
     const actTab = page.locator('[data-tab="tab-atividades"], #btn-tab-atividades, button:has-text("Atividade")').first();
     if (await actTab.isVisible({ timeout: 3000 }).catch(() => false)) {
         await actTab.click();
-        await page.waitForTimeout(500);
+        await expect(page.locator('#tab-atividades, .atividades-container, [id*="atividades"]').first()).toBeVisible({ timeout: 5000 }).catch(() => {});
         return true;
     }
     return false;
@@ -68,7 +67,6 @@ test.describe('Atividades — CRUD', () => {
             return;
         }
         await addBtn.click();
-        await page.waitForTimeout(500);
 
         // Modal de atividade
         const modal = page.locator('#atividade-modal, .atividade-form, [id*="atividade"]').first();
@@ -88,7 +86,6 @@ test.describe('Atividades — CRUD', () => {
 
         // Salva
         await page.click('#btn-salvar-atividade, button:has-text("Salvar")').catch(() => {});
-        await page.waitForTimeout(600);
 
         // Verifica na lista de atividades
         const list = page.locator('.atividades-list, #atividades-list, [class*="atividade"]').first();
@@ -103,7 +100,6 @@ test.describe('Atividades — CRUD', () => {
         const filterTipo = page.locator('#filter-tipo-atividade, select[id*="tipo"]').first();
         if (await filterTipo.isVisible({ timeout: 3000 }).catch(() => false)) {
             await filterTipo.selectOption('Reunião');
-            await page.waitForTimeout(500);
             // Verifica que o filtro foi aplicado sem erros
             const hasError = await page.locator('.error-message, [class*="error"]').isVisible().catch(() => false);
             expect(hasError).toBe(false);
@@ -124,7 +120,6 @@ test.describe('Atividades — CRUD', () => {
 
         if (await completeBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await completeBtn.click();
-            await page.waitForTimeout(500);
             // Deve mostrar feedback visual (ícone, cor, badge)
             const feedback = page.locator('.atividade-concluida, [data-status="Concluída"], .status-concluida').first();
             const hasFeedback = await feedback.isVisible({ timeout: 3000 }).catch(() => false);

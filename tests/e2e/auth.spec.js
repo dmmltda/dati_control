@@ -25,7 +25,7 @@ test.describe('Autenticação — tela de login', () => {
     });
 
     test('app-layout não está visível antes do login', async ({ page }) => {
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState('networkidle');
         const appLayout = page.locator('#app-layout');
         const visible = await appLayout.isVisible().catch(() => false);
         expect(visible).toBe(false);
@@ -80,7 +80,7 @@ test.describe('Autenticação — feedback de erros', () => {
             await submitBtn.click();
         }
 
-        await page.waitForTimeout(2000);
+        await page.waitForLoadState('networkidle');
         const appVisible = await page.locator('#app-layout').isVisible().catch(() => false);
         expect(appVisible).toBe(false);
     });
@@ -99,12 +99,12 @@ test.describe('Autenticação — logout', () => {
         const userAvatar = page.locator('#user-avatar, .cl-userButtonTrigger').first();
         if (await userAvatar.isVisible({ timeout: 2000 }).catch(() => false)) {
             await userAvatar.click();
-            await page.waitForTimeout(500);
+            await page.waitForSelector('#btn-logout, .cl-userButtonPopoverActionButton__signOut', { state: 'visible', timeout: 3000 }).catch(() => {});
         }
 
         if (await logoutBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await logoutBtn.click();
-            await page.waitForTimeout(2000);
+            await page.waitForLoadState('networkidle');
 
             // App-layout não deve mais estar visível
             const appVisible = await page.locator('#app-layout').isVisible().catch(() => false);

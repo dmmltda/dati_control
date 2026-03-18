@@ -27,7 +27,6 @@ test.describe('Lista de Empresas', () => {
         const searchInput = page.locator('#search-empresa, input[placeholder*="pesquisar"], input[placeholder*="buscar"]').first();
         await expect(searchInput).toBeVisible();
         await searchInput.fill('xxxxxxxxxxx_inexistente');
-        await page.waitForTimeout(600); // debounce
         // Tabela deve estar vazia ou mostrar "nenhum resultado"
         const rows = page.locator('#company-table-body tr, .company-table tbody tr');
         const count = await rows.count();
@@ -41,7 +40,6 @@ test.describe('Lista de Empresas', () => {
         const filterStatus = page.locator('#filter-status, select[id*="status"]').first();
         if (await filterStatus.isVisible({ timeout: 3000 }).catch(() => false)) {
             await filterStatus.selectOption('Prospect');
-            await page.waitForTimeout(500);
             // Todas as linhas visíveis devem ser Prospect (ou nenhuma)
             const rows = await page.locator('#company-table-body tr:not(.empty-row)').all();
             for (const row of rows.slice(0, 5)) {
@@ -120,7 +118,6 @@ test.describe('Criar Empresa', () => {
         const search = page.locator('#search-empresa').first();
         if (await search.isVisible().catch(() => false)) {
             await search.fill(EMPRESA_VALIDA.nome);
-            await page.waitForTimeout(600);
         }
         await expect(page.locator('#company-table-body')).toContainText(EMPRESA_VALIDA.nome, { timeout: 8000 });
     });
@@ -137,7 +134,6 @@ test.describe('Editar e Deletar Empresa', () => {
         const searchInput = page.locator('#search-empresa').first();
         if (testCompany?.nome && await searchInput.isVisible().catch(() => false)) {
             await searchInput.fill(testCompany.nome);
-            await page.waitForTimeout(600);
         }
 
         // Clica na empresa (link ou botão edit)

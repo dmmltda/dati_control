@@ -19,7 +19,6 @@ test.describe('Detalhe da Empresa — Abas', () => {
         const searchInput = page.locator('#search-empresa').first();
         if (testCompany?.nome && await searchInput.isVisible().catch(() => false)) {
             await searchInput.fill(testCompany.nome);
-            await page.waitForTimeout(600);
         }
 
         const row = page.locator('#company-table-body').getByText(testCompany?.nome || '').first();
@@ -39,13 +38,11 @@ test.describe('Detalhe da Empresa — Abas', () => {
 
     test('aba Contatos abre sem erro', async ({ page }) => {
         await page.click('[data-tab="tab-contatos"], #btn-tab-contatos');
-        await page.waitForTimeout(500);
         await expect(page.locator('#tab-contatos')).toHaveClass(/active/);
     });
 
     test('aba Produtos abre sem erro', async ({ page }) => {
         await page.click('[data-tab="tab-produtos"], #btn-tab-produtos');
-        await page.waitForTimeout(500);
         await expect(page.locator('#tab-produtos')).toHaveClass(/active/);
     });
 });
@@ -60,7 +57,6 @@ test.describe('Contatos — adicionar', () => {
         const searchInput = page.locator('#search-empresa').first();
         if (testCompany?.nome && await searchInput.isVisible().catch(() => false)) {
             await searchInput.fill(testCompany.nome);
-            await page.waitForTimeout(600);
         }
 
         const row = page.locator('#company-table-body').getByText(testCompany?.nome || '').first();
@@ -75,7 +71,6 @@ test.describe('Contatos — adicionar', () => {
         const addContactBtn = page.locator('#btn-toggle-contact-form, #btn-add-contato, [data-action="add-contact"]').first();
         if (await addContactBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await addContactBtn.click();
-            await page.waitForTimeout(300);
 
             // Preencher
             await page.fill('#new-cont-nome, input[name="contato_nome"]', CONTATO_VALIDO.nome).catch(() => {});
@@ -84,7 +79,6 @@ test.describe('Contatos — adicionar', () => {
 
             // Salvar
             await page.click('#btn-save-contact, button:has-text("Salvar Contato")').catch(() => {});
-            await page.waitForTimeout(500);
 
             // Verificar na tabela
             const contatos = page.locator('#contatos-table-body, .contatos-list');
@@ -105,7 +99,6 @@ test.describe('Produtos — adicionar', () => {
         const searchInput = page.locator('#search-empresa').first();
         if (testCompany?.nome && await searchInput.isVisible().catch(() => false)) {
             await searchInput.fill(testCompany.nome);
-            await page.waitForTimeout(600);
         }
 
         const row = page.locator('#company-table-body').getByText(testCompany?.nome || '').first();
@@ -119,7 +112,6 @@ test.describe('Produtos — adicionar', () => {
         const addBtn = page.locator('#btn-add-produto, [data-action="add-product"], button:has-text("Produto")').first();
         if (await addBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
             await addBtn.click();
-            await page.waitForTimeout(500);
 
             // Preencher produto
             const prodSelect = page.locator('#prod-nome, select[name="produto"]').first();
@@ -132,7 +124,6 @@ test.describe('Produtos — adicionar', () => {
             await page.fill('#prod-valor-unit, input[name="valor_unitario"]', PRODUTO_VALIDO.valorUnitario).catch(() => {});
             await page.fill('#prod-qtd-usuarios, input[name="qtd_usuarios"]', PRODUTO_VALIDO.qtdUsuarios).catch(() => {});
             await page.click('#btn-save-produto, button:has-text("Salvar")').catch(() => {});
-            await page.waitForTimeout(500);
 
             // Produto deve aparecer na lista
             const produtos = page.locator('#produtos-table-body, .produtos-list, [id*="produto"]');

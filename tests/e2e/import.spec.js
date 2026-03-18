@@ -76,7 +76,6 @@ test.describe('Import — Upload de Arquivo', () => {
             await fileInput.count().then(c => c > 0)) {
 
             await fileInput.setInputFiles(csvPath);
-            await page.waitForTimeout(1000);
 
             // Deve mostrar preview ou próximo passo
             const preview = page.locator('.import-preview, .import-step-2, #upload-result, [class*="preview"]').first();

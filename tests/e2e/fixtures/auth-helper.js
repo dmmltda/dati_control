@@ -1,4 +1,10 @@
+/**
+ * @deprecated — Substituído por fixtures/base.js (ESM).
+ * Use: import { navegarPara } from './fixtures/base.js';
+ * Mantido apenas para compatibilidade com specs legados durante transição.
+ */
 // Helper compartilhado de autenticação
+
 const BASE_URL = process.env.BASE_URL || 'https://unnephritic-spirituously-davion.ngrok-free.dev';
 const TEST_EMAIL = process.env.TEST_EMAIL || 'teste@dati.com';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'senha-teste';
